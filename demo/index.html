@@ -161,8 +161,10 @@
       log(`${label}, block ${rc.blockNumber}, gas ${rc.gasUsed}`, 'ok');
       return true;
     } catch (e) {
-      const errName = e.revert && e.revert.name ? e.revert.name : null;
-      const reason = errName ? `${errName}(${(e.revert.args || []).join(',')})` : (e.shortMessage || e.reason || e.message);
+      const data = e.data || (e.info && e.info.error && e.info.error.data) || (e.error && e.error.data) || '';
+      const NOT_TRUSTED = ethers.id('AgentNotTrusted(uint256)').slice(0, 10);
+      const errName = (e.revert && e.revert.name) || (typeof data === 'string' && data.startsWith(NOT_TRUSTED) ? 'AgentNotTrusted' : null);
+      const reason = errName ? `${errName}(agent ${cfg.agentId})` : (e.shortMessage || e.reason || e.message);
       log(`${label}, reverted on chain: ${reason}`, 'bad');
       if (label === 'agent trade') { refusedCount++; $('lastTrade').textContent = errName === 'AgentNotTrusted' ? 'refused on chain, AgentNotTrusted' : reason.slice(0, 40); }
       return false;
