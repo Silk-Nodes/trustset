@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>operator trust network, local demo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#0a0d07;--panel:#11150c;--line:rgba(240,236,227,.12);--text:#f0ece3;--muted:rgba(240,236,227,.6);--lime:#B1FC03;--orange:#e0795a;--dim:#7d8a55;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.45}
+  header{display:flex;align-items:center;gap:14px;padding:18px 28px;border-bottom:1px solid var(--line)}
+  header .mark{width:34px;height:34px;border-radius:8px;background:var(--lime);display:grid;place-items:center}
+  header h1{margin:0;font-size:16px;font-weight:600;letter-spacing:.2px}
+  header .sub{color:var(--muted);font-size:13px;margin-left:auto;font-family:var(--mono)}
+  main{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:22px 28px;max-width:1240px;margin:0 auto}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+  section h2{margin:0;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--lime);font-weight:600}
+  .big{font-family:var(--mono);font-size:40px;font-weight:600;letter-spacing:-1px;line-height:1}
+  .big.ok{color:var(--lime)} .big.bad{color:var(--orange)}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--line);font-family:var(--mono);font-size:13px}
+  .row span:first-child{color:var(--muted)}
+  .addr{font-family:var(--mono);font-size:12px;color:var(--muted);word-break:break-all}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
+  button{font:inherit;font-size:13px;font-weight:600;padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer;white-space:nowrap}
+  button.primary{background:var(--lime);color:#101208;border-color:var(--lime)}
+  button.danger{border-color:var(--orange);color:var(--orange)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  .log{grid-column:1/-1;font-family:var(--mono);font-size:12.5px;max-height:280px;overflow:auto}
+  .log div{padding:6px 0;border-top:1px solid var(--line)}
+  .log .t{color:var(--muted);margin-right:10px}
+  .log .ok{color:var(--lime)} .log .bad{color:var(--orange)}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-family:var(--mono);font-size:11px;border:1px solid var(--line)}
+  .pill.on{border-color:var(--lime);color:var(--lime)} .pill.off{border-color:var(--orange);color:var(--orange)}
+  @media (max-width:820px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="mark"><svg width="22" height="22" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6.5"><path d="M9 9 L22 24 L9 39" stroke="#101208"/><path d="M39 9 L26 24 L39 39" stroke="#101208" opacity="0.45"/></svg></div>
+  <h1>operator trust network, local demo</h1>
+  <div class="sub" id="chain">connecting to anvil</div>
+</header>
+<main>
+  <section>
+    <h2>agent</h2>
+    <div class="big" id="agentStatus">…</div>
+    <div class="addr" id="agentKey"></div>
+    <div class="row"><span>agent id</span><span id="agentId"></span></div>
+    <div class="row"><span>status since</span><span id="since"></span></div>
+    <div class="row"><span>guardians</span><span>2 operators, threshold 2</span></div>
+    <div class="btns">
+      <button class="primary" id="btnTrade">agent trades on venue</button>
+      <button id="btnAuto">auto trade every 2s</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>venue, on chain check per trade</h2>
+    <div class="row"><span>accepted</span><span id="accepted">0</span></div>
+    <div class="row"><span>refused, reverted</span><span id="refused">0</span></div>
+    <div class="row"><span>last result</span><span id="lastTrade">none</span></div>
+    <p class="addr" style="margin:0">the venue calls <code>isTrusted(agentId)</code> on the kill switch inside the trade transaction. a revoked agent's trade reverts on chain, no off chain list, no api.</p>
+  </section>
+
+  <section>
+    <h2>owner, cold revocation key</h2>
+    <div class="addr" id="owner"></div>
+    <div class="btns">
+      <button id="btnPause">pause</button>
+      <button id="btnResume">resume</button>
+      <button class="danger" id="btnRevoke">revoke, terminal</button>
+    </div>
+    <p class="addr" style="margin:0">only the revocation key can change status. guardians can pause with a 2 of 2 vote and escalate to revoke after 3 days of owner silence.</p>
+    <div class="btns">
+      <button id="btnG1">guardian 1 votes pause</button>
+      <button id="btnG2">guardian 2 votes pause</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>operators, validators with bonds</h2>
+    <div class="row"><span>operator 1, validator 7</span><span id="op1"></span></div>
+    <div class="row"><span>operator 2, validator 9</span><span id="op2"></span></div>
+    <div class="row"><span>revocation notice</span><span id="notice">not verified</span></div>
+    <div class="row"><span>signers, bond behind notice</span><span id="noticeResult">…</span></div>
+    <div class="btns">
+      <button class="primary" id="btnVerify">verify aggregate bls signature</button>
+    </div>
+    <p class="addr" style="margin:0">both operators signed the notice "agent revoked" offline with bls keys. the registry aggregates their public keys with g1 additions and runs one pairing on the eip-2537 precompiles. the notice only verifies once the agent is actually revoked and both operators are still active in the consensus set.</p>
+  </section>
+
+  <section class="log"><h2>log</h2><div id="log"></div></section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+<script>
+(async () => {
+  const cfg = await (await fetch('config.json', {cache: 'no-store'})).json();
+  const provider = new ethers.JsonRpcProvider('http://127.0.0.1:8545');
+  const owner = new ethers.Wallet(cfg.ownerKey, provider);
+  const agent = new ethers.Wallet(cfg.agentPrivKey, provider);
+  const auth1 = new ethers.Wallet(cfg.auth1Key, provider);
+  const auth2 = new ethers.Wallet(cfg.auth2Key, provider);
+
+  const ksAbi = [
+    'function isTrusted(uint256) view returns (bool)',
+    'function getAgent(uint256) view returns (tuple(address agentKey,address revocationKey,address pendingRevocationKey,uint64 revocationKeyChangeAt,uint8 guardianThreshold,uint8 status,uint64 statusSince,uint256 successorId,bytes32 reasonHash,address[] guardians))',
+    'function setStatus(uint256,uint8,bytes32)',
+    'function guardianPause(uint256)',
+  ];
+  const venueAbi = ['function trade(uint256)', 'function trades() view returns (uint256)', 'error AgentNotTrusted(uint256 agentId)'];
+  let refusedCount = 0; // a refused trade reverts, so the venue's own counter rolls back; count refusals here
+  const regAbi = [
+    'function getOperator(uint256) view returns (tuple(uint64 validatorId,address authAddress,uint8 duties,uint64 registeredEpoch,uint64 lastHeartbeatEpoch,uint64 exitRequestedEpoch,uint256 bond,bool slashed,bytes blsPubkey))',
+    'function verifyAggregate(uint8,bytes32,uint256,bytes) returns (uint256,uint256)',
+  ];
+  const ks = new ethers.Contract(cfg.killSwitch, ksAbi, provider);
+  const venue = new ethers.Contract(cfg.venue, venueAbi, provider);
+  const reg = new ethers.Contract(cfg.registry, regAbi, provider);
+  const id = BigInt(cfg.agentId);
+  const STATUS = ['none', 'active', 'paused', 'revoked', 'rotated'];
+
+  const $ = s => document.getElementById(s);
+  $('agentKey').textContent = 'agent key ' + cfg.agentKey;
+  $('owner').textContent = 'revocation key ' + cfg.owner;
+  $('agentId').textContent = cfg.agentId;
+
+  function log(msg, cls) {
+    const d = document.createElement('div');
+    const t = new Date().toLocaleTimeString();
+    d.innerHTML = `<span class="t">${t}</span><span class="${cls || ''}">${msg}</span>`;
+    $('log').prepend(d);
+  }
+
+  async function refresh() {
+    try {
+      const [net, a, trades, o1, o2] = await Promise.all([
+        provider.getBlockNumber(), ks.getAgent(id), venue.trades(), reg.getOperator(1), reg.getOperator(2)
+      ]);
+      $('chain').textContent = `anvil chain 31337, block ${net}`;
+      const st = STATUS[Number(a.status)];
+      const el = $('agentStatus');
+      el.textContent = st;
+      el.className = 'big ' + (st === 'active' ? 'ok' : 'bad');
+      $('since').textContent = new Date(Number(a.statusSince) * 1000).toLocaleTimeString();
+      $('accepted').textContent = trades.toString();
+      $('refused').textContent = String(refusedCount);
+      $('op1').innerHTML = `bond ${ethers.formatEther(o1.bond)} MON <span class="pill ${o1.slashed ? 'off' : 'on'}">${o1.slashed ? 'slashed' : 'active'}</span>`;
+      $('op2').innerHTML = `bond ${ethers.formatEther(o2.bond)} MON <span class="pill ${o2.slashed ? 'off' : 'on'}">${o2.slashed ? 'slashed' : 'active'}</span>`;
+      const terminal = st === 'revoked' || st === 'rotated';
+      $('btnRevoke').disabled = terminal; $('btnPause').disabled = terminal; $('btnResume').disabled = terminal;
+    } catch (e) { $('chain').textContent = 'anvil not reachable: ' + e.message; }
+  }
+
+  async function send(label, fn) {
+    try {
+      const tx = await fn();
+      const rc = await tx.wait();
+      log(`${label}, block ${rc.blockNumber}, gas ${rc.gasUsed}`, 'ok');
+      return true;
+    } catch (e) {
+      const errName = e.revert && e.revert.name ? e.revert.name : null;
+      const reason = errName ? `${errName}(${(e.revert.args || []).join(',')})` : (e.shortMessage || e.reason || e.message);
+      log(`${label}, reverted on chain: ${reason}`, 'bad');
+      if (label === 'agent trade') { refusedCount++; $('lastTrade').textContent = errName === 'AgentNotTrusted' ? 'refused on chain, AgentNotTrusted' : reason.slice(0, 40); }
+      return false;
+    } finally { refresh(); }
+  }
+
+  $('btnTrade').onclick = async () => {
+    const ok = await send('agent trade', () => venue.connect(agent).trade(id));
+    if (ok) $('lastTrade').textContent = 'accepted';
+  };
+  let auto = null;
+  $('btnAuto').onclick = () => {
+    if (auto) { clearInterval(auto); auto = null; $('btnAuto').textContent = 'auto trade every 2s'; return; }
+    auto = setInterval(() => $('btnTrade').onclick(), 2000);
+    $('btnAuto').textContent = 'stop auto trade';
+  };
+  $('btnPause').onclick = () => send('owner pause', () => ks.connect(owner).setStatus(id, 2, ethers.id('suspicious')));
+  $('btnResume').onclick = () => send('owner resume', () => ks.connect(owner).setStatus(id, 1, ethers.ZeroHash));
+  $('btnRevoke').onclick = () => send('owner revoke', () => ks.connect(owner).setStatus(id, 3, ethers.id('compromised')));
+  $('btnG1').onclick = () => send('guardian 1 vote', () => ks.connect(auth1).guardianPause(id));
+  $('btnG2').onclick = () => send('guardian 2 vote', () => ks.connect(auth2).guardianPause(id));
+
+  $('btnVerify').onclick = async () => {
+    try {
+      const st = STATUS[Number((await ks.getAgent(id)).status)];
+      const [signers, bond] = await reg.verifyAggregate.staticCall(1, cfg.noticeMessage, cfg.signerBitmap, cfg.noticeAggSig);
+      $('notice').innerHTML = `<span class="pill on">verified</span>`;
+      $('noticeResult').textContent = `${signers} operators, ${ethers.formatEther(bond)} MON`;
+      log(`aggregate bls signature verified on the precompiles: ${signers} signers, ${ethers.formatEther(bond)} MON bonded. notice says revoked, chain says ${st}${st === 'revoked' ? '' : ' (operators would be slashable if they had signed a timestamped claim)'}`, 'ok');
+    } catch (e) {
+      $('notice').innerHTML = `<span class="pill off">failed</span>`;
+      log('aggregate verification failed: ' + (e.shortMessage || e.message), 'bad');
+    }
+  };
+
+  await refresh();
+  setInterval(refresh, 1500);
+  log('connected. contracts: registry ' + cfg.registry + ', kill switch ' + cfg.killSwitch + ', venue ' + cfg.venue);
+})();
+</script>
+</body>
+</html>

@@ -49,3 +49,13 @@ forge test -vv --match-test test_probeAddressesForOfflineSigning
 ## status
 
 week 1 of 4. local only, nothing deployed, nothing pushed.
+
+## local demo
+
+```bash
+scripts/demo.sh
+```
+
+starts anvil with prague precompiles, deploys the registry, kill switch and a demo venue, registers two operators
+with the py_ecc keys, signs the revocation notice, and serves http://127.0.0.1:8787. trade as the agent, verify
+the two-operator bls notice, revoke from the cold key, watch the next trade revert on chain.
