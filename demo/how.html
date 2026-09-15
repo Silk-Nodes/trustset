@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the Agent Kill Switch works</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{--bg:#0a0d07;--panel:#11150c;--line:rgba(240,236,227,.12);--text:#f0ece3;--muted:rgba(240,236,227,.62);--lime:#B1FC03;--orange:#e0795a;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.55}
+  header{display:flex;align-items:center;gap:14px;padding:20px 32px}
+  header .mark{width:34px;height:34px;border-radius:8px;background:var(--lime);display:grid;place-items:center;flex:none}
+  header .name{font-weight:600;font-size:15px}
+  header nav{margin-left:auto;display:flex;gap:22px;font-size:14px}
+  header nav a{color:var(--muted);text-decoration:none}
+  header nav a:hover{color:var(--text)}
+  main{max-width:720px;margin:0 auto;padding:16px 24px 64px}
+  h1{font-size:30px;letter-spacing:-.4px;margin:12px 0 6px;text-wrap:balance}
+  .lead{color:var(--muted);font-size:17px;margin:0 0 36px}
+  h2{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--lime);margin:40px 0 12px}
+  h3{font-size:17px;margin:22px 0 6px}
+  p{margin:0 0 12px;max-width:65ch}
+  ol{padding-left:22px;margin:0 0 12px} li{margin-bottom:8px}
+  .who{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 6px}
+  .who div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .who b{display:block;margin-bottom:4px}
+  .who span{color:var(--muted);font-size:14px}
+  code{font-family:var(--mono);font-size:13px;color:var(--text);background:rgba(240,236,227,.06);padding:1px 5px;border-radius:4px}
+  .faq p{color:var(--muted)}
+  .note{border-left:3px solid var(--orange);padding:6px 14px;color:var(--muted);margin:16px 0}
+  @media (max-width:640px){.who{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="mark"><svg width="22" height="22" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6.5"><path d="M9 9 L22 24 L9 39" stroke="#101208"/><path d="M39 9 L26 24 L39 39" stroke="#101208" opacity="0.45"/></svg></div>
+  <div class="name">Agent Kill Switch</div>
+  <nav><a href="index.html">Demo</a><a href="#faq">FAQ</a></nav>
+</header>
+<main>
+  <h1>How it works</h1>
+  <p class="lead">AI agents hold wallets and act on their own. When one goes wrong, its owner needs to stop it instantly, and everyone it deals with needs to see that it was stopped. This is that switch, with Monad validators as the witnesses.</p>
+
+  <h2>Who is involved</h2>
+  <div class="who">
+    <div><b>The agent</b><span>a program with its own wallet. It trades, pays, and signs on its own.</span></div>
+    <div><b>The owner</b><span>the person behind the agent. Holds a separate cold key that can only stop the agent, never spend.</span></div>
+    <div><b>The exchange</b><span>any app the agent uses. Before doing anything for the agent, it asks the switch: is this agent still allowed?</span></div>
+    <div><b>The validators</b><span>Monad validators who opted in as operators. They post a bond and sign a notice when a stop happens, so the stop can be trusted without asking the owner.</span></div>
+  </div>
+
+  <h2>What happens, step by step</h2>
+  <ol>
+    <li><b>Register.</b> The owner registers the agent once: the agent's key, the owner's cold key, and optionally a few guardians. The agent starts as active.</li>
+    <li><b>Act.</b> Every app the agent uses checks the switch inside the same transaction. Active means go. Anything else means the transaction fails on chain, so there is no list to sync and no API to trust.</li>
+    <li><b>Stop.</b> The owner sends one transaction from the cold key. The agent is revoked. Revoked is permanent. The next block already refuses it, which on Monad is a fraction of a second later.</li>
+    <li><b>Confirm.</b> Operators see the stop and sign a short notice: this agent was revoked. Their signatures are combined into one, so checking it costs the same whether two operators signed or two hundred.</li>
+    <li><b>Recover.</b> The owner can register a successor agent and point the old id at it, so anyone who trusted the old agent knows where trust moved.</li>
+  </ol>
+
+  <h2>Why validators</h2>
+  <p>A notice is only worth something if the signer has something to lose. Operators are validators in Monad's active set, checked against the chain every epoch, and each one posts a bond. If an operator signs a claim that the chain shows is false, anyone can present the proof and take the bond. Reputation, stake, and uptime history all sit behind every signature.</p>
+
+  <h2>Why Monad</h2>
+  <p>Three things make this practical here and awkward elsewhere. Blocks are 300 milliseconds and final in 600, so a stop lands before the agent's next action. The BLS precompiles are live, so combined validator signatures verify with one cheap operation. And the staking precompile lets a contract read the validator set directly, so operator membership is a fact from the chain, not a list we keep.</p>
+
+  <h2>What it is not</h2>
+  <p>It is not a reputation score. It records facts, active or revoked, and who confirmed them. It is not a wallet. It plugs into the wallets and apps that already exist. It is not on the signing path. If this code has a bug, an agent gets a wrong label. No funds move through it except operator bonds.</p>
+
+  <div class="note">In the local demo the two operators are simulated with keys in a script and the confirmation is pre-signed. On mainnet the operators are real validators, starting with Silk Nodes, and the notice is signed the moment the stop lands.</div>
+
+  <h2 id="faq">FAQ</h2>
+  <div class="faq">
+    <h3>What if the owner's cold key is lost?</h3>
+    <p>Guardians, if the owner named any, can pause the agent with a vote, and if the owner stays silent for a set delay they can revoke it. Guardians can never spend and can never revoke instantly, so a rogue guardian cannot brick an agent on a whim.</p>
+    <h3>What if the cold key is stolen?</h3>
+    <p>The thief can stop the agent, which is annoying, not catastrophic. Changing the cold key is time locked, so the owner sees the attempt coming. The cold key cannot move funds.</p>
+    <h3>Can an app check whether an agent was allowed at the time of an old signature?</h3>
+    <p>Yes. The switch keeps a history, and <code>isTrustedAt(agentId, timestamp)</code> answers for any past moment. Apps should judge old signatures by that, never by the current state, because current state on Monad can still be speculative for a moment.</p>
+    <h3>Why not just let the wallet refuse?</h3>
+    <p>Wallets should refuse too, and a MetaMask agent wallet plugin does exactly that. But the app side is the backstop: even a wallet that ignores the switch cannot get a revoked agent's transaction through an app that checks.</p>
+    <h3>Who pays for this?</h3>
+    <p>Registering and stopping cost normal Monad gas, a fraction of a cent. Reading the switch is free. Operators fund their own bonds.</p>
+    <h3>Is this audited?</h3>
+    <p>Not yet. It has a unit and fuzz suite, real signature vectors verified against Monad's precompiles, and a fork test against the mainnet staking precompile. A fuzzing campaign with Monad's Ultrafuzz and a human review of the bond and escrow paths are planned before mainnet.</p>
+  </div>
+</main>
+</body>
+</html>

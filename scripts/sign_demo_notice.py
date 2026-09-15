@@ -15,12 +15,15 @@ def keygen(seed): return int.from_bytes(hashlib.sha256(seed).digest(), "big") % 
 def sign(sk, msg): return multiply(hash_to_G2(msg, DST, hashlib.sha256), sk)
 
 a = json.load(open("demo/addresses.json"))
-message = keccak(encode(["uint256", "uint8"], [int(a["agentId"]), 3]))
-digest = keccak(encode(["address", "uint8", "bytes32"], [a["registry"], 1, message]))
 sk1, sk2 = keygen(b"operator-1"), keygen(b"operator-2")
-agg = add(sign(sk1, digest), sign(sk2, digest))
+notices = {}
+for agent_id in range(1, 21):
+    message = keccak(encode(["uint256", "uint8"], [agent_id, 3]))
+    digest = keccak(encode(["address", "uint8", "bytes32"], [a["registry"], 1, message]))
+    agg = add(sign(sk1, digest), sign(sk2, digest))
+    notices[str(agent_id)] = {"message": "0x" + message.hex(), "aggSig": "0x" + g2(agg).hex()}
 cfg = dict(a)
-cfg.update({"noticeMessage": "0x" + message.hex(), "noticeDigest": "0x" + digest.hex(), "noticeAggSig": "0x" + g2(agg).hex(), "signerBitmap": 3,
+cfg.update({"notices": notices, "signerBitmap": 3,
             "ownerKey": "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
             "agentPrivKey": "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
             "auth1Key": "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
