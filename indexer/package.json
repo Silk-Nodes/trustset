@@ -1,0 +1,10 @@
+{
+  "name": "trustset-indexer",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Walks the kill switch's logs into Postgres so a browser can read an agent's history.",
+  "main": "index.mjs",
+  "scripts": { "start": "node index.mjs", "once": "node index.mjs --once" },
+  "dependencies": { "ethers": "^6.13.0", "pg": "^8.13.0" }
+}

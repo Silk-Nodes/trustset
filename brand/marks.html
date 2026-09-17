@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>trustset marks and wordmarks</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Manrope:wght@600;700;800&family=DM+Mono:wght@400;500&family=Geist:wght@500;600;700&display=swap">
+<style>
+  body{margin:0;background:#1a1a1a;color:#eee;font-family:"Instrument Sans",system-ui,sans-serif;padding:26px}
+  h1{font-size:12px;font-weight:500;letter-spacing:2px;text-transform:uppercase;color:#999;margin:0 0 14px}
+  .row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px}
+  .cell{border-radius:12px;overflow:hidden}
+  .cell .d{background:#0b0c0a;padding:22px 14px 14px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .cell .l{background:#f4f3ee;padding:22px 14px 14px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .cell .n{font-family:"DM Mono",monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase}
+  .d .n{color:rgba(242,241,236,.55)} .l .n{color:rgba(17,18,16,.55)}
+  .cell .cap{font-size:11.5px;line-height:1.4;text-align:center;max-width:22ch}
+  .d .cap{color:rgba(242,241,236,.7)} .l .cap{color:rgba(17,18,16,.7)}
+  .d svg{--fg:#f2f1ec;--acc:#ff6a3d} .l svg{--fg:#111210;--acc:#e8552b}
+  .small{display:flex;gap:10px;align-items:center}
+  .small svg{width:20px;height:20px}
+  .wm{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .wm .cell .d,.wm .cell .l{align-items:flex-start;padding:20px 18px 16px}
+  .word{font-size:34px;letter-spacing:-1px;line-height:1}
+  .d .word{color:#f2f1ec} .l .word{color:#111210}
+  .lock{display:flex;align-items:center;gap:12px}
+  .lock svg{width:34px;height:34px}
+  .fig{font-family:"DM Mono",monospace;font-size:22px;letter-spacing:-.3px}
+  .d .fig{color:#f2f1ec} .l .fig{color:#111210}
+</style>
+</head>
+<body>
+<h1>marks. 48 grid, 6.5 stroke, same as the tx chevron. orange only where a state trips.</h1>
+<div class="row" id="marks"></div>
+<h1>wordmarks. lowercase, with dm mono figures beside them.</h1>
+<div class="wm" id="words"></div>
+<script>
+const marks = [
+  {n:'1 contact', cap:'two contacts, closed circuit. the current option', svg:`<path d="M9 9 L9 39"/><path d="M39 9 L39 39"/><circle cx="24" cy="24" r="5" fill="var(--fg)" stroke="none"/>`},
+  {n:'2 switch', cap:'a closed switch between two poles. the lever is the trust', svg:`<circle cx="10" cy="24" r="4" fill="var(--fg)" stroke="none"/><circle cx="38" cy="24" r="4" fill="var(--fg)" stroke="none"/><path d="M14 24 L34 24"/>`},
+  {n:'3 braces', cap:'set notation. the thing inside the braces is confirmed', svg:`<path d="M17 8 C11 8 12 15 12 20 C12 23 9 24 7 24 C9 24 12 25 12 28 C12 33 11 40 17 40"/><path d="M31 8 C37 8 36 15 36 20 C36 23 39 24 41 24 C39 24 36 25 36 28 C36 33 37 40 31 40"/><circle cx="24" cy="24" r="4.5" fill="var(--fg)" stroke="none"/>`},
+  {n:'4 quorum', cap:'six operators, one filled centre. a set with a decision', svg:`<g fill="var(--fg)" stroke="none"><circle cx="24" cy="7" r="3.6"/><circle cx="38.7" cy="15.5" r="3.6"/><circle cx="38.7" cy="32.5" r="3.6"/><circle cx="24" cy="41" r="3.6"/><circle cx="9.3" cy="32.5" r="3.6"/><circle cx="9.3" cy="15.5" r="3.6"/><circle cx="24" cy="24" r="6"/></g>`},
+  {n:'5 stack', cap:'three bars, the middle one confirmed. reads as a stack and a signal', svg:`<path d="M9 12 L39 12"/><path d="M9 24 L39 24" stroke="var(--acc)" stroke-width="9"/><path d="M9 36 L39 36"/>`},
+  {n:'6 overlap', cap:'agent and validator overlap. the shared part is trust', svg:`<rect x="7" y="7" width="24" height="24" rx="3"/><rect x="17" y="17" width="24" height="24" rx="3"/><rect x="17" y="17" width="14" height="14" rx="2" fill="var(--fg)" stroke="none"/>`},
+];
+const base = s => `<svg viewBox="0 0 48 48" fill="none" stroke="var(--fg)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">${s}</svg>`;
+document.getElementById('marks').innerHTML = marks.map(m => `
+  <div class="cell">
+    <div class="d"><div class="n">${m.n}</div><div style="width:64px;height:64px">${base(m.svg)}</div><div class="small">${base(m.svg)}<span class="fig">2 of 2</span></div><div class="cap">${m.cap}</div></div>
+    <div class="l"><div style="width:64px;height:64px">${base(m.svg)}</div><div class="small">${base(m.svg)}<span class="fig">3.00 mon</span></div></div>
+  </div>`).join('');
+
+const words = [
+  {n:'a instrument sans 700', style:'font-family:"Instrument Sans";font-weight:700', html:'trustset'},
+  {n:'b bricolage 600', style:'font-family:"Bricolage Grotesque";font-weight:600;font-variation-settings:"opsz" 96', html:'trustset'},
+  {n:'c geist 600, weighted set', style:'font-family:"Geist";font-weight:600', html:'trust<span style="font-weight:800">set</span>'},
+  {n:'d dm mono 500', style:'font-family:"DM Mono";font-weight:500;letter-spacing:-.5px', html:'trustset'},
+];
+document.getElementById('words').innerHTML = words.map(w => `
+  <div class="cell">
+    <div class="d"><div class="n">${w.n}</div><div class="word" style="${w.style}">${w.html}</div><div class="lock">${base(marks[0].svg)}<span class="word" style="${w.style};font-size:22px">trustset</span></div><span class="fig">operators online 2 of 2</span></div>
+    <div class="l"><div class="word" style="${w.style}">${w.html}</div><div class="lock">${base(marks[3].svg)}<span class="word" style="${w.style};font-size:22px">trustset</span></div><span class="fig">bonded stake 3.00 mon</span></div>
+  </div>`).join('');
+</script>
+</body>
+</html>

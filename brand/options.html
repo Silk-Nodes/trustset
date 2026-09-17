@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>trustset brand options</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+  body{margin:0;background:#1a1a1a;color:#eee;font-family:system-ui,sans-serif;padding:28px}
+  h1{font-size:14px;font-weight:500;letter-spacing:2px;text-transform:uppercase;color:#999;margin:0 0 18px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .opt{border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .opt .half{padding:22px 22px 20px;display:flex;flex-direction:column;gap:14px;min-height:330px}
+  .label{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.6}
+  .markrow{display:flex;align-items:center;gap:14px}
+  .wordmark{font-size:30px;font-weight:700;letter-spacing:-.8px;line-height:1}
+  .tag{font-size:13px;opacity:.75;max-width:30ch;line-height:1.4}
+  .swatches{display:flex;gap:8px}
+  .sw{width:38px;height:38px;border-radius:8px;border:1px solid rgba(128,128,128,.25)}
+  .card{border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;margin-top:auto}
+  .card .k{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;opacity:.6}
+  .card .v{font-size:26px;font-weight:600;letter-spacing:-.5px}
+  .card .ts{font-size:11px;opacity:.55}
+  .row{display:flex;gap:10px;align-items:center;font-size:12px}
+  .pill{padding:2px 8px;border-radius:999px;font-size:11px;border:1px solid}
+  .note{font-size:12px;color:#aaa;margin-top:10px;line-height:1.5}
+
+  /* A: contact. instrument sans + jetbrains mono. near-black, cold white, signal orange only for the trip state */
+  .a{--bg:#0b0c0a;--fg:#f2f1ec;--mute:rgba(242,241,236,.6);--acc:#f2f1ec;--trip:#ff6a3d;--panel:#141512;font-family:"Instrument Sans",sans-serif}
+  .a.light{--bg:#f4f3ee;--fg:#111210;--mute:rgba(17,18,16,.6);--acc:#111210;--trip:#e8552b;--panel:#ffffff}
+  .a .mono{font-family:"JetBrains Mono",monospace}
+  /* B: set. manrope + ibm plex mono. deep ink, electric blue accent */
+  .b{--bg:#0a0f1c;--fg:#eef1f8;--mute:rgba(238,241,248,.6);--acc:#5b8cff;--trip:#ff5d5d;--panel:#111a2e;font-family:"Manrope",sans-serif}
+  .b.light{--bg:#f3f5fa;--fg:#0e1526;--mute:rgba(14,21,38,.6);--acc:#2f63e6;--trip:#d93b3b;--panel:#ffffff}
+  .b .mono{font-family:"IBM Plex Mono",monospace}
+  /* C: seal. bricolage grotesque + dm mono. ink and amber, warm */
+  .c{--bg:#101010;--fg:#f4efe6;--mute:rgba(244,239,230,.62);--acc:#f5b32b;--trip:#f5b32b;--panel:#1a1917;font-family:"Bricolage Grotesque",sans-serif}
+  .c.light{--bg:#f6f1e7;--fg:#171512;--mute:rgba(23,21,18,.62);--acc:#b8780a;--trip:#b8780a;--panel:#fffdf8}
+  .c .mono{font-family:"DM Mono",monospace}
+  .half{background:var(--bg);color:var(--fg)}
+  .card{background:var(--panel);border:1px solid rgba(128,128,128,.18)}
+  .card .v{color:var(--acc)}
+  .pill.ok{border-color:var(--acc);color:var(--acc)} .pill.trip{border-color:var(--trip);color:var(--trip)}
+</style>
+</head>
+<body>
+<h1>trustset, three brand directions. dark on top, light below.</h1>
+<div class="grid">
+
+  <div class="opt">
+    <div class="half a">
+      <div class="label">A · contact</div>
+      <div class="markrow">
+        <svg width="56" height="56" viewBox="0 0 48 48" fill="none" stroke="var(--acc)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9 L9 39"/><path d="M39 9 L39 39"/><circle cx="24" cy="24" r="5" fill="var(--acc)" stroke="none"/></svg>
+        <div class="wordmark">trustset</div>
+      </div>
+      <div class="tag">two contacts, one closed circuit. the set holds. orange appears only when a switch trips.</div>
+      <div class="swatches"><div class="sw" style="background:#0b0c0a"></div><div class="sw" style="background:#f2f1ec"></div><div class="sw" style="background:#ff6a3d"></div><div class="sw" style="background:#141512"></div></div>
+      <div class="card"><div class="k mono">operators online</div><div class="v mono">2 <span style="font-size:14px;opacity:.6">of 2</span></div><div class="row"><span class="pill ok mono">active</span><span class="pill trip mono">tripped</span></div><div class="ts mono">data as of 12:40 utc</div></div>
+    </div>
+    <div class="half a light">
+      <div class="markrow">
+        <svg width="56" height="56" viewBox="0 0 48 48" fill="none" stroke="var(--acc)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9 L9 39"/><path d="M39 9 L39 39"/><circle cx="24" cy="24" r="5" fill="var(--acc)" stroke="none"/></svg>
+        <div class="wordmark">trustset</div>
+      </div>
+      <div class="tag">instrument sans for words, jetbrains mono for every figure.</div>
+      <div class="card"><div class="k mono">bonded stake</div><div class="v mono">3.00 <span style="font-size:14px;opacity:.6">mon</span></div><div class="row"><span class="pill ok mono">active</span><span class="pill trip mono">tripped</span></div><div class="ts mono">data as of 12:40 utc</div></div>
+    </div>
+  </div>
+
+  <div class="opt">
+    <div class="half b">
+      <div class="label">B · set</div>
+      <div class="markrow">
+        <svg width="56" height="56" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="8" r="4" fill="var(--acc)"/><circle cx="38" cy="16" r="4" fill="var(--acc)"/><circle cx="38" cy="32" r="4" fill="var(--acc)"/><circle cx="24" cy="40" r="4" fill="var(--acc)"/><circle cx="10" cy="32" r="4" fill="var(--acc)"/><circle cx="10" cy="16" r="4" fill="var(--acc)"/><path d="M16 24 L22 30 L33 18" stroke="var(--fg)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="wordmark">trustset</div>
+      </div>
+      <div class="tag">six validators around one confirmation. the set is the product.</div>
+      <div class="swatches"><div class="sw" style="background:#0a0f1c"></div><div class="sw" style="background:#eef1f8"></div><div class="sw" style="background:#5b8cff"></div><div class="sw" style="background:#ff5d5d"></div></div>
+      <div class="card"><div class="k mono">operators online</div><div class="v mono">2 <span style="font-size:14px;opacity:.6">of 2</span></div><div class="row"><span class="pill ok mono">active</span><span class="pill trip mono">tripped</span></div><div class="ts mono">data as of 12:40 utc</div></div>
+    </div>
+    <div class="half b light">
+      <div class="markrow">
+        <svg width="56" height="56" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="8" r="4" fill="var(--acc)"/><circle cx="38" cy="16" r="4" fill="var(--acc)"/><circle cx="38" cy="32" r="4" fill="var(--acc)"/><circle cx="24" cy="40" r="4" fill="var(--acc)"/><circle cx="10" cy="32" r="4" fill="var(--acc)"/><circle cx="10" cy="16" r="4" fill="var(--acc)"/><path d="M16 24 L22 30 L33 18" stroke="var(--fg)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="wordmark">trustset</div>
+      </div>
+      <div class="tag">manrope for words, ibm plex mono for figures. the calmest of the three.</div>
+      <div class="card"><div class="k mono">bonded stake</div><div class="v mono">3.00 <span style="font-size:14px;opacity:.6">mon</span></div><div class="row"><span class="pill ok mono">active</span><span class="pill trip mono">tripped</span></div><div class="ts mono">data as of 12:40 utc</div></div>
+    </div>
+  </div>
+
+  <div class="opt">
+    <div class="half c">
+      <div class="label">C · seal</div>
+      <div class="markrow">
+        <svg width="56" height="56" viewBox="0 0 48 48" fill="none" stroke="var(--acc)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"><path d="M24 6 L40 13 V25 C40 33 33 39 24 43 C15 39 8 33 8 25 V13 Z"/><path d="M17 25 L22 30 L31 19" stroke="var(--fg)" stroke-width="5.5"/></svg>
+        <div class="wordmark">trustset</div>
+      </div>
+      <div class="tag">a seal with a check. the notary reading, warm amber on ink.</div>
+      <div class="swatches"><div class="sw" style="background:#101010"></div><div class="sw" style="background:#f4efe6"></div><div class="sw" style="background:#f5b32b"></div><div class="sw" style="background:#1a1917"></div></div>
+      <div class="card"><div class="k mono">operators online</div><div class="v mono">2 <span style="font-size:14px;opacity:.6">of 2</span></div><div class="row"><span class="pill ok mono">active</span><span class="pill trip mono">tripped</span></div><div class="ts mono">data as of 12:40 utc</div></div>
+    </div>
+    <div class="half c light">
+      <div class="markrow">
+        <svg width="56" height="56" viewBox="0 0 48 48" fill="none" stroke="var(--acc)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"><path d="M24 6 L40 13 V25 C40 33 33 39 24 43 C15 39 8 33 8 25 V13 Z"/><path d="M17 25 L22 30 L31 19" stroke="var(--fg)" stroke-width="5.5"/></svg>
+        <div class="wordmark">trustset</div>
+      </div>
+      <div class="tag">bricolage grotesque for words, dm mono for figures. the most editorial.</div>
+      <div class="card"><div class="k mono">bonded stake</div><div class="v mono">3.00 <span style="font-size:14px;opacity:.6">mon</span></div><div class="row"><span class="pill ok mono">active</span><span class="pill trip mono">tripped</span></div><div class="ts mono">data as of 12:40 utc</div></div>
+    </div>
+  </div>
+</div>
+<p class="note">all three keep the family rules: mono for figures, a timestamp on every card, one accent per product, light and dark from the same tokens. the mark is drawn on the same 48 grid and 6.5 stroke as the tx chevron.</p>
+</body>
+</html>

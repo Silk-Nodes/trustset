@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>trustset stack mark variations</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap">
+<style>
+  body{margin:0;background:#1a1a1a;color:#eee;font-family:"DM Mono",monospace;padding:26px}
+  h1{font-size:12px;font-weight:500;letter-spacing:2px;text-transform:uppercase;color:#999;margin:0 0 14px}
+  .row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px}
+  .cell{border-radius:12px;overflow:hidden}
+  .d{background:#0b0c0a;padding:18px 12px 14px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .l{background:#f4f3ee;padding:18px 12px 14px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .n{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase}
+  .d .n{color:rgba(242,241,236,.55)} .l .n{color:rgba(17,18,16,.55)}
+  .cap{font-size:11px;line-height:1.4;text-align:center;max-width:22ch}
+  .d .cap{color:rgba(242,241,236,.7)} .l .cap{color:rgba(17,18,16,.7)}
+  .d svg{--fg:#f2f1ec;--acc:#ff6a3d;--dim:rgba(242,241,236,.35)} .l svg{--fg:#111210;--acc:#e8552b;--dim:rgba(17,18,16,.3)}
+  .big{width:64px;height:64px}
+  .pair{display:flex;gap:14px;align-items:center}
+  .pair svg{width:26px;height:26px}
+  .lock{display:flex;gap:9px;align-items:center;font-size:17px;letter-spacing:-.4px}
+  .lock svg{width:22px;height:22px}
+  .d .lock{color:#f2f1ec} .l .lock{color:#111210}
+</style>
+</head>
+<body>
+<h1>stack variations. each shows the mark, then closed and tripped states at icon size, then the lockup with the dm mono wordmark.</h1>
+<div class="row" id="a"></div>
+<div class="row" id="b"></div>
+<script>
+const W = s => `<svg viewBox="0 0 48 48" fill="none" stroke="var(--fg)" stroke-width="6.5" stroke-linecap="round">${s}</svg>`;
+const bars = (ys, acc, w=30, x=9) => ys.map((y,i)=>`<path d="M${x} ${y} L${x+w} ${y}"${acc===i?' stroke="var(--acc)" stroke-width="9"':''}/>`).join('');
+const v = [
+  {n:'5.1 current', cap:'three bars, middle bar heavy in accent', mark: W(bars([12,24,36],1)), closed: W(bars([12,24,36],1)), trip: W(bars([12,36],-1)+`<path d="M9 24 L20 24" stroke="var(--acc)" stroke-width="9"/><path d="M28 24 L39 24" stroke="var(--acc)" stroke-width="9"/>`)},
+  {n:'5.2 mono', cap:'same, all bars in text colour. orange stays reserved for tripped', mark: W(bars([12,24,36])+`<path d="M9 24 L39 24" stroke-width="9"/>`), closed: W(bars([12,24,36])+`<path d="M9 24 L39 24" stroke-width="9"/>`), trip: W(bars([12,36])+`<path d="M9 24 L20 24" stroke="var(--acc)" stroke-width="9"/><path d="M28 24 L39 24" stroke="var(--acc)" stroke-width="9"/>`)},
+  {n:'5.3 ragged', cap:'bars of different lengths, left aligned. a list, a set', mark: W(`<path d="M9 12 L39 12"/><path d="M9 24 L29 24" stroke="var(--acc)" stroke-width="9"/><path d="M9 36 L35 36"/>`), closed: W(`<path d="M9 12 L39 12"/><path d="M9 24 L29 24" stroke="var(--acc)" stroke-width="9"/><path d="M9 36 L35 36"/>`), trip: W(`<path d="M9 12 L39 12"/><path d="M9 24 L16 24" stroke="var(--acc)" stroke-width="9"/><path d="M9 36 L35 36"/>`)},
+  {n:'5.4 gap', cap:'the middle bar is the switch. closed when whole, open when split', mark: W(bars([12,36])+`<path d="M9 24 L39 24" stroke-width="9"/>`), closed: W(bars([12,36])+`<path d="M9 24 L39 24" stroke-width="9"/>`), trip: W(bars([12,36])+`<path d="M9 24 L19 24" stroke="var(--acc)" stroke-width="9"/><path d="M29 24 L39 24" stroke="var(--acc)" stroke-width="9"/>`)},
+  {n:'5.5 four', cap:'four bars, second heavy. taller, more stack', mark: W(bars([9,19,29,39],1,30,9).replace('stroke-width="9"','stroke-width="8"')), closed: W(bars([9,19,29,39],1).replace('stroke-width="9"','stroke-width="8"')), trip: W(bars([9,29,39])+`<path d="M9 19 L19 19" stroke="var(--acc)" stroke-width="8"/><path d="M29 19 L39 19" stroke="var(--acc)" stroke-width="8"/>`)},
+  {n:'5.6 dot', cap:'two bars and a dot between. the dot is the operator confirmation', mark: W(bars([11,37])+`<circle cx="24" cy="24" r="5.5" fill="var(--acc)" stroke="none"/>`), closed: W(bars([11,37])+`<circle cx="24" cy="24" r="5.5" fill="var(--acc)" stroke="none"/>`), trip: W(bars([11,37])+`<circle cx="24" cy="24" r="5.5" stroke="var(--acc)" stroke-width="4"/>`)},
+];
+const v2 = [
+  {n:'5.7 vertical', cap:'the stack turned upright. reads as a signal or a gate', mark: W(`<path d="M12 9 L12 39"/><path d="M24 9 L24 39" stroke="var(--acc)" stroke-width="9"/><path d="M36 9 L36 39"/>`), closed: W(`<path d="M12 9 L12 39"/><path d="M24 9 L24 39" stroke="var(--acc)" stroke-width="9"/><path d="M36 9 L36 39"/>`), trip: W(`<path d="M12 9 L12 39"/><path d="M24 9 L24 19" stroke="var(--acc)" stroke-width="9"/><path d="M24 29 L24 39" stroke="var(--acc)" stroke-width="9"/><path d="M36 9 L36 39"/>`)},
+  {n:'5.8 square', cap:'square ends instead of round. harder, more industrial', mark: `<svg viewBox="0 0 48 48" fill="var(--fg)"><rect x="9" y="9" width="30" height="6"/><rect x="9" y="20" width="30" height="8" fill="var(--acc)"/><rect x="9" y="33" width="30" height="6"/></svg>`, closed: `<svg viewBox="0 0 48 48" fill="var(--fg)"><rect x="9" y="9" width="30" height="6"/><rect x="9" y="20" width="30" height="8" fill="var(--acc)"/><rect x="9" y="33" width="30" height="6"/></svg>`, trip: `<svg viewBox="0 0 48 48" fill="var(--fg)"><rect x="9" y="9" width="30" height="6"/><rect x="9" y="20" width="11" height="8" fill="var(--acc)"/><rect x="28" y="20" width="11" height="8" fill="var(--acc)"/><rect x="9" y="33" width="30" height="6"/></svg>`},
+  {n:'5.9 offset', cap:'middle bar shifted right, like a thrown switch', mark: W(`<path d="M9 12 L39 12"/><path d="M15 24 L45 24" stroke="var(--acc)" stroke-width="9"/><path d="M9 36 L39 36"/>`), closed: W(`<path d="M9 12 L39 12"/><path d="M9 24 L39 24" stroke="var(--acc)" stroke-width="9"/><path d="M9 36 L39 36"/>`), trip: W(`<path d="M9 12 L39 12"/><path d="M17 24 L47 24" stroke="var(--acc)" stroke-width="9"/><path d="M9 36 L39 36"/>`)},
+  {n:'5.10 tilt', cap:'middle bar tilted, the classic open switch. closed when flat', mark: W(`<path d="M9 12 L39 12"/><path d="M9 24 L39 24" stroke="var(--acc)" stroke-width="9"/><path d="M9 36 L39 36"/>`), closed: W(`<path d="M9 12 L39 12"/><path d="M9 24 L39 24" stroke="var(--acc)" stroke-width="9"/><path d="M9 36 L39 36"/>`), trip: W(`<path d="M9 12 L39 12"/><path d="M9 26 L37 17" stroke="var(--acc)" stroke-width="9"/><path d="M9 36 L39 36"/>`)},
+  {n:'5.11 dim', cap:'outer bars dimmed, only the switch is solid', mark: W(`<path d="M9 12 L39 12" stroke="var(--dim)"/><path d="M9 24 L39 24" stroke-width="9"/><path d="M9 36 L39 36" stroke="var(--dim)"/>`), closed: W(`<path d="M9 12 L39 12" stroke="var(--dim)"/><path d="M9 24 L39 24" stroke-width="9"/><path d="M9 36 L39 36" stroke="var(--dim)"/>`), trip: W(`<path d="M9 12 L39 12" stroke="var(--dim)"/><path d="M9 24 L19 24" stroke="var(--acc)" stroke-width="9"/><path d="M29 24 L39 24" stroke="var(--acc)" stroke-width="9"/><path d="M9 36 L39 36" stroke="var(--dim)"/>`)},
+  {n:'5.12 tile', cap:'5.2 on a filled tile, like the tx mark. for favicons and cards', mark: `<svg viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="var(--fg)"/><g stroke="var(--bg,#0b0c0a)" stroke-width="5" stroke-linecap="round"><path d="M12 15 L36 15"/><path d="M12 24 L36 24" stroke-width="7"/><path d="M12 33 L36 33"/></g></svg>`, closed: `<svg viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="var(--fg)"/><g stroke="#0b0c0a" stroke-width="5" stroke-linecap="round"><path d="M12 15 L36 15"/><path d="M12 24 L36 24" stroke-width="7"/><path d="M12 33 L36 33"/></g></svg>`, trip: `<svg viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="var(--acc)"/><g stroke="#0b0c0a" stroke-width="5" stroke-linecap="round"><path d="M12 15 L36 15"/><path d="M12 24 L20 24" stroke-width="7"/><path d="M28 24 L36 24" stroke-width="7"/><path d="M12 33 L36 33"/></g></svg>`},
+];
+const cell = m => `<div class="cell">
+  <div class="d"><div class="n">${m.n}</div><div class="big">${m.mark}</div><div class="pair">${m.closed}<span style="font-size:10px;color:rgba(242,241,236,.5)">closed</span>${m.trip}<span style="font-size:10px;color:rgba(242,241,236,.5)">tripped</span></div><div class="lock">${m.closed}trustset</div><div class="cap">${m.cap}</div></div>
+  <div class="l"><div class="big">${m.mark}</div><div class="pair">${m.closed}<span style="font-size:10px;color:rgba(17,18,16,.5)">closed</span>${m.trip}<span style="font-size:10px;color:rgba(17,18,16,.5)">tripped</span></div><div class="lock">${m.closed}trustset</div></div>
+</div>`;
+document.getElementById('a').innerHTML = v.map(cell).join('');
+document.getElementById('b').innerHTML = v2.map(cell).join('');
+</script>
+</body>
+</html>
