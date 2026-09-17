@@ -40,47 +40,51 @@ const TURNS = [
   { was: "Nothing could reach it without a wallet.", now: "a fingerprint can." },
 ];
 function Turn({ was, now, turned, reduced }: { was: string; now: string; turned: boolean; reduced: boolean }) {
-  const t = reduced ? { duration: 0 } : { duration: 0.45, ease: EASE };
+  const t = reduced ? { duration: 0 } : { duration: 0.32, ease: EASE };
   return (
     <span className="block">
       {/* the problem stays. it dims and a line draws through it, so the answer
           that follows has something on screen to answer. */}
-      <span className="relative inline" style={{ color: turned ? "var(--text-medium)" : "var(--text-dark)", transition: reduced ? "none" : "color .45s" }}>
+      <span className="relative inline" style={{ color: turned ? "var(--text-medium)" : "var(--text-dark)", transition: reduced ? "none" : "color .32s" }}>
         {was}
         <motion.span aria-hidden className="absolute left-0 top-[0.56em] h-[0.075em] w-full origin-left rounded-full" style={{ background: "var(--orange)" }}
           initial={false} animate={{ scaleX: turned ? 1 : 0 }} transition={t} />
       </span>
       {" "}
-      <motion.span className="inline-block" initial={false} animate={{ opacity: turned ? 1 : 0, x: turned ? 0 : -8 }} transition={{ ...t, delay: reduced || !turned ? 0 : 0.25 }} aria-hidden={!turned}>
+      <motion.span className="inline-block" initial={false} animate={{ opacity: turned ? 1 : 0, x: turned ? 0 : -8 }} transition={{ ...t, delay: reduced || !turned ? 0 : 0.22 }} aria-hidden={!turned}>
         <span style={{ color: "var(--orange-text)" }}>Now</span> {now}
       </motion.span>
     </span>
   );
 }
+
 export function Why() {
   const m = useMotionPrefs();
-  const refs = useRef<(HTMLElement | null)[]>([]);
+  const { ref, arrived } = useArrived("-120px 0px");
   const [turned, setTurned] = useState(0);
-  /* a line turns when it crosses the middle of the screen, read straight from
-     its own rectangle in the scroll handler. the count only goes up. */
+  /* a rhythm, not a race.
+   *
+   * these three lines sit sixty and a hundred pixels apart, so when each one
+   * turned as it crossed the middle of the screen they all turned within a
+   * fraction of a second of each other: three strikes and three answers at
+   * once, which reads as a flurry rather than as three thoughts. now the
+   * section turns them in order once the reader has arrived, a beat apart, at
+   * a pace that does not depend on how fast anybody scrolls.
+   *
+   * one way, as before: it plays once and stays played. */
   useEffect(() => {
     if (m.reduced) { setTurned(TURNS.length); return; }
-    const on = () => {
-      const line = document.documentElement.clientHeight * 0.55;
-      let n = 0;
-      refs.current.forEach((el, k) => { if (el && el.getBoundingClientRect().top <= line) n = k + 1; });
-      setTurned(prev => Math.max(prev, n));
-    };
-    on();
-    window.addEventListener("scroll", on, { passive: true }); window.addEventListener("resize", on);
-    return () => { window.removeEventListener("scroll", on); window.removeEventListener("resize", on); };
-  }, [m.reduced]);
+    if (!arrived) return;
+    const timers = TURNS.map((_, i) => setTimeout(() => setTurned(n => Math.max(n, i + 1)), 350 + i * 800));
+    return () => timers.forEach(clearTimeout);
+  }, [arrived, m.reduced]);
+
   return (
-    <section className="mt-24 sm:mt-36 max-w-5xl">
+    <section ref={ref as React.RefObject<HTMLElement>} className="mt-24 sm:mt-36 max-w-5xl">
       <p className="text-[30px] sm:text-[44px] lg:text-[54px] font-semibold tracking-[-0.03em] leading-[1.12]">{SETUP}</p>
       <ol className="mt-6 sm:mt-8 grid gap-2 sm:gap-3 text-[26px] sm:text-[36px] lg:text-[44px] font-semibold tracking-[-0.03em] leading-[1.14]">
         {TURNS.map((t, k) => (
-          <li key={t.was} ref={el => { refs.current[k] = el; }} data-turned={turned > k}>
+          <li key={t.was} data-turned={turned > k}>
             <Turn was={t.was} now={t.now} turned={turned > k} reduced={m.reduced} />
           </li>
         ))}
