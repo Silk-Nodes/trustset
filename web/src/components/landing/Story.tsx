@@ -28,9 +28,15 @@ const EASE = [0.23, 1, 0.32, 1] as const;
  *
  * the first cut swapped each problem for its answer in place, and the end
  * state read "now one transaction does" with nothing left on screen for it to
- * answer. so the problem stays: as a line crosses the middle of the screen a
- * strike draws through it, it dims, and the answer arrives after it on the
- * same line. before and after, both readable, at rest.
+ * answer. so the problem stays: a strike draws through it, it dims, and the
+ * answer arrives under it. before and after, both readable, at rest.
+ *
+ * every turn is the same shape: the problem on its own line, small and muted,
+ * the answer under it at full size. the first cut let the answer sit on the
+ * same line as the problem, which fitted for the short turn and wrapped for
+ * the other two, so the block read as five ragged lines instead of three
+ * pairs. one accent per turn as well: the strike is a neutral rule now, so
+ * "Now" is the only orange thing on the line.
  *
  * one way: a line that has turned stays turned. */
 const SETUP = "An agent with a key can trade, pay and sign for as long as it runs.";
@@ -43,15 +49,16 @@ function Turn({ was, now, turned, reduced }: { was: string; now: string; turned:
   const t = reduced ? { duration: 0 } : { duration: 0.32, ease: EASE };
   return (
     <span className="block">
-      {/* the problem stays. it dims and a line draws through it, so the answer
-          that follows has something on screen to answer. */}
-      <span className="relative inline" style={{ color: turned ? "var(--text-medium)" : "var(--text-dark)", transition: reduced ? "none" : "color .32s" }}>
+      {/* it stays at --text-medium once struck. dimming it to --text-light put
+          it at 3.01:1 on the light ground, and a sentence the reader still has
+          to read cannot sit under 4.5. the strike and the smaller size retire
+          it on their own. */}
+      <span className="relative inline-block text-[0.62em] leading-[1.3]" style={{ color: "var(--text-medium)" }}>
         {was}
-        <motion.span aria-hidden className="absolute left-0 top-[0.56em] h-[0.075em] w-full origin-left rounded-full" style={{ background: "var(--orange)" }}
+        <motion.span aria-hidden className="absolute left-0 top-[0.58em] h-[0.08em] w-full origin-left rounded-full" style={{ background: "currentColor" }}
           initial={false} animate={{ scaleX: turned ? 1 : 0 }} transition={t} />
       </span>
-      {" "}
-      <motion.span className="inline-block" initial={false} animate={{ opacity: turned ? 1 : 0, x: turned ? 0 : -8 }} transition={{ ...t, delay: reduced || !turned ? 0 : 0.22 }} aria-hidden={!turned}>
+      <motion.span className="block" initial={false} animate={{ opacity: turned ? 1 : 0, y: turned ? 0 : -6 }} transition={{ ...t, delay: reduced || !turned ? 0 : 0.22 }} aria-hidden={!turned}>
         <span style={{ color: "var(--orange-text)" }}>Now</span> {now}
       </motion.span>
     </span>
@@ -82,7 +89,7 @@ export function Why() {
   return (
     <section ref={ref as React.RefObject<HTMLElement>} className="mt-24 sm:mt-36 max-w-5xl">
       <p className="text-[30px] sm:text-[44px] lg:text-[54px] font-semibold tracking-[-0.03em] leading-[1.12]">{SETUP}</p>
-      <ol className="mt-6 sm:mt-8 grid gap-2 sm:gap-3 text-[26px] sm:text-[36px] lg:text-[44px] font-semibold tracking-[-0.03em] leading-[1.14]">
+      <ol className="mt-6 sm:mt-8 grid gap-6 sm:gap-8 text-[26px] sm:text-[36px] lg:text-[44px] font-semibold tracking-[-0.03em] leading-[1.14]">
         {TURNS.map((t, k) => (
           <li key={t.was} data-turned={turned > k}>
             <Turn was={t.was} now={t.now} turned={turned > k} reduced={m.reduced} />
