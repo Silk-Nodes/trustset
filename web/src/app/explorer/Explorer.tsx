@@ -21,7 +21,21 @@ const FILTERS = [
   ["limits", "Limits"], ["work", "Work"], ["guardians", "Guardians"], ["keys", "Keys"], ["labels", "Names"],
 ] as const;
 
-const PAGE = 10;
+const PAGE = 5;
+
+/* which page buttons to draw: always the first and the last, always the ones
+   either side of where you are, and an ellipsis for the rest. fourteen pages of
+   five must not become fourteen buttons on a phone. */
+function pageWindow(current: number, last: number): (number | "gap")[] {
+  if (last <= 7) return Array.from({ length: last }, (_, i) => i + 1);
+  const keep = new Set([1, last, current, current - 1, current + 1]);
+  if (current <= 3) [2, 3, 4].forEach(n => keep.add(n));
+  if (current >= last - 2) [last - 3, last - 2, last - 1].forEach(n => keep.add(n));
+  const shown = [...keep].filter(n => n >= 1 && n <= last).sort((a, b) => a - b);
+  const out: (number | "gap")[] = [];
+  shown.forEach((n, i) => { if (i && n - shown[i - 1] > 1) out.push("gap"); out.push(n); });
+  return out;
+}
 
 const TONE: Record<Tone, string> = { live: "var(--sage)", off: "var(--orange)", quiet: "var(--terra)", plain: "var(--text-light)" };
 
@@ -33,40 +47,44 @@ export default function Explorer({ explorer }: { explorer: string }) {
   const [rows, setRows] = useState<Ev[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "none">("loading");
-  const [more, setMore] = useState(false);
-  /* one page of ten, and the cursor of every page walked past, so Newer can go
-     back. the feed used to append forever, which turned a glance at the last
+  /* one page of five, addressed by number, so a reader can jump rather than
+     walk. the feed used to append forever, which turned a glance at the last
      few events into a page you had to scroll. */
-  const [pages, setPages] = useState<number[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   /* typing searches when you stop, not on every keystroke. */
   useEffect(() => { const t = setTimeout(() => setQ(typed.trim()), 350); return () => clearTimeout(t); }, [typed]);
 
-  const load = useCallback(async (before = 0) => {
+  const load = useCallback(async (which: number) => {
     const u = new URL("/api/explorer", window.location.origin);
     if (filter) u.searchParams.set("filter", filter);
     if (q) u.searchParams.set("q", q);
     u.searchParams.set("limit", String(PAGE));
-    if (before) u.searchParams.set("before", String(before));
+    u.searchParams.set("offset", String((which - 1) * PAGE));
     const r = await fetch(u, { cache: "no-store" });
     const j = await r.json();
     if (!j.indexed) { setState("none"); return; }
     setStats(j.stats);
+    setTotal(Number(j.total ?? 0));
     setRows(j.events ?? []);
-    setMore((j.events?.length ?? 0) >= PAGE);
     setState("ready");
   }, [filter, q]);
 
-  useEffect(() => { setPages([]); setState(s => (s === "none" ? s : "loading")); load().catch(() => setState("none")); }, [load]);
+  /* a new filter or a new search starts at the newest page again. */
+  useEffect(() => { setPage(1); }, [filter, q]);
+  useEffect(() => { setState(s => (s === "none" ? s : "loading")); load(page).catch(() => setState("none")); }, [load, page]);
   /* the head moves every few seconds; the feed follows it without the page
      jumping, because new rows land on top and the rest keep their place. */
-  /* the head moves every few seconds. only the newest page follows it: pulling
-     a reader on page four back to page one would be rude. */
+  /* the head moves every few seconds. only the newest page follows it: moving
+     the ground under a reader on page four would be rude. */
   useEffect(() => {
-    if (pages.length) return;
-    const t = setInterval(() => load().catch(() => {}), 12_000);
+    if (page !== 1) return;
+    const t = setInterval(() => load(1).catch(() => {}), 12_000);
     return () => clearInterval(t);
-  }, [load, pages.length]);
+  }, [load, page]);
+
+  const last = Math.max(1, Math.ceil(total / PAGE));
 
   const groups = useMemo(() => {
     const out: { day: string; rows: Ev[] }[] = [];
@@ -124,17 +142,22 @@ export default function Explorer({ explorer }: { explorer: string }) {
             {g.rows.map(e => <Row key={e.id} e={e} explorer={explorer} reduced={m.reduced} />)}
           </div>
         ))}
-        {(more || pages.length > 0) && (
-          <div className="px-4 sm:px-5 py-3 flex flex-wrap items-center gap-2">
-            <button type="button" className="drawn-btn btn-gold" style={{ padding: "8px 16px", fontSize: "0.82rem", opacity: pages.length ? 1 : 0.45 }}
-              disabled={!pages.length}
-              onClick={() => { const back = pages.slice(0, -1); setPages(back); load(back.at(-1) ?? 0); }}>Newer</button>
-            <button type="button" className="drawn-btn btn-gold" style={{ padding: "8px 16px", fontSize: "0.82rem", opacity: more ? 1 : 0.45 }}
-              disabled={!more}
-              onClick={() => { const next = rows.at(-1)?.id ?? 0; setPages(p => [...p, next]); load(next); }}>Older</button>
-            <span className="ml-auto mono text-[11px] tabular" style={{ color: "var(--text-medium)" }}>
-              page {pages.length + 1}{stats ? ` of ${Math.max(1, Math.ceil(Number(stats.events) / PAGE))}` : ""}
-            </span>
+        {last > 1 && (
+          <div className="px-4 sm:px-5 py-3 flex flex-wrap items-center gap-1.5">
+            <button type="button" aria-label="Newer" className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold transition-colors"
+              disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}
+              style={{ color: page === 1 ? "var(--text-light)" : "var(--text-medium)", opacity: page === 1 ? 0.5 : 1 }}>←</button>
+            {pageWindow(page, last).map((n, i) => n === "gap"
+              ? <span key={`gap${i}`} className="px-1 text-[13px]" style={{ color: "var(--text-light)" }}>…</span>
+              : (
+                <button key={n} type="button" onClick={() => setPage(n)} aria-current={n === page ? "page" : undefined}
+                  className="rounded-lg min-w-[32px] px-2 py-1.5 text-[13px] font-semibold tabular transition-colors"
+                  style={{ background: n === page ? "var(--pill-accent-bg)" : "transparent", color: n === page ? "var(--pill-accent-text)" : "var(--text-medium)" }}>{n}</button>
+              ))}
+            <button type="button" aria-label="Older" className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold transition-colors"
+              disabled={page === last} onClick={() => setPage(p => Math.min(last, p + 1))}
+              style={{ color: page === last ? "var(--text-light)" : "var(--text-medium)", opacity: page === last ? 0.5 : 1 }}>→</button>
+            <span className="ml-auto mono text-[11px] tabular" style={{ color: "var(--text-medium)" }}>{total} event{total === 1 ? "" : "s"}</span>
           </div>
         )}
       </div>

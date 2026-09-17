@@ -28,6 +28,10 @@ export async function GET(req: Request) {
   const filter = u.searchParams.get("filter") ?? "";
   const q = (u.searchParams.get("q") ?? "").trim();
   const before = Number(u.searchParams.get("before") ?? 0);
+  /* offset paging, so a reader can jump to page six rather than walk to it. it
+     shifts when new events land above, which at this rate is an event an hour,
+     and only the first page follows the head anyway. */
+  const offset = Math.max(0, Number(u.searchParams.get("offset") ?? 0));
   const limit = Math.min(Number(u.searchParams.get("limit") ?? 60), 200);
 
   const where: string[] = [];
@@ -50,14 +54,17 @@ export async function GET(req: Request) {
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   try {
-    const [events, stats] = await Promise.all([
+    const [events, matching, stats] = await Promise.all([
       p.query(
         `SELECT e.id, e.block, e.tx_hash, e.at, e.kind, e.agent_id, e.actor, e.data,
                 a.name, a.agent_key, a.cold_key
            FROM events e LEFT JOIN agents a ON a.id = e.agent_id
            ${clause}
           ORDER BY e.id DESC
-          LIMIT ${limit}`, args),
+          LIMIT ${limit} OFFSET ${offset}`, args),
+      /* how many rows this filter matches, not how many exist, or the page
+         numbers would be wrong the moment somebody filters. */
+      p.query(`SELECT count(*)::int AS n FROM events e LEFT JOIN agents a ON a.id = e.agent_id ${clause}`, args),
       p.query(
         `SELECT
            (SELECT count(*) FROM agents)                                          AS agents,
@@ -69,10 +76,10 @@ export async function GET(req: Request) {
            (SELECT max(block) FROM events)                                        AS head,
            (SELECT block FROM cursor WHERE name = 'main')                         AS cursor`),
     ]);
-    return NextResponse.json({ indexed: true, stats: stats.rows[0], events: events.rows }, { headers: { "cache-control": "no-store" } });
+    return NextResponse.json({ indexed: true, stats: stats.rows[0], total: matching.rows[0].n, events: events.rows }, { headers: { "cache-control": "no-store" } });
   } catch (e) {
     /* the index may simply not be built yet on a fresh machine. */
-    return NextResponse.json({ indexed: false, error: e instanceof Error ? e.message : String(e), stats: null, events: [] },
+    return NextResponse.json({ indexed: false, error: e instanceof Error ? e.message : String(e), stats: null, total: 0, events: [] },
       { status: 200, headers: { "cache-control": "no-store" } });
   }
 }
