@@ -16,7 +16,7 @@ export const MONAD_TESTNET = {
   rpc: "https://testnet-rpc.monad.xyz",
   chainId: 10143,
   explorer: "https://testnet.monadexplorer.com",
-  killSwitch: "0x38b6Cc9b8721B83e2eE1ae0d64d2BfE98A5A8099",
+  killSwitch: "0x54D8211233Cc65b62C594cBAb900930dd37ED3b8",
 };
 
 const ABI = [

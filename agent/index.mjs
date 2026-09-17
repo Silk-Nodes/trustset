@@ -22,9 +22,19 @@ const STATE = process.env.AGENT_STATE || join(ROOT, ".agent-state.json");
 /* how often to look at the switch, and how often to act when it says yes. */
 const CHECK_MS = Number(process.env.CHECK_SECONDS || 60) * 1000;
 const ACT_MS = Number(process.env.ACT_SECONDS || 900) * 1000;
-/* monad charges the whole gas limit, not the gas used, so these are tight. */
-const TRADE_GAS = 70000n;
-const BEAT_GAS = 60000n;
+/* monad charges the whole gas limit, not the gas used, so a limit set generously
+   is money burnt on every action. these are only the fallback for when an
+   estimate cannot be had; the real limit is estimated per call and given a
+   fifth of headroom. a hardcoded limit was wrong the first time this ran
+   against a fresh venue: the first write to a counter still at zero is a cold
+   storage write, and 70000 measured on a warm one bought an out-of-gas. */
+const TRADE_GAS = 120000n;
+const BEAT_GAS = 90000n;
+
+async function limitFor(fn, args, fallback) {
+  try { return ((await fn.estimateGas(...args)) * 12n) / 10n; }
+  catch { return fallback; }
+}
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -67,16 +77,20 @@ async function main() {
    only the cold key can start a new one. */
 async function act(trustset, wallet, venue, id) {
   const l = await trustset.limits(id);
-  const tx = await venue.trade(id, { gasLimit: TRADE_GAS });
-  log(`traded · ${tx.hash}`);
-  await tx.wait(1);
+
+  const tx = await venue.trade(id, { gasLimit: await limitFor(venue.trade, [id], TRADE_GAS) });
+  /* logged from the receipt, not from the send. a hash is not a trade: this
+     said "traded" for one that reverted, which is the kind of log that sends
+     you looking in the wrong place. */
+  const rc = await wallet.provider.waitForTransaction(tx.hash);
+  log(rc?.status === 1 ? `traded · ${tx.hash}` : `trade REVERTED · ${tx.hash}`);
 
   if (l.nextBeatBy > 0 && !l.lapsed) {
     const due = l.nextBeatBy - Math.floor(Date.now() / 1000);
     if (due < 3600) {
       const b = await trustset.beat(id, wallet, { gasLimit: BEAT_GAS });
-      log(`beat · ${b.hash}`);
-      await b.wait(1);
+      const br = await wallet.provider.waitForTransaction(b.hash);
+      log(br?.status === 1 ? `beat · ${b.hash}` : `beat REVERTED · ${b.hash}`);
     }
   }
 }

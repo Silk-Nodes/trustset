@@ -82,10 +82,10 @@ const wasOk = await killSwitch.isTrustedAt(agentId, signedAt);`}</pre>
         </S>
         <S k="Deployed addresses">
           <p>Monad testnet, chain id 10143. Verify any of these by reading them yourself.</p>
-          <p><b>Kill switch</b> <A a="0x38b6Cc9b8721B83e2eE1ae0d64d2BfE98A5A8099" /></p>
-          <p><b>Human touch</b> <A a="0x8Ad84bF194A3c0eb33a345e013BD7E1e4BEfFaBa" /></p>
-          <p><b>Example counterparty</b> <A a="0x8A1EEa25e7b12979d107DCEF7F1E449c96C321De" /></p>
-          <p><b>Agent labels</b> <A a="0xCC0726434445f30d34eeC1AAD6cCd96C910C1cD1" /></p>
+          <p><b>Kill switch</b> <A a="0x54D8211233Cc65b62C594cBAb900930dd37ED3b8" /></p>
+          <p><b>Human touch</b> <A a="0x059563eb1dC1BBd7a8261309E92063A3f41AAda0" /></p>
+          <p><b>Example counterparty</b> <A a="0x532cC6c80B4a55249131d3790dF8B79D896Ba145" /></p>
+          <p><b>Agent labels</b> <A a="0x1fc5CF0a5bD938cc36EcE4ca34F2279e0e5b5f0f" /></p>
           <p><b>Refund rail</b> <A a="0xf8E44F08263fFB04660483Af44b70E1b25347748" /></p>
           <p><b>Mock dollar</b> <A a="0x8f3B4042ce030A7c3C6c1B507ba83Da7e2e2B24D" />, six decimals, mintable by anyone, for trying the rail on a testnet with no stable to hand.</p>
           <p><b>ERC-8004 identity registry</b> <A a="0x8004A818BFB912233c491871b3d84c89A494BD9e" />, the canonical testnet deployment, which we did not deploy and do not control. The live agent holds token 1873 there, and its owner published a pointer back to this switch under the metadata key <span className="mono">trustset</span>. The identity says who an agent is; the switch says whether it may act. Anyone who publishes the same pointer is linked here automatically, with no permission from us.</p>
@@ -93,7 +93,7 @@ const wasOk = await killSwitch.isTrustedAt(agentId, signedAt);`}</pre>
           <p>Four agents are registered there already, ids 1 to 4, each with its own key&apos;s signed consent. The agents page only lists agents whose cold key is the wallet you connect, so a fresh wallet starts empty and can register its own.</p>
         </S>
         <S k="What is true today">
-          <p>The kill switch, the human proof, the labels and the refund rail are built, audited once by their author (see AUDIT.md in the repo) and tested: 124 unit and fuzz tests, real WebAuthn and BLS vectors verified against Monad&apos;s own precompiles, a fork test against the mainnet staking precompile.</p>
+          <p>The kill switch, the human proof, the labels and the refund rail are built, audited once by their author (see AUDIT.md in the repo) and tested: 139 unit and fuzz tests, real WebAuthn and BLS vectors verified against Monad&apos;s own precompiles, a fork test against the mainnet staking precompile.</p>
           <p>The passkey ceremony has been run end to end on Monad testnet with a real Touch ID: passkey registered on chain, a stop made, the assertion signed over that stop&apos;s own transaction hash, and the origin read back as human. The contract half is proven against generated assertions; the browser half is proven with a finger on a sensor.</p>
           <p>Deployed to Monad testnet, not to mainnet. Nothing is audited.</p>
           <p><Link href="/agents" className="underline">See your agents</Link></p>
