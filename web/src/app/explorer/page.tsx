@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { readFile } from "fs/promises";
 import { join } from "path";
 import Explorer from "./Explorer";
+import LiveAgent from "@/components/LiveAgent";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = { title: "Explorer" };
@@ -25,6 +26,7 @@ export default async function Page() {
         <p className="text-lg sm:text-xl mt-5 mb-8 max-w-[54ch]" style={{ color: "var(--text-medium)" }}>
           Read from the chain and kept here, because Monad answers a hundred blocks of logs at a time and a browser cannot walk a day of them.
         </p>
+        <div className="mb-8"><LiveAgent /></div>
         <Explorer explorer={await explorerUrl()} />
       </main>
       <Footer />
