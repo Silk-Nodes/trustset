@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readFile } from "fs/promises";
+import { timingSafeEqual } from "crypto";
 import { ethers } from "ethers";
 import { cfg, provider, payer } from "@/lib/demo.server";
 
@@ -67,7 +68,23 @@ export async function GET() {
  * default. this route is refused until the cold key is actually handed to the
  * server's key, which takes a day, because handing an agent over quietly is
  * exactly what the timelock exists to prevent. */
+/* the site went from vpn-only to a public domain, and this route signs with a
+ * key the server holds. the passkey route next door can stay open because the
+ * assertion is the authority and this server can forge none of it. here there
+ * is no such proof: the request itself is the whole authority, so anybody who
+ * could reach the domain could pause or resume the agent. it takes an operator
+ * token now, and it fails closed when no token is configured, because an
+ * unset secret must never read as "no check needed". */
+function operator(req: Request) {
+  const want = process.env.OPERATOR_TOKEN || "";
+  if (!want) return false;
+  const got = req.headers.get("x-trustset-operator") || "";
+  const a = Buffer.from(got), b = Buffer.from(want);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export async function POST(req: Request) {
+  if (!operator(req)) return NextResponse.json({ error: "That control needs the operator token." }, { status: 401 });
   try {
     const { action } = (await req.json()) as { action: "pause" | "resume" };
     if (action !== "pause" && action !== "resume") return NextResponse.json({ error: "unknown action" }, { status: 400 });

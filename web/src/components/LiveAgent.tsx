@@ -34,6 +34,8 @@ export default function LiveAgent() {
   const [busy, setBusy] = useState(false);
   const [tx, setTx] = useState<{ hash: string; block: number | null } | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [token, setToken] = useState("");
+  const [asking, setAsking] = useState(false);
 
   const pull = useCallback(async () => {
     try {
@@ -47,12 +49,20 @@ export default function LiveAgent() {
      and the point is to watch it notice. */
   useEffect(() => { pull(); const t = setInterval(pull, 15_000); return () => clearInterval(t); }, [pull]);
 
+  /* the control is the operator's, not the reader's. the token lives in this
+     browser only and rides as a header; the server compares it and refuses
+     when it is missing, so a stranger who loads the page sees the state and
+     cannot change it. */
   async function flip(action: "pause" | "resume") {
+    const tok = token || (typeof localStorage !== "undefined" ? localStorage.getItem("trustset.operator") || "" : "");
+    if (!tok) { setAsking(true); return; }
     setBusy(true); setNote(null);
     try {
-      const r = await fetch("/api/live-agent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) });
+      const r = await fetch("/api/live-agent", { method: "POST", headers: { "content-type": "application/json", "x-trustset-operator": tok }, body: JSON.stringify({ action }) });
       const j = await r.json();
-      if (j.error) { setNote(j.error); return; }
+      if (j.error) { setNote(j.error); if (r.status === 401) setAsking(true); return; }
+      try { localStorage.setItem("trustset.operator", tok); } catch { /* private window */ }
+      setAsking(false);
       setTx({ hash: j.hash, block: j.block });
       await pull();
     } catch (e) { setNote(String(e)); }
@@ -120,6 +130,12 @@ export default function LiveAgent() {
           <span className="text-[12px]" style={{ color: "var(--text-medium)" }}>
             {off ? "It will notice within a minute and start again." : "It will notice within a minute and stop spending."}
           </span>
+          {asking && (
+            <input type="password" autoComplete="off" placeholder="operator token" value={token} onChange={e => setToken(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && token) flip(off ? "resume" : "pause"); }}
+              className="mono text-[12px] rounded-lg px-3 py-2 w-full sm:w-64"
+              style={{ border: "1px solid var(--hairline)", background: "transparent", color: "var(--text-dark)" }} />
+          )}
         </div>
       ) : s ? (
         <div className="rounded-xl px-4 py-3 mt-4 text-[12.5px]" style={{ border: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
