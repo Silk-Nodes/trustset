@@ -109,19 +109,25 @@ export default function LiveAgent() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 mt-4">
-        <button type="button" className={`drawn-btn ${off ? "btn-gold" : "btn-orange"}`} style={{ padding: "9px 16px", fontSize: "0.85rem", opacity: busy || !s?.holdsColdKey ? 0.55 : 1 }}
-          disabled={busy || !s || !s.holdsColdKey} onClick={() => flip(off ? "resume" : "pause")}>
-          {busy ? "Signing…" : off ? "Bring it back" : "Switch it off"}
-        </button>
-        <span className="text-[12px]" style={{ color: "var(--text-medium)" }}>
-          {!s ? "" : !s.holdsColdKey
-            ? (s.handoverAt
-                ? <>This server runs the agent but does not hold its cold key, so it cannot switch it off. The key is being handed over, and lands {new Date(s.handoverAt * 1000).toLocaleString()}.</>
-                : <>This server runs the agent but does not hold its cold key, so it cannot switch it off. That is the point of a cold key.</>)
-            : off ? "It will notice within a minute and start again." : "It will notice within a minute and stop spending."}
-        </span>
-      </div>
+      {/* the control exists only when this server can actually sign. a button
+          that explains why it does nothing is worse than no button. */}
+      {s?.holdsColdKey ? (
+        <div className="flex flex-wrap items-center gap-2 mt-4">
+          <button type="button" className={`drawn-btn ${off ? "btn-gold" : "btn-orange"}`} style={{ padding: "9px 16px", fontSize: "0.85rem", opacity: busy ? 0.6 : 1 }}
+            disabled={busy} onClick={() => flip(off ? "resume" : "pause")}>
+            {busy ? "Signing…" : off ? "Bring it back" : "Switch it off"}
+          </button>
+          <span className="text-[12px]" style={{ color: "var(--text-medium)" }}>
+            {off ? "It will notice within a minute and start again." : "It will notice within a minute and stop spending."}
+          </span>
+        </div>
+      ) : s ? (
+        <div className="rounded-xl px-4 py-3 mt-4 text-[12.5px]" style={{ border: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
+          <span className="font-semibold" style={{ color: "var(--text-dark)" }}>This server cannot switch off the agent it runs.</span>{" "}
+          It does not hold the cold key, which is the point of a cold key.
+          {s.handoverAt ? <> The key is being handed to it under the contract&apos;s one day delay, and lands {new Date(s.handoverAt * 1000).toLocaleString()}, after which a control appears here.</> : null}
+        </div>
+      ) : null}
 
       {tx && s?.explorer && (
         <div className="text-[12px] mt-3">
