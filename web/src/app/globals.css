@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+/* argus ui system, ported for trustset. same grammar: radial gradient ground,
+ * glass cards, floating pill nav with a neutral active pill, system font,
+ * mono eyebrows, big tabular figures, [data-theme] dark set before paint.
+ *
+ * one difference in the palette: the role argus gives to sage ("the good
+ * number") is orange here, because orange is the trustset mark's colour.
+ * orange means trusted, and a tripped state uses --danger. chrome stays
+ * neutral. */
+@theme inline {
+  --color-cream: var(--bg-base);
+  --color-ink: var(--text-dark);
+  --color-orange: var(--orange);
+  --color-terra: var(--terra);
+  --color-sage: var(--sage);
+  --color-red: var(--danger);
+  --color-white: var(--surface);
+  --color-surface: var(--surface);
+}
+
+:root {
+  --bg-base: #F4F4F2;
+  --bg-gradient: #F4F4F2;
+  --text-dark: #17181A;
+  --text-medium: #4A4F55;
+  --text-light: #8E8D8A;
+  --eyebrow-color: #6B6A67;
+  /* the dimmed half of a two-tone headline. measured 5.2:1 on the ground and 4.6:1 on the aura's peach. */
+  --dim: rgba(23, 24, 26, 0.55);
+
+  /* orange as fill and line, and its own darker text token: measured on the
+     light ground #F4F4F2, fill 3.9:1 (fine for bars and pills), text 5.0:1. */
+  --orange: #E8552B;
+  --orange-text: #B83F1B;
+  --sage: #1E7A4C;
+  --sage-text: #1A6A42;
+  --terra: #A85A18;
+  --danger: #B23A2E;
+
+  --surface: #FFFFFF;
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-shadow: 0 12px 40px rgba(20, 22, 24, 0.05);
+  --hairline: rgba(23, 24, 26, 0.10);
+  --strip-bg: rgba(255, 255, 255, 0.92);
+  --pill-accent-bg: #17181A;
+  --pill-accent-text: #FFFFFF;
+
+  --radius-xl: 32px; --radius-lg: 24px; --radius-md: 16px; --radius-sm: 12px; --radius-pill: 999px;
+  --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-dm-mono), "SF Mono", "Fira Code", ui-monospace, monospace;
+}
+
+[data-theme="dark"] {
+  --bg-base: #100E0B;
+  --bg-gradient: #100E0B;
+  --text-dark: #EDEEEC;
+  --text-medium: #B9BDC2;
+  --text-light: rgba(255, 255, 255, 0.58);
+  --eyebrow-color: rgba(255, 255, 255, 0.58);
+  --dim: rgba(237, 238, 236, 0.45);
+  /* on the dark card #1A1C1F: orange 6.9:1 as text, no separate token needed */
+  --orange: #FF6A3D;
+  --orange-text: #FF6A3D;
+  --sage: #57C98A;
+  --sage-text: #57C98A;
+  --terra: #E8A25C;
+  --danger: #E4695B;
+  --surface: #1A1C1F;
+  --glass-bg: rgba(26, 28, 31, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  --hairline: rgba(237, 238, 236, 0.12);
+  --strip-bg: rgba(16, 17, 19, 0.92);
+  --pill-accent-bg: #EDEEEC;
+  --pill-accent-text: #101214;
+}
+
+html { background: var(--bg-base); }
+body { background: var(--bg-gradient) fixed; color: var(--text-dark); font-family: var(--font-main); overflow-x: clip; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { font-family: var(--font-main); font-weight: 600; letter-spacing: -0.02em; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.tabular { font-variant-numeric: tabular-nums; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--eyebrow-color); }
+.drawn-box { background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); box-shadow: var(--glass-shadow); }
+/* three surface tiers.
+ *
+ * everything on the page used to be this one glass card, at the same radius
+ * and the same blur, so a reference table read exactly as loud as the product
+ * itself and nothing had rank. glass is now reserved for surfaces that ARE the
+ * product: the agent list and the story visuals. a sheet is a quieter opaque
+ * container for supporting material. a rule is no container at all, just lines
+ * drawn on the page ground, for reference material. */
+.sheet { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius-md); box-shadow: none; }
+.rule-top { border-top: 1px solid var(--hairline); }
+
+/* one section head, so every section below the fold is introduced the same
+   way: a title on a rule, with its caveat on the same baseline. */
+.sec-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.9rem; padding-bottom: 0.85rem; margin-bottom: 1.1rem; border-bottom: 1px solid var(--hairline); }
+.sec-head h2 { font-size: 1.5rem; letter-spacing: -0.025em; }
+@media (min-width: 640px) { .sec-head h2 { font-size: 1.75rem; } }
+.sec-head .note { font-size: 0.8125rem; color: var(--text-medium); }
+
+.drawn-btn { background: var(--pill-accent-bg); color: var(--pill-accent-text); font-family: var(--font-main); font-weight: 600; font-size: 0.875rem; padding: 10px 22px; border-radius: var(--radius-pill); border: 1px solid transparent; transition: opacity 0.15s ease, transform 0.15s ease; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; }
+.drawn-btn:hover { opacity: 0.88; }
+.drawn-btn:active { transform: scale(0.98); }
+.drawn-btn.btn-gold { background: transparent; color: var(--text-dark); border-color: var(--hairline); }
+.drawn-btn.btn-gold:hover { border-color: var(--text-light); }
+.drawn-btn.btn-orange { background: var(--orange); color: #160A06; }
+.drawn-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+.code-window { background: #101214; color: #C9CFD6; font-family: var(--font-mono); font-size: 0.82em; border-radius: var(--radius-md); padding: 1.25rem 1.4rem; border: 1px solid rgba(237, 238, 236, 0.14); overflow-x: auto; line-height: 1.6; }
+.code-window .c { color: rgba(201, 207, 214, 0.5); }
+.code-window .o { color: #FF6A3D; }
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.pin-th thead th { position: sticky; top: 64px; z-index: 3; background: color-mix(in srgb, var(--surface) 94%, var(--text-dark)); box-shadow: 0 2px 0 var(--hairline), 0 -1px 0 var(--hairline); padding-top: 10px; padding-bottom: 10px; }
+@media (max-width: 640px) { .pin-th thead th { top: 52px; } }
+/* below the table's width the wrapper scrolls sideways, which makes it a scroll
+   container, and a sticky th then pins to the wrapper instead of the viewport
+   and covers the first row. so the header is static there. measured at 393. */
+@media (max-width: 720px) { .pin-wrap-640 { overflow-x: auto; } .pin-wrap-640 .pin-th thead th { position: static; } }
+
+/* backdrop glows drift a little, slowly, so the page breathes without moving anything a reader is looking at. */
+@keyframes ts-drift { 0%, 100% { translate: 0 0; } 50% { translate: 3% -2%; } }
+@keyframes ts-drift-b { 0%, 100% { translate: 0 0; } 50% { translate: -3% 2%; } }
+.ts-drift { animation: ts-drift 26s ease-in-out infinite; }
+.ts-drift-b { animation: ts-drift-b 32s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .ts-drift, .ts-drift-b { animation: none; } }
+
+/* aurora nova mobile blur radii, per its spec */
+@media (max-width: 767px) { .aura-l1 { filter: blur(88px) !important; } .aura-l2 { filter: blur(25px) !important; } }

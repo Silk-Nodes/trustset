@@ -1,0 +1,39 @@
+"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import WalletButton from "./WalletButton";
+import { useWallet } from "@/components/WalletProvider";
+
+/* the frame every console page sits in: title, a small tab row for the
+   pages, and the wallet chip. one place, so the pages agree. */
+const TABS = [
+  { href: "/agents", label: "Agents" },
+  { href: "/agents/refunds", label: "Refunds" },
+];
+export default function Shell({ title, note, actions, children }: { title: string; note?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode }) {
+  const p = usePathname();
+  const w = useWallet();
+  return (
+    <main className="w-full max-w-6xl mx-auto px-3 sm:px-4 pt-6 sm:pt-10 pb-16 min-w-0">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 mb-5">
+        <nav className="flex gap-1 rounded-full p-1" style={{ background: "color-mix(in srgb, var(--text-dark) 5%, transparent)" }} aria-label="Agent pages">
+          {TABS.map(t => { const on = p === t.href; return (
+            <Link key={t.href} href={t.href} className="rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors"
+              style={{ background: on ? "var(--pill-accent-bg)" : "transparent", color: on ? "var(--pill-accent-text)" : "var(--text-medium)" }}>{t.label}</Link>
+          ); })}
+        </nav>
+        <div className="ml-auto flex items-center gap-2">
+          {actions}
+          <WalletButton address={w.who?.address ?? null} kind={w.who?.kind ?? null} available={w.walletOk} explorer={w.conn?.cfg.explorer} resuming={w.resuming}
+            onConnect={() => w.connectNow().catch(() => {})} onDisconnect={w.disconnect} />
+        </div>
+      </div>
+      <div className="sec-head">
+        <h2 className="font-semibold">{title}</h2>
+        {note && <span className="note tabular">{note}</span>}
+      </div>
+      {w.error && <div className="sheet px-4 py-3 mb-3 text-xs mono break-all" style={{ color: "var(--orange-text)" }}>{w.error}</div>}
+      {children}
+    </main>
+  );
+}
