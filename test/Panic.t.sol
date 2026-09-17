@@ -24,7 +24,7 @@ contract PanicTest is Test {
     }
 
     function setUp() public {
-        ks = new KillSwitch(1 days, 3 days);
+        ks = new KillSwitch(1 days, 3 days, 7 days);
         vm.warp(1_000_000);
         address[] memory none;
         id = ks.register(agentKey, owner, none, 0, _consent(agentPk, owner));

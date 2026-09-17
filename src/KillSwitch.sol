@@ -45,6 +45,9 @@ contract KillSwitch is IDutyVerifier {
     /// @dev guardians can pause immediately, and may escalate a pause to revoked only after this delay with no
     ///      owner action, so a lost owner key does not leave a compromised agent live forever
     uint64 public immutable guardianEscalationDelay;
+    /// @dev how long a guardian-agreed cold key change waits before it may be executed, so the
+    ///      owner has a window to cancel one they did not want
+    uint64 public immutable guardianRecoveryDelay;
 
     uint256 public agentCount;
     mapping(uint256 => Agent) private _agents;
@@ -68,6 +71,21 @@ contract KillSwitch is IDutyVerifier {
     }
     mapping(uint256 agentId => StopKey) private _stopKeys;
 
+    /// @dev guardians replacing a cold key its owner can no longer use. this is for a key that was
+    ///      LOST. a key that was STOLEN is a different problem with a different answer: the thief
+    ///      can cancel any recovery, so the guardians' route there is to pause and then escalate to
+    ///      revoked, killing the agent rather than handing it back. both are in AUDIT.md.
+    struct Recovery {
+        address newKey;
+        /// @dev 0 until the threshold is reached; then the moment the change may be executed
+        uint64 readyAt;
+        uint32 round;
+        uint8 votes;
+    }
+    mapping(uint256 agentId => Recovery) private _recovery;
+    /// @dev agentId => guardian => the recovery round they last voted in (0 = never)
+    mapping(uint256 => mapping(address => uint32)) public recoveryVote;
+
     /// @dev true while the current pause was made by guardians. only such a pause may be escalated:
     ///      an owner who pauses their own agent for a week must not find it revoked by a guardian.
     mapping(uint256 => bool) public guardianPaused;
@@ -80,6 +98,9 @@ contract KillSwitch is IDutyVerifier {
     event GuardianVoted(uint256 indexed agentId, address indexed guardian, uint256 votes, uint256 threshold);
     event LimitsSet(uint256 indexed agentId, uint64 expiresAt, uint64 heartbeatWindow);
     event Beat(uint256 indexed agentId, uint64 at);
+    event RecoveryProposed(uint256 indexed agentId, address indexed guardian, address newKey, uint256 votes, uint256 threshold);
+    event RecoveryReady(uint256 indexed agentId, address newKey, uint64 readyAt);
+    event RecoveryCancelled(uint256 indexed agentId, address by);
     event StopKeySet(uint256 indexed agentId, uint256 x, uint256 y, bytes32 rpIdHash);
     event StopKeyCleared(uint256 indexed agentId);
 
@@ -98,12 +119,14 @@ contract KillSwitch is IDutyVerifier {
     error NoHeartbeat();
     error Lapsed();
     error BadExpiry();
+    error NoRecovery();
     error NoStopKey();
     error BadAssertion();
 
-    constructor(uint64 revocationKeyChangeDelay_, uint64 guardianEscalationDelay_) {
+    constructor(uint64 revocationKeyChangeDelay_, uint64 guardianEscalationDelay_, uint64 guardianRecoveryDelay_) {
         revocationKeyChangeDelay = revocationKeyChangeDelay_;
         guardianEscalationDelay = guardianEscalationDelay_;
+        guardianRecoveryDelay = guardianRecoveryDelay_;
     }
 
     // ---------- registration ----------
@@ -333,6 +356,86 @@ contract KillSwitch is IDutyVerifier {
         if (a.status != Status.Paused || !guardianPaused[agentId]) revert BadTransition();
         if (block.timestamp < a.statusSince + guardianEscalationDelay) revert TooEarly();
         _setStatus(agentId, a, Status.Revoked, keccak256("guardian escalation"), msg.sender);
+    }
+
+    // ---------- recovering a lost cold key ----------
+
+    /// @notice A guardian proposes replacing the cold key, and votes for it. When the threshold is
+    ///         reached a clock starts; after `guardianRecoveryDelay` any guardian may execute it.
+    /// @dev This exists for a cold key that was lost. It is deliberately cancellable by the current
+    ///      cold key, which means it does NOT help against a key that was stolen: a thief cancels
+    ///      every attempt. That case is what pause and escalation are for, and the honest answer
+    ///      there is that the agent dies rather than changing hands. Recovery hands an agent to a
+    ///      new owner; nobody should be able to do that quietly, so it takes a threshold of the
+    ///      people the owner chose, plus a delay in which they can be overruled.
+    function proposeRecovery(uint256 agentId, address newKey) external {
+        Agent storage a = _agents[agentId];
+        if (!_isGuardian(a, msg.sender)) revert NotGuardian();
+        if (a.status == Status.Revoked || a.status == Status.Rotated) revert Terminal();
+        /* the same checks a registration makes: a key nobody holds, or the agent's own key, is not
+           an owner. handing it to the key that already holds it is a no-op worth refusing. */
+        if (newKey == address(0) || newKey == a.agentKey || newKey == a.revocationKey) revert BadKeys();
+
+        Recovery storage r = _recovery[agentId];
+        /* guardians who name different keys are not agreeing about anything, so naming a new one
+           starts a fresh round and the earlier votes stop counting. */
+        if (r.newKey != newKey) {
+            r.round++;
+            r.newKey = newKey;
+            r.votes = 0;
+            r.readyAt = 0;
+        }
+        if (recoveryVote[agentId][msg.sender] == r.round + 1) return; // already voted this round
+        recoveryVote[agentId][msg.sender] = r.round + 1;
+        uint8 votes = ++r.votes;
+        emit RecoveryProposed(agentId, msg.sender, newKey, votes, a.guardianThreshold);
+        if (votes >= a.guardianThreshold && r.readyAt == 0) {
+            r.readyAt = uint64(block.timestamp) + guardianRecoveryDelay;
+            emit RecoveryReady(agentId, newKey, r.readyAt);
+        }
+    }
+
+    /// @notice The cold key refuses a recovery its guardians agreed on. Only the cold key.
+    /// @dev Also clears the votes, by moving the round on: a guardian who still wants it has to say
+    ///      so again, rather than an old vote counting toward a later attempt.
+    function cancelRecovery(uint256 agentId) external {
+        _requireOwner(agentId);
+        Recovery storage r = _recovery[agentId];
+        if (r.newKey == address(0)) revert NoRecovery();
+        r.round++;
+        r.newKey = address(0);
+        r.votes = 0;
+        r.readyAt = 0;
+        emit RecoveryCancelled(agentId, msg.sender);
+    }
+
+    /// @notice Execute a recovery the guardians agreed on and the owner did not cancel. Any guardian.
+    function executeRecovery(uint256 agentId) external {
+        Agent storage a = _agents[agentId];
+        if (!_isGuardian(a, msg.sender)) revert NotGuardian();
+        if (a.status == Status.Revoked || a.status == Status.Rotated) revert Terminal();
+        Recovery storage r = _recovery[agentId];
+        if (r.newKey == address(0) || r.readyAt == 0) revert NoRecovery();
+        if (block.timestamp < r.readyAt) revert TooEarly();
+
+        a.revocationKey = r.newKey;
+        /* a cold key change the old owner had proposed dies with their ownership. otherwise a
+           pending proposal made before the recovery would land afterwards and take the agent
+           straight back out of the new owner's hands. */
+        a.pendingRevocationKey = address(0);
+        a.revocationKeyChangeAt = 0;
+        r.round++;
+        r.newKey = address(0);
+        r.votes = 0;
+        r.readyAt = 0;
+        emit RevocationKeyChanged(agentId, a.revocationKey);
+    }
+
+    /// @notice The recovery in progress, if any: the key proposed, when it may be executed, and where
+    ///         the vote stands.
+    function recoveryOf(uint256 agentId) external view returns (address newKey, uint64 readyAt, uint8 votes, uint8 threshold) {
+        Recovery storage r = _recovery[agentId];
+        return (r.newKey, r.readyAt, r.votes, _agents[agentId].guardianThreshold);
     }
 
     // ---------- views ----------

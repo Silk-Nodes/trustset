@@ -168,6 +168,38 @@ only ever narrow what an agent may do. Notes from reviewing them:
 
 20 tests cover these, in `test/Limits.t.sol`. 114 pass in total.
 
+## Added after the audit: guardian recovery of a cold key
+
+Until now a cold key that was lost meant losing the agent: guardians could pause
+it, but nobody could replace the key, and the only ending was a stop. Guardians
+can now agree on a new cold key, and after `guardianRecoveryDelay` any of them
+may execute it. Notes from designing it:
+
+- **It is for a key that was lost, not one that was stolen.** The current cold
+  key can cancel any recovery, so a thief holding it cancels every attempt
+  forever. That is deliberate: the alternative, a recovery the owner cannot
+  refuse, lets a threshold of guardians take an agent from an owner who is
+  standing right there. For a stolen key the answer is the path that already
+  existed, pause and then escalate, which ends the agent rather than handing it
+  to anybody. Test: `test_aStolenColdKeyCancelsForever` walks both halves.
+- **Cancelling clears the votes.** The round moves on, so a guardian who still
+  wants the change has to say so again and an old vote cannot be carried into a
+  later attempt. Test: `test_votesDoNotSurviveACancel`.
+- **Guardians naming different keys are not agreeing.** Naming a new key starts
+  a fresh round rather than accumulating votes across targets, which would let
+  two guardians who want different things add up to a threshold. Test:
+  `test_namingADifferentKeyStartsOver`.
+- **Executing clears the old owner's pending handover.** Otherwise a cold key
+  change the previous owner proposed before losing the agent would land
+  afterwards and take it straight back out. Test:
+  `test_recoveryKillsTheOldOwnersPendingHandover`.
+- **The new key gets the same checks a registration makes:** not zero, not the
+  agent's own key, and not the key that already holds it.
+- **An agent with no guardians cannot be recovered.** That is the owner's choice
+  at registration and the contract does not second-guess it.
+
+15 tests cover this, in `test/Recovery.t.sol`. 139 pass in total.
+
 ## Redeployed
 
 Twice on 2026-09-16. First for the audit fixes, then again for the limits above.

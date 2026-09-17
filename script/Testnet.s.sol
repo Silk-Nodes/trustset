@@ -16,10 +16,11 @@ contract Testnet is Script {
         address owner = vm.addr(pk);
 
         vm.startBroadcast(pk);
-        /* one day to change the cold key. the guardian escalation delay is ten
-           minutes here, not the three days mainnet would use, so the escape
-           hatch can be seen to fire on a testnet inside one sitting. */
-        KillSwitch ks = new KillSwitch(1 days, 10 minutes);
+        /* one day to change the cold key. the guardian delays are ten minutes
+           here, not the days mainnet would use, so both escape hatches can be
+           seen to fire on a testnet inside one sitting: escalating a pause to a
+           stop, and replacing a cold key its owner lost. */
+        KillSwitch ks = new KillSwitch(1 days, 10 minutes, 10 minutes);
         HumanTouch touch = new HumanTouch(ks);
         Counterparty venue = new Counterparty(ks);
 

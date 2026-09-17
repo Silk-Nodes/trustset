@@ -21,7 +21,7 @@ contract OperatorRegistryTest is Test {
 
     function setUp() public {
         staking = new MockStaking();
-        ks = new KillSwitch(1 days, 3 days);
+        ks = new KillSwitch(1 days, 3 days, 7 days);
         uint8[] memory duties = new uint8[](1);
         duties[0] = 1; // DUTY_REVOCATION_WITNESS
         address[] memory verifiers = new address[](1);

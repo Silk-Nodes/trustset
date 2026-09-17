@@ -30,7 +30,7 @@ contract Demo is Script {
         staking.setValidator(7, auth1, 12_000_000 ether);
         staking.setValidator(9, auth2, 8_000_000 ether);
         staking.setEpoch(2095, false);
-        KillSwitch ks = new KillSwitch(1 days, 3 days);
+        KillSwitch ks = new KillSwitch(1 days, 3 days, 7 days);
         uint8[] memory duties = new uint8[](1);
         duties[0] = 1;
         address[] memory verifiers = new address[](1);

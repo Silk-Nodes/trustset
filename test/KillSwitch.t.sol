@@ -21,7 +21,7 @@ contract KillSwitchTest is Test {
     }
 
     function setUp() public {
-        ks = new KillSwitch(1 days, 3 days);
+        ks = new KillSwitch(1 days, 3 days, 7 days);
         vm.warp(1_000_000);
         address[] memory gs = new address[](3);
         gs[0] = g1;

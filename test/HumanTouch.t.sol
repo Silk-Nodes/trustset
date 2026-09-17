@@ -22,7 +22,7 @@ contract HumanTouchTest is Test {
 
 
     function setUp() public {
-        ks = new KillSwitch(1 days, 3 days);
+        ks = new KillSwitch(1 days, 3 days, 7 days);
         touch = new HumanTouch(ks);
     }
 

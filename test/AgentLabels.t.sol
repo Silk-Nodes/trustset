@@ -23,7 +23,7 @@ contract AgentLabelsTest is Test {
     event Labelled(uint256 indexed agentId, address indexed by, string name, string purpose);
 
     function setUp() public {
-        ks = new KillSwitch(1 days, 3 days);
+        ks = new KillSwitch(1 days, 3 days, 7 days);
         labels = new AgentLabels(ks);
         address[] memory none;
         vm.prank(owner);

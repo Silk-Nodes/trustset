@@ -38,7 +38,7 @@ contract StakingForkTest is Test {
         }
         require(vid != 0 && vid2 != 0, "need two active validators in first 60 ids");
         console2.log("using validator", vid, "auth", auth);
-        KillSwitch ks = new KillSwitch(1 days, 3 days);
+        KillSwitch ks = new KillSwitch(1 days, 3 days, 7 days);
         uint8[] memory d = new uint8[](1);
         d[0] = 1;
         address[] memory v = new address[](1);
