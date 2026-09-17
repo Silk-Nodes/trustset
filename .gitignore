@@ -1,8 +1,12 @@
-out/
-cache/
-broadcast/
+.demo-agents.json
+.deployer.addr
+.deployer.json
 .env
-.venv/
+.ultrafuzz/cache/
 .ultrafuzz/runs/
 .ultrafuzz/workspaces/
-.ultrafuzz/cache/
+.venv/
+broadcast/
+cache/
+indexer/node_modules/
+out/

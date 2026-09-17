@@ -190,9 +190,18 @@ contract OperatorRegistry {
         uint256 bond = op.bond;
         op.bond = 0;
         emit Slashed(operatorId, statementHash, msg.sender, bond);
-        (bool ok,) = msg.sender.call{value: bond}("");
+        /* half to whoever proved it, half burned. paying the whole bond to the
+           challenger let an operator sign a deliberately false statement, slash
+           itself from a second address, and walk out with its bond at once,
+           skipping the exit delay. now a slash always costs. */
+        uint256 reward = bond / 2;
+        (bool ok,) = msg.sender.call{value: reward}("");
         require(ok, "bond transfer");
+        (ok,) = BURN.call{value: bond - reward}("");
+        require(ok, "burn");
     }
+
+    address constant BURN = 0x000000000000000000000000000000000000dEaD;
 
     /// @notice The digest operators sign. Domain separated by this contract's address.
     function statementDigest(uint256 operatorId, uint8 duty, bytes calldata statement) public view returns (bytes32) {

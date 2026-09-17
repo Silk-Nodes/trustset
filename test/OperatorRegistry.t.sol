@@ -172,7 +172,8 @@ contract OperatorRegistryTest is Test {
     function test_slashOnContradictedStatement() public {
         vm.warp(1_000_000);
         address[] memory none;
-        uint256 agentId = ks.register(address(0xA1), address(0xB0B), none, 0);
+        (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(0xA1, ks.registrationDigest(vm.addr(0xA1), address(0xB0B)));
+        uint256 agentId = ks.register(vm.addr(0xA1), address(0xB0B), none, 0, abi.encodePacked(r1, s1, v1));
         vm.prank(address(0xB0B));
         ks.setStatus(agentId, KillSwitch.Status.Revoked, keccak256("compromised"));
 
@@ -183,7 +184,8 @@ contract OperatorRegistryTest is Test {
         address challenger = address(0xC4A11);
         vm.prank(challenger);
         reg.slash(1, 1, stmt, SIG1_STATEMENT);
-        assertEq(challenger.balance, 1 ether);
+        assertEq(challenger.balance, 0.5 ether, "challenger gets half");
+        assertEq(address(0x000000000000000000000000000000000000dEaD).balance, 0.5 ether, "the other half is burned");
         assertTrue(reg.getOperator(1).slashed);
         assertFalse(reg.isActiveFor(1, 1));
         vm.prank(challenger);
@@ -194,7 +196,8 @@ contract OperatorRegistryTest is Test {
     function test_slashRejectsTrueStatementAndBadSignature() public {
         vm.warp(1_000_000);
         address[] memory none;
-        ks.register(address(0xA1), address(0xB0B), none, 0); // stays Active, so the claim is true
+        (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(0xA1, ks.registrationDigest(vm.addr(0xA1), address(0xB0B)));
+        ks.register(vm.addr(0xA1), address(0xB0B), none, 0, abi.encodePacked(r1, s1, v1)); // stays Active, so the claim is true
         vm.prank(auth1);
         reg.register{value: 1 ether}(7, pk1, 1);
         bytes memory stmt = abi.encode(uint256(1), uint8(KillSwitch.Status.Active), uint64(1_000_000));
