@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import { useMotionPrefs } from "@/lib/motion";
@@ -21,6 +21,8 @@ const FILTERS = [
   ["limits", "Limits"], ["work", "Work"], ["guardians", "Guardians"], ["keys", "Keys"], ["labels", "Names"],
 ] as const;
 
+const PAGE = 10;
+
 const TONE: Record<Tone, string> = { live: "var(--sage)", off: "var(--orange)", quiet: "var(--terra)", plain: "var(--text-light)" };
 
 export default function Explorer({ explorer }: { explorer: string }) {
@@ -32,7 +34,10 @@ export default function Explorer({ explorer }: { explorer: string }) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "none">("loading");
   const [more, setMore] = useState(false);
-  const seen = useRef(new Set<number>());
+  /* one page of ten, and the cursor of every page walked past, so Newer can go
+     back. the feed used to append forever, which turned a glance at the last
+     few events into a page you had to scroll. */
+  const [pages, setPages] = useState<number[]>([]);
 
   /* typing searches when you stop, not on every keystroke. */
   useEffect(() => { const t = setTimeout(() => setQ(typed.trim()), 350); return () => clearTimeout(t); }, [typed]);
@@ -41,24 +46,27 @@ export default function Explorer({ explorer }: { explorer: string }) {
     const u = new URL("/api/explorer", window.location.origin);
     if (filter) u.searchParams.set("filter", filter);
     if (q) u.searchParams.set("q", q);
+    u.searchParams.set("limit", String(PAGE));
     if (before) u.searchParams.set("before", String(before));
     const r = await fetch(u, { cache: "no-store" });
     const j = await r.json();
     if (!j.indexed) { setState("none"); return; }
     setStats(j.stats);
-    setRows(prev => {
-      const next = before ? [...prev, ...j.events] : j.events;
-      seen.current = new Set(next.map((e: Ev) => e.id));
-      return next;
-    });
-    setMore((j.events?.length ?? 0) >= 60);
+    setRows(j.events ?? []);
+    setMore((j.events?.length ?? 0) >= PAGE);
     setState("ready");
   }, [filter, q]);
 
-  useEffect(() => { setState(s => (s === "none" ? s : "loading")); load().catch(() => setState("none")); }, [load]);
+  useEffect(() => { setPages([]); setState(s => (s === "none" ? s : "loading")); load().catch(() => setState("none")); }, [load]);
   /* the head moves every few seconds; the feed follows it without the page
      jumping, because new rows land on top and the rest keep their place. */
-  useEffect(() => { const t = setInterval(() => load().catch(() => {}), 12_000); return () => clearInterval(t); }, [load]);
+  /* the head moves every few seconds. only the newest page follows it: pulling
+     a reader on page four back to page one would be rude. */
+  useEffect(() => {
+    if (pages.length) return;
+    const t = setInterval(() => load().catch(() => {}), 12_000);
+    return () => clearInterval(t);
+  }, [load, pages.length]);
 
   const groups = useMemo(() => {
     const out: { day: string; rows: Ev[] }[] = [];
@@ -108,15 +116,25 @@ export default function Explorer({ explorer }: { explorer: string }) {
           <div key={g.day}>
             <div className="px-4 sm:px-5 py-2 text-[11px] mono uppercase tracking-[0.12em]"
               style={{ color: "var(--text-medium)", background: "color-mix(in srgb, var(--text-dark) 3%, transparent)", borderBottom: "1px solid var(--hairline)" }}>{g.day}</div>
-            <AnimatePresence initial={false}>
-              {g.rows.map(e => <Row key={e.id} e={e} explorer={explorer} reduced={m.reduced} />)}
-            </AnimatePresence>
+            {/* no AnimatePresence here. a page change replaces ten rows with ten
+                others, and cross-fading them means the old ten only leave when
+                their exit animation finishes, which in a backgrounded tab it
+                never does: the feed ends up holding twenty. rows still animate
+                in, which is the half that carries meaning. */}
+            {g.rows.map(e => <Row key={e.id} e={e} explorer={explorer} reduced={m.reduced} />)}
           </div>
         ))}
-        {more && (
-          <div className="px-4 sm:px-5 py-3">
-            <button type="button" className="drawn-btn btn-gold" style={{ padding: "8px 16px", fontSize: "0.82rem" }}
-              onClick={() => load(rows.at(-1)?.id ?? 0)}>Older</button>
+        {(more || pages.length > 0) && (
+          <div className="px-4 sm:px-5 py-3 flex flex-wrap items-center gap-2">
+            <button type="button" className="drawn-btn btn-gold" style={{ padding: "8px 16px", fontSize: "0.82rem", opacity: pages.length ? 1 : 0.45 }}
+              disabled={!pages.length}
+              onClick={() => { const back = pages.slice(0, -1); setPages(back); load(back.at(-1) ?? 0); }}>Newer</button>
+            <button type="button" className="drawn-btn btn-gold" style={{ padding: "8px 16px", fontSize: "0.82rem", opacity: more ? 1 : 0.45 }}
+              disabled={!more}
+              onClick={() => { const next = rows.at(-1)?.id ?? 0; setPages(p => [...p, next]); load(next); }}>Older</button>
+            <span className="ml-auto mono text-[11px] tabular" style={{ color: "var(--text-medium)" }}>
+              page {pages.length + 1}{stats ? ` of ${Math.max(1, Math.ceil(Number(stats.events) / PAGE))}` : ""}
+            </span>
           </div>
         )}
       </div>
@@ -133,7 +151,7 @@ function Row({ e, explorer, reduced }: { e: Ev; explorer: string; reduced: boole
   const { text, tone } = say(e);
   const name = e.name || (e.agent_id ? `Agent ${e.agent_id}` : "Unknown");
   return (
-    <motion.div layout={!reduced} initial={reduced ? { opacity: 0 } : { opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+    <motion.div initial={reduced ? { opacity: 0 } : { opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
       className="grid grid-cols-[10px_1fr_auto] sm:grid-cols-[10px_220px_1fr_92px_auto] items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3"
       style={{ borderBottom: "1px solid var(--hairline)" }}>
