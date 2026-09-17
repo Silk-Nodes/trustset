@@ -43,6 +43,18 @@ const KS = [
   "event Beat(uint256 indexed agentId, uint64 at)",
 ];
 const LABELS = ["event Labelled(uint256 indexed agentId, address indexed by, string name, string purpose)"];
+/* the demo venue. an agent's status changes are the switch's business, but what
+   an agent actually did is the venue's, and without it the feed shows a live
+   agent that never does anything. refusals are still absent and still cannot be
+   indexed: a refused trade reverts and emits no log. */
+const VENUE = ["event TradeAccepted(uint256 indexed agentId, uint256 n)"];
+/* ERC-8004's identity registry. we do not read its agents; we read the one key
+   an agent's owner can set to say "my switch is over there". the key is indexed
+   as a string, so it arrives hashed and we match on the hash. anyone who
+   publishes it is linked, with no permission from us and no code of ours. */
+const ERC8004 = ["event MetadataSet(uint256 indexed agentId, string indexed indexedMetadataKey, string metadataKey, bytes metadataValue)"];
+const ERC8004_REGISTRY = process.env.ERC8004_REGISTRY || "0x8004A818BFB912233c491871b3d84c89A494BD9e";
+const TRUSTSET_KEY = ethers.id("trustset");
 const STATUS = ["none", "active", "paused", "revoked", "rotated"];
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -74,6 +86,8 @@ async function main() {
   const p = new ethers.JsonRpcProvider(RPC, undefined, { staticNetwork: true, batchMaxCount: 1 });
   const ks = new ethers.Interface(KS);
   const labels = new ethers.Interface(LABELS);
+  const venue = new ethers.Interface(VENUE);
+  const erc8004 = new ethers.Interface(ERC8004);
   const db = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 4 });
   await db.query(await readFile(join(HERE, "schema.sql"), "utf8"));
 
@@ -86,7 +100,7 @@ async function main() {
     const target = Math.max(0, head - BEHIND);
     while (cur <= target) {
       const to = Math.min(cur + WINDOW - 1, target);
-      const rows = await pull(p, d, ks, labels, cur, to);
+      const rows = await pull(p, d, ks, labels, venue, erc8004, cur, to);
       if (rows.length) await write(db, rows);
       await db.query("INSERT INTO cursor (name, block) VALUES ('main', $1) ON CONFLICT (name) DO UPDATE SET block = $1", [to + 1]);
       if (rows.length) log(`blocks ${cur}-${to}: ${rows.length} events`);
@@ -112,21 +126,42 @@ async function cursor(db, fallback) {
   return r.rows.length ? Number(r.rows[0].block) : fallback;
 }
 
-async function pull(p, d, ks, labels, from, to) {
-  const [a, b] = await Promise.all([
+async function pull(p, d, ks, labels, venue, erc8004, from, to) {
+  const [a, b, c, e] = await Promise.all([
     retry(() => p.getLogs({ address: d.killSwitch, fromBlock: from, toBlock: to })),
     d.labels ? retry(() => p.getLogs({ address: d.labels, fromBlock: from, toBlock: to })) : Promise.resolve([]),
+    d.venue ? retry(() => p.getLogs({ address: d.venue, fromBlock: from, toBlock: to })) : Promise.resolve([]),
+    retry(() => p.getLogs({ address: ERC8004_REGISTRY, topics: [ethers.id("MetadataSet(uint256,string,string,bytes)"), null, TRUSTSET_KEY], fromBlock: from, toBlock: to })),
   ]);
-  if (!a.length && !b.length) return [];
+  if (!a.length && !b.length && !c.length && !e.length) return [];
   /* one timestamp read per block that actually had a log, not per block. */
   const stamps = new Map();
-  for (const l of [...a, ...b]) stamps.set(l.blockNumber, null);
+  for (const l of [...a, ...b, ...c, ...e]) stamps.set(l.blockNumber, null);
   for (const n of stamps.keys()) stamps.set(n, (await retry(() => p.getBlock(n)))?.timestamp ?? 0);
 
   const out = [];
   for (const l of a) out.push(decode(ks, l, stamps.get(l.blockNumber)));
   for (const l of b) out.push(decode(labels, l, stamps.get(l.blockNumber)));
+  for (const l of c) out.push(decode(venue, l, stamps.get(l.blockNumber)));
+  for (const l of e) out.push(link8004(erc8004, l, stamps.get(l.blockNumber)));
   return out.filter(Boolean);
+}
+
+/* an 8004 owner saying where their switch is. the value is
+   abi.encode(chainId, killSwitch, agentId); a pointer at another chain or
+   another switch is somebody else's business and is dropped. */
+function link8004(iface, l, ts) {
+  let ev;
+  try { ev = iface.parseLog({ topics: [...l.topics], data: l.data }); } catch { return null; }
+  if (!ev) return null;
+  try {
+    const [chainId, killSwitch, agentId] = ethers.AbiCoder.defaultAbiCoder().decode(["uint256", "address", "uint256"], ev.args[3]);
+    return {
+      block: l.blockNumber, tx: l.transactionHash, index: l.index, at: new Date(ts * 1000).toISOString(),
+      kind: "Linked8004", agentId: Number(agentId), actor: null,
+      data: { erc8004Id: Number(ev.args[0]), chainId: Number(chainId), killSwitch },
+    };
+  } catch { return null; }
 }
 
 function decode(iface, l, ts) {
@@ -159,6 +194,10 @@ function decode(iface, l, ts) {
       return { ...base, agentId: Number(n[0]), actor: null, data: { beatAt: Number(n[1]) } };
     case "Labelled":
       return { ...base, agentId: Number(n[0]), actor: n[1], data: { name: n[2], purpose: n[3] } };
+    case "TradeAccepted":
+      return { ...base, agentId: Number(n[0]), actor: null, data: { n: Number(n[1]) } };
+    case "MetadataSet":
+      return null; // handled by link8004, which knows how to read the value
     default: return null;
   }
 }
@@ -224,6 +263,12 @@ async function fold(c, r) {
     case "Labelled":
       await c.query("UPDATE agents SET name = $2, purpose = $3, labelled_at = $4 WHERE id = $1",
         [id, r.data.name, r.data.purpose, r.at]);
+      return;
+    case "Linked8004":
+      /* only a pointer at this chain and this switch. anything else is a claim
+         about somebody else's deployment and not ours to record. */
+      if (r.data.chainId !== 10143) return;
+      await c.query("UPDATE agents SET erc8004_id = $2 WHERE id = $1", [id, r.data.erc8004Id]);
       return;
   }
 }

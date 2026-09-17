@@ -16,6 +16,8 @@ const KINDS: Record<string, string[]> = {
   guardians: ["GuardianVoted"],
   keys: ["RevocationKeyChangeProposed", "RevocationKeyChanged", "Rotated"],
   labels: ["Labelled"],
+  work: ["TradeAccepted", "Beat"],
+  identity: ["Linked8004"],
 };
 
 export async function GET(req: Request) {

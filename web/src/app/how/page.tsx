@@ -88,6 +88,7 @@ const wasOk = await killSwitch.isTrustedAt(agentId, signedAt);`}</pre>
           <p><b>Agent labels</b> <A a="0xCC0726434445f30d34eeC1AAD6cCd96C910C1cD1" /></p>
           <p><b>Refund rail</b> <A a="0xf8E44F08263fFB04660483Af44b70E1b25347748" /></p>
           <p><b>Mock dollar</b> <A a="0x8f3B4042ce030A7c3C6c1B507ba83Da7e2e2B24D" />, six decimals, mintable by anyone, for trying the rail on a testnet with no stable to hand.</p>
+          <p><b>ERC-8004 identity registry</b> <A a="0x8004A818BFB912233c491871b3d84c89A494BD9e" />, the canonical testnet deployment, which we did not deploy and do not control. The live agent holds token 1873 there, and its owner published a pointer back to this switch under the metadata key <span className="mono">trustset</span>. The identity says who an agent is; the switch says whether it may act. Anyone who publishes the same pointer is linked here automatically, with no permission from us.</p>
           <p>Labels are the owner&apos;s words about an agent, a name and what it is for, written by the cold key and read with one view call. Nothing that decides trust reads them. They are stored rather than emitted because Monad caps log queries at a hundred blocks, and a label that needs an indexer to find is a label that needs a service.</p>
           <p>Four agents are registered there already, ids 1 to 4, each with its own key&apos;s signed consent. The agents page only lists agents whose cold key is the wallet you connect, so a fresh wallet starts empty and can register its own.</p>
         </S>

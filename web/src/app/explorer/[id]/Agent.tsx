@@ -13,8 +13,9 @@ type Row = {
   id: number; agent_key: string; cold_key: string; guardians: string[]; threshold: number;
   status: string; status_at: string; registered_at: string; registered_tx: string;
   successor_id: number | null; expires_at: string; heartbeat_window: string; last_beat: string;
-  name: string | null; purpose: string | null;
+  name: string | null; purpose: string | null; erc8004_id: string | null;
 };
+const ERC8004_REGISTRY = "0x8004A818BFB912233c491871b3d84c89A494BD9e";
 const TONE: Record<Tone, string> = { live: "var(--sage)", off: "var(--orange)", quiet: "var(--terra)", plain: "var(--text-light)" };
 
 export default function Agent({ id, explorer }: { id: number; explorer: string }) {
@@ -69,6 +70,10 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
           <Field k="Guardians" v={a.guardians?.length ? `${a.guardians.length}, ${a.threshold} needed to pause` : "None"} />
           <Field k="End date" v={ex ? new Date(ex * 1000).toLocaleString() : "None"} note={expired ? "Ran out. No transaction was needed." : undefined} />
           <Field k="Heartbeat" v={hb ? `every ${every(hb)}` : "None"} note={lapsed ? "Went quiet. Only the cold key can start a new window." : hb ? `Last beat ${ago(new Date(lb * 1000).toISOString())}` : undefined} />
+          {a.erc8004_id ? (
+            <Field k="ERC-8004 identity" v={`Agent ${a.erc8004_id}`}
+              note="Its owner published a pointer from that registry to this switch. The identity says who the agent is; the switch says whether it may act." />
+          ) : null}
           {a.successor_id ? <Field k="Trust moved to" v={`Agent ${a.successor_id}`} /> : null}
           <Field k="Registered" v={new Date(a.registered_at).toLocaleString()} />
         </dl>

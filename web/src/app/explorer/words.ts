@@ -41,6 +41,8 @@ export function say(e: Ev): { text: string; tone: Tone } {
     }
     case "Beat": return { text: "Said it is alive", tone: "quiet" };
     case "Labelled": return { text: `Named "${d.name}"`, tone: "plain" };
+    case "TradeAccepted": return { text: "Traded on the venue", tone: "live" };
+    case "Linked8004": return { text: `Claimed by ERC-8004 agent ${d.erc8004Id}`, tone: "plain" };
     default: return { text: e.kind, tone: "plain" };
   }
 }

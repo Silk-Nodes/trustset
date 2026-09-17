@@ -55,6 +55,10 @@ CREATE TABLE IF NOT EXISTS agents (
   purpose          text,
   labelled_at      timestamptz
 );
+/* the ERC-8004 token that claims this agent, when one has published the pointer.
+   nullable, because most agents have no 8004 identity and do not need one. */
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS erc8004_id bigint;
+
 CREATE INDEX IF NOT EXISTS agents_cold   ON agents (lower(cold_key));
 CREATE INDEX IF NOT EXISTS agents_key    ON agents (lower(agent_key));
 CREATE INDEX IF NOT EXISTS agents_status ON agents (status, id DESC);

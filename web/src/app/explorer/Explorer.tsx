@@ -18,7 +18,7 @@ import { say, ago, dayOf, short, type Ev, type Tone } from "./words";
 type Stats = { agents: string; active: string; paused: string; stopped: string; limited: string; events: string; head: string; cursor: string };
 const FILTERS = [
   ["", "Everything"], ["registered", "Registered"], ["stopped", "Paused and stopped"],
-  ["limits", "Limits"], ["guardians", "Guardians"], ["keys", "Keys"], ["labels", "Names"],
+  ["limits", "Limits"], ["work", "Work"], ["guardians", "Guardians"], ["keys", "Keys"], ["labels", "Names"],
 ] as const;
 
 const TONE: Record<Tone, string> = { live: "var(--sage)", off: "var(--orange)", quiet: "var(--terra)", plain: "var(--text-light)" };
