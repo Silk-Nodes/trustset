@@ -16,7 +16,7 @@ import { useMotionPrefs } from "@/lib/motion";
 type State = {
   agentId: string; key: string; explorer: string;
   said: { why: string; at: string; balance: string } | null;
-  coldKey: string; holdsColdKey: boolean; handoverAt: number;
+  coldKey: string; holdsColdKey: boolean; handoverAt: number; erc8004: number | null;
   chain: { trusted: boolean; expired: boolean; lapsed: boolean; status: number };
   error?: string;
 };
@@ -72,7 +72,13 @@ export default function LiveAgent() {
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: off ? "var(--orange)" : "var(--sage)" }} />
         </span>
         <h2 className="text-lg font-semibold">A real agent, running now</h2>
-        {s && <Link href={`/explorer/${s.agentId}`} className="ml-auto text-[12px] underline" style={{ color: "var(--text-medium)" }}>agent {s.agentId}</Link>}
+        <span className="ml-auto flex items-center gap-2">
+          {s?.erc8004 ? (
+            <span className="rounded-full px-2.5 py-1 mono text-[10.5px] whitespace-nowrap" title="This agent also has an ERC-8004 identity, and its owner published a pointer from that registry to this switch."
+              style={{ background: "color-mix(in srgb, var(--text-dark) 6%, transparent)", color: "var(--text-medium)" }}>ERC-8004 · {s.erc8004}</span>
+          ) : null}
+          {s && <Link href={`/explorer/${s.agentId}`} className="text-[12px] underline" style={{ color: "var(--text-medium)" }}>agent {s.agentId}</Link>}
+        </span>
       </div>
 
       <p className="text-sm mt-2 max-w-[62ch]" style={{ color: "var(--text-medium)" }}>

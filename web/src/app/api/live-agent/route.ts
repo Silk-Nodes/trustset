@@ -39,8 +39,19 @@ export async function GET() {
     const holdsColdKey = !!boss && boss.toLowerCase() === a.revocationKey.toLowerCase();
     const handover = a.pendingRevocationKey !== ethers.ZeroAddress && boss && a.pendingRevocationKey.toLowerCase() === boss.toLowerCase()
       ? Number(a.revocationKeyChangeAt) : 0;
+    /* the 8004 identity, if its owner published the pointer. read from the
+       index rather than the chain: the registry does not answer "which token
+       claims this agent", only the other way round. */
+    let erc8004: number | null = null;
+    try {
+      const pool = (await import("@/lib/db.server")).db();
+      if (pool) {
+        const r = await pool.query("SELECT erc8004_id FROM agents WHERE id = $1", [id]);
+        erc8004 = r.rows[0]?.erc8004_id ? Number(r.rows[0].erc8004_id) : null;
+      }
+    } catch { /* no index on this machine; the card simply omits it */ }
     return NextResponse.json({
-      agentId: id, said, explorer: c.explorer, key: a.agentKey,
+      agentId: id, said, explorer: c.explorer, key: a.agentKey, erc8004,
       coldKey: a.revocationKey, holdsColdKey, handoverAt: handover,
       chain: { trusted: l.trusted, expired: l.expired, lapsed: l.lapsed, status: Number(a.status), nextBeatBy: Number(l.nextBeatBy) },
     }, { headers: { "cache-control": "no-store" } });

@@ -71,6 +71,10 @@ export function OneLine() {
         <pre className="code-window" style={{ borderRadius: "var(--radius-sm)" }}>{SNIPPET}</pre>
       </div>
       <p className="mt-4 text-sm max-w-[60ch] sm:ml-[72px]" style={{ color: "var(--text-medium)" }}>A stopped agent is refused inside your transaction, so nothing upstream can skip it. Addresses and the rest on <Link href="/how" className="underline">How it works</Link>.</p>
+      {/* a compatibility fact, not a reason anyone would use this, so it sits at
+          the end of the developer paragraph rather than anywhere a first-time
+          reader has to step over it. */}
+      <p className="mt-2 text-sm max-w-[60ch] sm:ml-[72px]" style={{ color: "var(--text-medium)" }}>An agent with an <span className="mono">ERC-8004</span> identity can point at its switch under one metadata key, and the <Link href="/explorer" className="underline">explorer</Link> links them automatically.</p>
     </section>
   );
 }
