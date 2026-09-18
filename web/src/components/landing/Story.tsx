@@ -532,20 +532,20 @@ export function PanicVisual() {
 }
 
 /* ---------- the slides ---------- */
-/* each slide leads with the hour it is for, not the feature it is. the same
-   four things were once labelled "the switch", "guardians", "limits", "panic
-   button", which is the product's own vocabulary and nobody's problem. a reader
-   deciding whether they need this is not asking what it has; they are asking
-   whether the thing they are dreading is on the list. so the headline is the
-   moment and the dim line is what happens, and the window on the right shows
-   it happening. the fifth is new: an order signed before the stop, which is
-   the one integrators ask about first and the one no other switch answers. */
+/* the tab is the feature's name and the headline is the hour you would need
+   it. both, on purpose. the names are how somebody scanning for capabilities
+   finds them, and a page with no "guardians" or "limits" on it anywhere has
+   hidden its own features. the moments are how somebody decides: they are not
+   asking what it has, they are asking whether the thing they dread is on the
+   list. the window on the right shows it happening. the fifth is new: an order
+   signed before the stop, which is the one integrators ask about first and the
+   one no other switch answers. */
 const FEATURES = [
-  { k: "3am", Icon: ZapIcon, lit: "It is 3am and the key has leaked.", dim: "One transaction. Off from the next block.", body: "Your cold key pauses or stops it, and every app that checks refuses that key from the next block. Nothing already mined is undone, because nothing can be.", Visual: TripVisual },
-  { k: "No wallet", Icon: IdCardIcon, lit: "You are on a plane. The wallet is at home.", dim: "A fingerprint is enough.", body: "A passkey on your phone pauses it, checked on chain by Monad's own P256 precompile. It can pause and nothing else, so a lost phone costs you an interruption.", Visual: PanicVisual },
-  { k: "Asleep", Icon: LayersIcon, lit: "You are asleep and something is going wrong.", dim: "The people you chose can stop it.", body: "Guardians pause your agent by vote. They can never spend from it or hand it to anyone, and your cold key overrules whatever they do.", Visual: GuardianVisual },
-  { k: "Forgotten", Icon: RefreshCWIcon, lit: "You forgot the agent was still running.", dim: "Trust that ends by itself.", body: "Give it an end date, or a heartbeat it has to keep. When either lapses it stops being trusted, with no transaction and nobody awake.", Visual: LimitsVisual },
-  { k: "Too late?", Icon: HandCoinsIcon, lit: "An order arrives, signed before the stop.", dim: "Judged by when it was signed.", body: "The switch keeps every change with its timestamp. A venue asks what was true at the moment of signing, so a stop at 14:32 voids the 14:35 order and honours the 14:30 one.", Visual: WhenVisual },
+  { k: "The switch", Icon: ZapIcon, lit: "It is 3am and the key has leaked.", dim: "One transaction. Off from the next block.", body: "Your cold key pauses or stops it, and every app that checks refuses that key from the next block. Nothing already mined is undone, because nothing can be.", Visual: TripVisual },
+  { k: "Panic button", Icon: IdCardIcon, lit: "You are on a plane. The wallet is at home.", dim: "A fingerprint is enough.", body: "A passkey on your phone pauses it, checked on chain by Monad's own P256 precompile. It can pause and nothing else, so a lost phone costs you an interruption.", Visual: PanicVisual },
+  { k: "Guardians", Icon: LayersIcon, lit: "You are asleep and something is going wrong.", dim: "The people you chose can stop it.", body: "Guardians pause your agent by vote. They can never spend from it or hand it to anyone, and your cold key overrules whatever they do.", Visual: GuardianVisual },
+  { k: "Limits", Icon: RefreshCWIcon, lit: "You forgot the agent was still running.", dim: "Trust that ends by itself.", body: "Give it an end date, or a heartbeat it has to keep. When either lapses it stops being trusted, with no transaction and nobody awake.", Visual: LimitsVisual },
+  { k: "Past signatures", Icon: HandCoinsIcon, lit: "An order arrives, signed before the stop.", dim: "Judged by when it was signed.", body: "The switch keeps every change with its timestamp. A venue asks what was true at the moment of signing, so a stop at 14:32 voids the 14:35 order and honours the 14:30 one.", Visual: WhenVisual },
 ] as const;
 
 const DWELL = 7000;
@@ -579,14 +579,14 @@ export function Features() {
           own rhythm and not a seam between two unrelated things. */}
       <div className="max-w-5xl">
         <h2 className="text-[34px] sm:text-[46px] lg:text-[54px] font-semibold tracking-[-0.03em] leading-[1.04]">
-          <span>When you will need this.</span>
+          <span>You built the agent.</span>{" "}<span style={{ color: "var(--dim)" }}>Here is everything around it.</span>
         </h2>
         <p className="text-[17px] sm:text-[19px] text-ink/70 mt-4 max-w-[52ch]">
-          Five hours that happen to people who run agents. None of them need you to change a line of the agent.
+          Five things it should have had from day one, each shown at the hour you would need it. None of them need you to change a line of the agent.
         </p>
       </div>
       {/* the rail. each tab carries its own progress line while it is the one showing. */}
-      <div role="tablist" aria-label="Moments" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mt-8 sm:mt-10 mb-8 sm:mb-10 max-w-5xl">
+      <div role="tablist" aria-label="Features" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mt-8 sm:mt-10 mb-8 sm:mb-10 max-w-5xl">
         {FEATURES.map((t, k) => {
           const on = k === i;
           return (
