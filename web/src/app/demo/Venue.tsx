@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ethers } from "ethers";
 import { motion, AnimatePresence } from "motion/react";
@@ -14,16 +14,30 @@ import { useMotionPrefs } from "@/lib/motion";
  * this page used to be three buttons and a log, which demonstrated the switch
  * and taught nothing. the product is not one feature, it is what you get for
  * registering an agent you already run: a switch, people who can pull it when
- * you cannot, an end date, a record. so the page is now a sequence, each step
+ * you cannot, an end date, a record. so the page is a sequence, each step
  * saying what problem it solves before it does anything, and each step a real
  * transaction on testnet rather than an animation.
+ *
+ * the second cut of it was seven identical cards with a button each, and the
+ * only thing on screen that reacted to any of them was a nine pixel dot. the
+ * premise is "your agent is already running" and nothing on the page was the
+ * agent. so now something is: a card that breathes while the agent is trusted,
+ * says which block it last checked the switch at, and goes cold when it is
+ * switched off, with the refused trade landing on it. the reader is walked
+ * through one step at a time rather than handed the list, and the switch
+ * itself, which is the whole point, is the one moment the page makes a fuss of.
+ *
+ * nothing here is invented. the agent only trades when the reader presses the
+ * button, so there is no activity feed pretending otherwise; every number on
+ * the card is read from the chain, and the block it shows is the block the
+ * page actually read it at.
  *
  * the agent is real and shared while nobody is connected: everyone who arrives
  * without a wallet acts on the same one, which is stated rather than hidden. */
 type State = {
   agentId: string; agentKey: string; coldKey: string; guardian: string; owned: boolean;
   status: number; trades: number; venue: string; trusted: boolean; expired: boolean; expiresAt: number;
-  error?: string;
+  readAt: number; error?: string;
 };
 type Line = { id: number; kind: Kind; hash?: string; block?: number | null };
 type Kind = "accepted" | "refused" | "paused" | "resumed" | "guardian" | "limits" | "cleared";
@@ -34,6 +48,8 @@ const SAID: Record<Kind, string> = {
   resumed: "Agent active again", guardian: "Guardian voted, agent paused", limits: "End date set",
   cleared: "End date cleared",
 };
+const ORDER: Act[] = ["runs", "switch", "back", "guardians", "limits", "human", "record"];
+const EASE = [0.23, 1, 0.32, 1] as const;
 let seq = 0;
 
 export default function Venue() {
@@ -46,6 +62,12 @@ export default function Venue() {
   const [note, setNote] = useState<string | null>(null);
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   const [seen, setSeen] = useState<Set<Act>>(new Set());
+  const [open, setOpen] = useState<Set<Act>>(new Set());
+  /* the block a trade was last refused at. it stays on the agent card until the
+     agent changes status again, because that is the fact the reader came for. */
+  const [refusedAt, setRefusedAt] = useState<number | null>(null);
+  /* incremented when a pause lands, which plays the sweep once. */
+  const [sweep, setSweep] = useState(0);
   const done = useCallback((a: Act) => setSeen(p => new Set(p).add(a)), []);
 
   const pull = useCallback(async (owner: string | null) => {
@@ -55,7 +77,13 @@ export default function Venue() {
     setS(j);
   }, []);
 
-  useEffect(() => { setS(null); setLog([]); setSeen(new Set()); pull(me).catch(e => setNote(String(e))); }, [me, pull]);
+  useEffect(() => {
+    setS(null); setLog([]); setSeen(new Set()); setOpen(new Set()); setRefusedAt(null);
+    pull(me).catch(e => setNote(String(e)));
+  }, [me, pull]);
+  /* the card says which block it last checked the switch at, so it has to keep
+     checking. every twelve seconds, quietly; a failed read leaves the last one. */
+  useEffect(() => { const t = setInterval(() => pull(me).catch(() => {}), 12_000); return () => clearInterval(t); }, [me, pull]);
   /* a ticking clock, because an end date runs out while you watch and nothing
      is sent when it does. */
   useEffect(() => { const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000); return () => clearInterval(t); }, []);
@@ -68,23 +96,36 @@ export default function Venue() {
     return () => clearTimeout(t);
   }, [s?.expiresAt, expiring, me, pull]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function post(action: string, kind: Kind, act: Act) {
+  function record(kind: Kind, hash?: string, block?: number | null) {
+    setLog(l => [{ id: ++seq, kind, hash, block }, ...l].slice(0, 10));
+    if (kind === "refused") setRefusedAt(block ?? null);
+    if (kind === "paused" || kind === "guardian") { setRefusedAt(null); setSweep(n => n + 1); }
+    if (kind === "resumed") setRefusedAt(null);
+  }
+
+  /* a refusal only belongs on the card while the agent really is off. the card
+     showed "trusted" in green and "trade refused at block X" underneath it at
+     the same time, which is the page calling itself a liar: that refusal came
+     from a stale demo registration, not from the switch. it is cleared the
+     moment the chain says the agent is trusted again. */
+  useEffect(() => { if (s?.trusted) setRefusedAt(null); }, [s?.trusted]);
+
+  async function post(action: string, kind: Kind, act?: Act) {
     setBusy(action); setNote(null);
     try {
       const r = await fetch("/api/demo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, owner: me }) });
       const j = await r.json();
       if (j.error) { setNote(j.error); return; }
       setS(v => (v ? { ...v, ...j } : v));
-      const k: Kind = action === "trade" ? (j.ok ? "accepted" : "refused") : kind;
-      setLog(l => [{ id: ++seq, kind: k, hash: j.hash, block: j.block }, ...l].slice(0, 10));
-      done(act);
+      record(action === "trade" ? (j.ok ? "accepted" : "refused") : kind, j.hash, j.block);
+      if (act) done(act);
     } catch (e) { setNote(String(e)); }
     finally { setBusy(null); }
   }
 
   /* when the reader holds the cold key, the switch is theirs to sign and the
      server is refused if it tries. same call the console makes. */
-  async function flip(to: 1 | 2, act: Act) {
+  async function flip(to: 1 | 2, act?: Act) {
     if (!s) return;
     if (!s.owned) return post(to === 2 ? "pause" : "resume", to === 2 ? "paused" : "resumed", act);
     const c = w.conn, signer = w.who?.signer;
@@ -93,10 +134,9 @@ export default function Venue() {
     try {
       const tx = await (c.ks.connect(signer) as ethers.Contract).setStatus(s.agentId, to, ethers.id(to === 2 ? "demo pause" : "demo resume"));
       const rc = await tx.wait(1);
-      const k: Kind = to === 2 ? "paused" : "resumed";
-      setLog(l => [{ id: ++seq, kind: k, hash: tx.hash, block: rc?.blockNumber }, ...l].slice(0, 10));
+      record(to === 2 ? "paused" : "resumed", tx.hash, rc?.blockNumber);
       setS(v => (v ? { ...v, status: to, trusted: to === 1 } : v));
-      done(act);
+      if (act) done(act);
       await settled(c, rc?.blockNumber); await pull(me);
     } catch (e) { setNote(explain(e, c ?? undefined)); }
     finally { setBusy(null); }
@@ -105,37 +145,96 @@ export default function Venue() {
   const cfg = w.conn?.cfg;
   const off = !!s && !s.trusted;
   const left = s?.expiresAt ? s.expiresAt - now : 0;
+  /* the step the reader is on: the first one not yet done. everything after it
+     waits, everything before it folds. */
+  const current = ORDER.find(a => !seen.has(a)) ?? null;
+  const stage = (a: Act): Stage => seen.has(a) ? (open.has(a) ? "reopened" : "done") : a === current ? "current" : "ahead";
+  const toggle = (a: Act) => setOpen(p => { const n = new Set(p); if (n.has(a)) n.delete(a); else n.add(a); return n; });
+
+  const agent = <AgentCard s={s} off={off} refusedAt={refusedAt} reduced={m.reduced} />;
+  const rail = (
+    <>
+      <Console log={log} cfg={cfg} reduced={m.reduced} />
+      <details className="sheet px-5 py-4 group">
+        <summary className="text-[11px] mono uppercase tracking-[0.12em] cursor-pointer list-none flex items-center" style={{ color: "var(--text-medium)" }}>
+          The addresses
+          <span aria-hidden className="ml-auto transition-transform group-open:rotate-90">›</span>
+        </summary>
+        <p className="text-[12.5px] mt-3" style={{ color: "var(--text-medium)" }}>
+          {s?.owned
+            ? <>Your wallet is this agent&apos;s <Term k="cold key">cold key</Term>, so every switch here is yours to sign.</>
+            : <>A shared agent, ours while you are not connected. Connect a wallet and the page registers one whose <Term k="cold key">cold key</Term> is yours, which puts your address <Term k="on chain forever">on chain forever</Term>.</>}
+        </p>
+        <dl className="mt-4 grid gap-2.5 text-[12px]">
+          <Key label="Agent key" v={s?.agentKey} cfg={cfg} note="Signs the trades. Held by this server, because a browser cannot sign as the agent." />
+          <Key label="Guardian" v={s?.guardian} cfg={cfg} note="Can vote to pause. Never spends." />
+          <Key label="Venue" v={s?.venue} cfg={cfg} note="Checks the switch inside its own call." />
+        </dl>
+      </details>
+      {note && (
+        <div className="sheet px-4 py-3 text-[12.5px] break-words min-w-0" style={{ color: "var(--orange-text)", overflowWrap: "anywhere" }}>
+          {note}
+          <button type="button" onClick={() => setNote(null)} className="block mt-2 text-[11px] mono underline" style={{ color: "var(--text-medium)" }}>dismiss</button>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
-      <div className="grid gap-4 min-w-0">
-        <Step n={1} act="runs" seen={seen} title="Your agent is already running"
+      {/* the switch landing is the one moment the page makes a fuss of: one
+          pass of orange across everything, then gone. */}
+      <AnimatePresence>
+        {sweep > 0 && !m.reduced && (
+          <motion.div key={sweep} aria-hidden className="fixed inset-0 pointer-events-none z-40 origin-left"
+            style={{ background: "var(--orange)" }}
+            initial={{ scaleX: 0, opacity: 0.32 }} animate={{ scaleX: 1, opacity: 0 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.75, ease: EASE }} />
+        )}
+      </AnimatePresence>
+
+      {/* on a phone the agent comes first, because it is the thing the steps act on */}
+      <div className="lg:hidden">{agent}</div>
+
+      <div className="grid gap-3 min-w-0">
+        <Step n={1} stage={stage("runs")} onToggle={() => toggle("runs")} title="Your agent is already running"
           why="You wrote it, or you will. It holds a key and it trades. trustset did not create it and cannot make it do anything: all it knows is that this key is agent number one of yours.">
           <Do label="Send a trade" busy={busy === "trade"} disabled={!s} onClick={() => post("trade", "accepted", "runs")} />
           <Aside>The venue accepts it because the switch says the agent is active. {s ? `${s.trades} trades so far.` : ""}</Aside>
         </Step>
 
-        <Step n={2} act="switch" seen={seen} title="Something goes wrong. You switch it off."
+        <Step n={2} stage={stage("switch")} onToggle={() => toggle("switch")} title="Something goes wrong. You switch it off."
           why="A key leaks, a strategy misfires, or you simply want it to stop. One transaction from your wallet, and from the next block every app that checks refuses that key. Nothing already mined is undone.">
-          <Do label={off ? "Already off" : "Switch it off"} busy={busy === "pause" || busy === "flip"} disabled={!s || off} onClick={() => flip(2, "switch")} />
-          <Do label="Send the same trade" busy={busy === "trade"} disabled={!s} tone="quiet" onClick={() => post("trade", "refused", "switch")} />
-          <Aside>Refused inside the venue&apos;s own call, so nothing upstream can skip it. The refusal is a real transaction that reverted.</Aside>
+          {!off
+            ? <Do label="Switch it off" busy={busy === "pause" || busy === "flip"} disabled={!s} onClick={() => flip(2)} />
+            : <Do label="Send the same trade" busy={busy === "trade"} disabled={!s} onClick={() => post("trade", "refused", "switch")} />}
+          <Aside>
+            {!off
+              ? "Then send the same trade again and watch the venue refuse it."
+              : "The agent is off. Refused inside the venue's own call, so nothing upstream can skip it. The refusal is a real transaction that reverted."}
+          </Aside>
         </Step>
 
-        <Step n={3} act="back" seen={seen} title="It is a breaker, not a fuse"
+        <Step n={3} stage={stage("back")} onToggle={() => toggle("back")} title="It is a breaker, not a fuse"
           why="A stop that cannot be undone is a fuse, and people hesitate to pull a fuse. This one goes both ways: pause while you look into it, bring it back when you are satisfied. Only ending it for good is permanent.">
-          <Do label="Bring it back" busy={busy === "resume" || busy === "flip"} disabled={!s || !off} onClick={() => flip(1, "back")} />
+          <Do label={off ? "Bring it back" : "It is back"} busy={busy === "resume" || busy === "flip"} disabled={!s || !off} onClick={() => flip(1, "back")} />
         </Step>
 
-        <Step n={4} act="guardians" seen={seen} title="Who stops it when you cannot?"
+        <Step n={4} stage={stage("guardians")} onToggle={() => toggle("guardians")} title="Who stops it when you cannot?"
           why="You are asleep, or the wallet is in a drawer. Guardians are people you chose who can pause your agent by vote. They can never spend from it and never end it outright, and you can undo anything they do.">
-          <Do label="Have a guardian vote" busy={busy === "guardianVote"} disabled={!s || off} onClick={() => post("guardianVote", "guardian", "guardians")} />
-          <Aside>This agent has one guardian and needs one vote. Yours would have as many as you name and the threshold you set.</Aside>
+          {!off
+            ? <Do label="Have a guardian vote" busy={busy === "guardianVote"} disabled={!s} onClick={() => post("guardianVote", "guardian")} />
+            : <Do label="Undo it, as the owner" busy={busy === "resume" || busy === "flip"} disabled={!s} onClick={() => flip(1, "guardians")} />}
+          <Aside>
+            {!off
+              ? "This agent has one guardian and needs one vote. Yours would have as many as you name and the threshold you set."
+              : "The guardian paused it. Your cold key overrules a guardian, which is why they can never lock you out."}
+          </Aside>
         </Step>
 
-        <Step n={5} act="limits" seen={seen} title="Trust that ends by itself"
+        <Step n={5} stage={stage("limits")} onToggle={() => toggle("limits")} title="Trust that ends by itself"
           why="Most agents should not be trusted forever. Give one an end date and it stops being trusted when the date passes, with nobody sending anything and nobody needing to be awake. A heartbeat does the same for silence: miss it and the trust lapses.">
-          <Do label="Trust it for 90 seconds" busy={busy === "limits"} disabled={!s || s.owned} onClick={() => post("limits", "limits", "limits")} />
+          {!s?.expiresAt && <Do label="Trust it for 90 seconds" busy={busy === "limits"} disabled={!s || s.owned} onClick={() => post("limits", "limits", "limits")} />}
           {!!s?.expiresAt && (
             <Aside tone={left > 0 ? "plain" : "off"}>
               {left > 0
@@ -143,88 +242,163 @@ export default function Venue() {
                 : <>It ran out. No transaction ended it, and no app will serve it now.</>}
             </Aside>
           )}
-          {!!s?.expiresAt && <Do label="Clear the end date" busy={busy === "clearLimits"} tone="quiet" disabled={!s} onClick={() => post("clearLimits", "cleared", "limits")} />}
+          {!!s?.expiresAt && <Do label="Clear the end date" busy={busy === "clearLimits"} tone="quiet" disabled={!s} onClick={() => post("clearLimits", "cleared")} />}
           {s?.owned && <Aside>Your wallet holds the cold key here, so set this one from the console instead.</Aside>}
         </Step>
 
-        <Step n={6} act="human" seen={seen} title="A switch you can reach without a wallet"
+        <Step n={6} stage={stage("human")} onToggle={() => toggle("human")} title="A switch you can reach without a wallet"
           why="The emergency is exactly when the wallet is on another machine. A passkey on your phone can pause the agent with a fingerprint, verified on chain by Monad's own P256 precompile. It can pause and nothing else, so a lost phone costs you an interruption rather than an agent.">
           <Link href={`/panic?id=${s?.agentId ?? ""}`} className="drawn-btn btn-gold" style={{ padding: "9px 16px", fontSize: "0.85rem" }} onClick={() => done("human")}>Open the panic page</Link>
           <Aside>Needs a phone and an https address, so it will not work over a bare IP.</Aside>
         </Step>
 
-        <Step n={7} act="record" seen={seen} title="And it is all on the record"
-          why="Every line above happened on Monad and none of it can be edited afterwards, by us or by you. Anyone deciding whether to deal with this agent can read the same history."
-          last>
+        <Step n={7} stage={stage("record")} onToggle={() => toggle("record")} title="And it is all on the record" last
+          why="Every line above happened on Monad and none of it can be edited afterwards, by us or by you. Anyone deciding whether to deal with this agent can read the same history.">
           <Link href={`/explorer/${s?.agentId ?? ""}`} className="drawn-btn btn-orange" style={{ padding: "9px 16px", fontSize: "0.85rem" }} onClick={() => done("record")}>See this agent&apos;s history</Link>
         </Step>
       </div>
 
-      {/* the side rail: what the agent is, what happened, who holds what */}
-      <div className="grid gap-4 lg:sticky lg:top-20">
-        <div className="sheet p-5">
-          <div className="flex items-center gap-2">
-            <span className="w-[9px] h-[9px] rounded-full" style={{ background: off ? "var(--orange)" : "var(--sage)" }} />
-            <span className="text-[11px] mono uppercase tracking-[0.12em]" style={{ color: "var(--text-medium)" }}>
-              {!s ? "reading the chain" : s.trusted ? "trusted" : s.expired ? "expired" : "switched off"}
-            </span>
-            <span className="ml-auto mono text-[11px]" style={{ color: "var(--text-medium)" }}>agent {s?.agentId ?? "…"}</span>
-          </div>
-          <p className="text-[12.5px] mt-3" style={{ color: "var(--text-medium)" }}>
-            {s?.owned
-              ? <>Your wallet is this agent&apos;s <Term k="cold key">cold key</Term>, so every switch here is yours to sign.</>
-              : <>A shared agent, ours while you are not connected. Connect a wallet and the page registers one whose <Term k="cold key">cold key</Term> is yours, which puts your address <Term k="on chain forever">on chain forever</Term>.</>}
-          </p>
-          <dl className="mt-4 grid gap-2.5 text-[12px]">
-            <Key label="Agent key" v={s?.agentKey} cfg={cfg} note="Signs the trades. Held by this server, because a browser cannot sign as the agent." />
-            <Key label="Guardian" v={s?.guardian} cfg={cfg} note="Can vote to pause. Never spends." />
-            <Key label="Venue" v={s?.venue} cfg={cfg} note="Checks the switch inside its own call." />
-          </dl>
-        </div>
-
-        <div className="sheet p-5">
-          <div className="text-[11px] mono uppercase tracking-[0.12em] mb-2.5" style={{ color: "var(--text-medium)" }}>On chain</div>
-          {log.length === 0 && <p className="text-[12.5px]" style={{ color: "var(--text-medium)" }}>Nothing sent yet.</p>}
-          <ul className="grid gap-1.5">
-            <AnimatePresence initial={false}>
-              {log.map(l => (
-                <motion.li key={l.id} layout={!m.reduced} initial={m.reduced ? { opacity: 0 } : { opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-                  className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px]">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: l.kind === "refused" || l.kind === "paused" || l.kind === "guardian" ? "var(--orange)" : "var(--sage)" }} />
-                  <span>{SAID[l.kind]}</span>
-                  <span className="mono ml-auto" style={{ color: "var(--text-medium)" }}>{l.block}</span>
-                  <TxLink cfg={cfg} hash={l.hash} label="tx" />
-                </motion.li>
-              ))}
-            </AnimatePresence>
-          </ul>
-        </div>
-
-        {note && <div className="sheet px-4 py-3 text-[12.5px]" style={{ color: "var(--orange-text)" }}>{note}</div>}
-      </div>
+      <div className="hidden lg:grid gap-4 lg:sticky lg:top-20">{agent}{rail}</div>
+      <div className="lg:hidden grid gap-4">{rail}</div>
     </div>
   );
 }
 
-function Step({ n, act, seen, title, why, children, last }: {
-  n: number; act: Act; seen: Set<Act>; title: string; why: string; children: React.ReactNode; last?: boolean;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isDone = seen.has(act);
+/* the agent, as a thing on the page rather than a row of addresses. */
+function AgentCard({ s, off, refusedAt, reduced }: { s: State | null; off: boolean; refusedAt: number | null; reduced: boolean }) {
+  const word = !s ? "reading the chain" : s.trusted ? "trusted" : s.expired ? "expired" : s.status === 2 ? "switched off" : "not trusted";
+  const tone = off ? "var(--orange)" : "var(--sage)";
   return (
-    <div ref={ref} className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 sm:gap-4">
+    <div className="sheet p-5 relative overflow-hidden" style={{
+      background: off ? "color-mix(in srgb, var(--orange) 7%, var(--surface))" : "var(--surface)",
+      transition: reduced ? "none" : "background .45s ease",
+    }}>
+      <div className="flex items-center gap-3">
+        <span className="relative inline-flex w-3 h-3 shrink-0">
+          {!off && s && !reduced && (
+            <motion.span aria-hidden className="absolute inset-0 rounded-full" style={{ background: tone }}
+              animate={{ scale: [1, 2.6], opacity: [0.45, 0] }} transition={{ duration: 1.9, repeat: Infinity, ease: "easeOut" }} />
+          )}
+          <span className="relative w-3 h-3 rounded-full" style={{ background: s ? tone : "var(--hairline)", transition: reduced ? "none" : "background .3s" }} />
+        </span>
+        <span className="text-[22px] font-semibold tracking-[-0.02em] leading-none">{word}</span>
+        <span className="ml-auto mono text-[11px]" style={{ color: "var(--text-medium)" }}>agent {s?.agentId ?? "…"}</span>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div>
+          <div className="text-[10.5px] mono uppercase tracking-[0.12em]" style={{ color: "var(--text-medium)" }}>Trades</div>
+          <div className="mono tabular text-[26px] leading-none mt-1">{s ? s.trades : "…"}</div>
+        </div>
+        <div>
+          <div className="text-[10.5px] mono uppercase tracking-[0.12em]" style={{ color: "var(--text-medium)" }}>Checked the switch at</div>
+          <div className="mono tabular text-[26px] leading-none mt-1">{s ? s.readAt : "…"}</div>
+        </div>
+      </div>
+
+      <AnimatePresence initial={false}>
+        {refusedAt !== null && off && (
+          <motion.div key="refused" initial={reduced ? { opacity: 0 } : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.28, ease: EASE }}
+            className="mt-4 pt-3 text-[13px] font-semibold break-words" style={{ borderTop: "1px solid var(--hairline)", color: "var(--orange-text)" }}>
+            Trade refused at block <span className="mono tabular">{refusedAt}</span>. The venue asked the switch and the switch said no.
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {!(refusedAt !== null && off) && (
+        <p className="mt-4 pt-3 text-[12px]" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
+          {!s ? "" : off ? "Every app that checks the switch refuses this key from here on." : "Every app that checks the switch will serve this key. The page re-reads the chain every twelve seconds."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* what happened, as a tail rather than a list. */
+function Console({ log, cfg, reduced }: { log: Line[]; cfg?: Parameters<typeof TxLink>[0]["cfg"]; reduced: boolean }) {
+  return (
+    <div className="sheet p-5">
+      <div className="text-[11px] mono uppercase tracking-[0.12em] mb-2.5" style={{ color: "var(--text-medium)" }}>On chain</div>
+      {log.length === 0 && <p className="text-[12.5px]" style={{ color: "var(--text-medium)" }}>Nothing sent yet. Every line that appears here is a real transaction.</p>}
+      <ul className="grid">
+        <AnimatePresence initial={false}>
+          {log.map(l => {
+            const warm = l.kind === "refused" || l.kind === "paused" || l.kind === "guardian";
+            return (
+              <motion.li key={l.id} layout={!reduced}
+                initial={reduced ? { opacity: 0 } : { opacity: 0, y: -6, backgroundColor: "rgba(232,85,43,0.16)" }}
+                animate={{ opacity: 1, y: 0, backgroundColor: "rgba(232,85,43,0)" }} exit={{ opacity: 0 }}
+                transition={{ duration: 0.24, ease: EASE, backgroundColor: { duration: 1.4 } }}
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 text-[12.5px] py-1 -mx-1.5 px-1.5 rounded-md">
+                <span className="mono tabular text-[11px]" style={{ color: warm ? "var(--orange-text)" : "var(--text-medium)" }}>{l.block ?? "…"}</span>
+                <span className="truncate">{SAID[l.kind]}</span>
+                <TxLink cfg={cfg} hash={l.hash} label="tx" />
+              </motion.li>
+            );
+          })}
+        </AnimatePresence>
+      </ul>
+    </div>
+  );
+}
+
+type Stage = "done" | "reopened" | "current" | "ahead";
+
+/* one step. the reader is on exactly one of these at a time; the ones behind
+   fold to a line, the ones ahead wait without offering anything to press,
+   because a button that cannot be pressed yet reads as a broken button. */
+function Step({ n, stage, onToggle, title, why, children, last }: {
+  n: number; stage: Stage; onToggle: () => void; title: string; why: string; children: React.ReactNode; last?: boolean;
+}) {
+  const isDone = stage === "done" || stage === "reopened";
+  const showBody = stage === "current" || stage === "reopened";
+  /* a step ahead is receded with colour, never with opacity.
+     
+     the first cut faded the whole step to 55%, which blends the text AND the
+     card it sits on toward the page behind: body copy measured 2.73:1 on the
+     light ground and 3.55:1 on the dark one, both under the 4.5 a person has
+     to be able to read. it also showed the full explanation of a step the
+     reader has not reached, which is the opposite of walking them through one
+     at a time. so a step ahead now shows its title and nothing else, at a
+     colour that is quiet and still legible. */
+  return (
+    <div className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 sm:gap-4">
       <div className="relative flex flex-col items-center">
-        <span className="w-8 h-8 rounded-full grid place-items-center text-[12px] font-semibold mono shrink-0 transition-colors"
-          style={{ background: isDone ? "var(--sage)" : "color-mix(in srgb, var(--text-dark) 6%, transparent)", color: isDone ? "var(--bg-base)" : "var(--text-medium)" }}>
+        <span className="w-8 h-8 rounded-full grid place-items-center text-[12px] font-semibold mono shrink-0"
+          style={{
+            background: isDone ? "var(--sage)" : stage === "current" ? "var(--pill-accent-bg)" : "transparent",
+            color: isDone ? "var(--bg-base)" : stage === "current" ? "var(--pill-accent-text)" : "var(--text-medium)",
+            border: stage === "ahead" ? "1px solid var(--hairline)" : "1px solid transparent",
+            transition: "background .3s, color .3s",
+          }}>
           {isDone ? "✓" : n}
         </span>
         {!last && <span className="w-px flex-1 mt-1" style={{ background: "var(--hairline)" }} />}
       </div>
-      <div className="sheet p-5 sm:p-6 mb-1 min-w-0">
-        <h2 className="text-lg sm:text-xl font-semibold tracking-tight">{title}</h2>
-        <p className="text-sm mt-2 max-w-[62ch]" style={{ color: "var(--text-medium)" }}>{why}</p>
-        <div className="flex flex-wrap items-center gap-2 mt-4">{children}</div>
+
+      <div className="sheet min-w-0" style={{ boxShadow: stage === "current" ? "inset 3px 0 0 0 var(--orange)" : "none", transition: "box-shadow .3s" }}>
+        {isDone ? (
+          <button type="button" onClick={onToggle} className="w-full text-left px-5 sm:px-6 py-3.5 flex items-center gap-3">
+            <h2 className="text-[15px] font-semibold tracking-tight truncate">{title}</h2>
+            <span className="ml-auto text-[11px] mono shrink-0" style={{ color: "var(--text-medium)" }}>{showBody ? "fold" : "show"}</span>
+          </button>
+        ) : stage === "ahead" ? (
+          <div className="px-5 sm:px-6 py-4 flex items-center gap-3">
+            <h2 className="text-[15px] font-semibold tracking-tight truncate" style={{ color: "var(--text-medium)" }}>{title}</h2>
+          </div>
+        ) : (
+          <div className="px-5 sm:px-6 pt-5 sm:pt-6">
+            <h2 className="text-lg sm:text-xl font-semibold tracking-tight">{title}</h2>
+            <p className="text-sm mt-2 max-w-[62ch]" style={{ color: "var(--text-medium)" }}>{why}</p>
+          </div>
+        )}
+        {showBody && (
+          <div className={`px-5 sm:px-6 pb-5 sm:pb-6 ${isDone ? "pt-1" : "pt-4"}`}>
+            {isDone && <p className="text-sm mb-4 max-w-[62ch]" style={{ color: "var(--text-medium)" }}>{why}</p>}
+            <div className="flex flex-wrap items-center gap-2">{children}</div>
+          </div>
+        )}
+
       </div>
     </div>
   );

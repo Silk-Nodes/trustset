@@ -95,17 +95,46 @@ async function state(agentId: string) {
   const p = provider(c);
   const ks = new ethers.Contract(c.killSwitch, KS, p);
   const venue = new ethers.Contract(c.venue, VENUE, p);
-  const [a, n, live] = await Promise.all([ks.getAgent(agentId), venue.trades(), ks.liveness(agentId)]);
+  const [a, n, live, block] = await Promise.all([ks.getAgent(agentId), venue.trades(), ks.liveness(agentId), p.getBlockNumber()]);
   /* trusted, not just the status word: an expired agent is still Active in the
      contract and no app will serve it. */
   return {
     status: Number(a.status), trades: Number(n), explorer: c.explorer, venue: c.venue,
     trusted: live.trusted, expired: live.expired, expiresAt: Number(live.expiresAt),
     guardians: [...a.guardians],
+    /* the block this was read at, so the page can say when it last looked rather
+       than implying it is watching continuously. not called block: the POST
+       responses already carry the block a transaction landed in, and a spread
+       of this after it would silently replace that number with this one. */
+    readAt: block,
   };
 }
 
+/* the contract's own words, or ours, but never a hex blob.
+ *
+ * an unnamed revert used to arrive on the page as the whole ethers message:
+ * estimateGas, the calldata, the transaction object, several hundred
+ * characters of hex that overflowed its card and told the reader nothing. the
+ * venue and the switch both revert with custom errors, so they are decoded by
+ * selector here and the raw message is only ever the last resort, shortened. */
+const SELECTORS: Record<string, string> = {
+  "0x8944fae3": "The venue refused that trade. The switch says this agent may not act.",
+  "0x99b97774": "This server does not hold that agent's cold key.",
+  "0x55f0afcd": "That agent is not in a state where this can happen.",
+  "0x523437db": "That agent has been stopped for good.",
+  "0xef6d0f02": "That address is not a guardian of this agent.",
+  "0xf4ad9a1f": "An end date has to be in the future.",
+  "0x18132533": "That key is not this agent's key.",
+  "0x3e9e04ab": "This agent already missed its heartbeat.",
+  "0x0f299a58": "This agent has no heartbeat to keep.",
+};
+
 function reason(e: unknown) {
-  const m = e instanceof Error ? e.message : String(e);
-  return m.length > 200 ? m.slice(0, 200) : m;
+  const o = e as { data?: unknown; info?: { error?: { data?: unknown } }; shortMessage?: string; message?: string };
+  const data = typeof o?.data === "string" ? o.data : typeof o?.info?.error?.data === "string" ? o.info.error.data : "";
+  const named = SELECTORS[data.slice(0, 10)];
+  if (named) return named;
+  const m = o?.shortMessage || (e instanceof Error ? e.message : String(e));
+  /* whatever it is, it is one line on a card, not a transaction dump */
+  return m.length > 160 ? m.slice(0, 160) + "…" : m;
 }
