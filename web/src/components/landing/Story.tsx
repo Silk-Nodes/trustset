@@ -126,7 +126,7 @@ export function TripVisual() {
               <span className="mono text-xs">{a}</span>
               <AnimatePresence mode="popLayout" initial={false}>
                 <motion.span key={refused ? "r" : "a"} initial={m.reduced ? false : { opacity: 0, y: 4, filter: "blur(2px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={{ opacity: 0, y: -4, filter: "blur(2px)" }} transition={m.t(DUR.fast)}
-                  className="mono text-[11px] tabular" style={{ color: refused ? "var(--orange-text)" : "var(--text-light)" }}>{refused ? "Refused · block 277" : "Allowed"}</motion.span>
+                  className="mono text-[11px] tabular" style={{ color: refused ? "var(--orange-text)" : "var(--text-medium)" }}>{refused ? "Refused · block 277" : "Allowed"}</motion.span>
               </AnimatePresence>
             </div>
           );
@@ -165,10 +165,18 @@ const VENUES = ["Kuru · swap", "Perpl · open", "Aave · borrow"];
 
 function Box({ lit, ours, children }: { lit: boolean; ours?: boolean; children: React.ReactNode }) {
   return (
+    /* an inactive box is receded with colour and weight, never by fading.
+       at 0.28 its labels measured 1.56:1 on the light ground and 1.86:1 on
+       the dark one, and opacity has now been the cause of this four times in
+       this codebase: the walkthrough's later steps, the passkey's second
+       card, the check tiles' counts, and here. a faded thing is not a quieter
+       thing, it is an unreadable one. */
     <div className="rounded-2xl px-3 py-3 min-w-0" style={{
       background: ours && lit ? "color-mix(in srgb, var(--orange) 12%, transparent)" : "var(--surface)",
       border: `1px solid ${ours && lit ? "var(--orange)" : "var(--hairline)"}`,
-      opacity: lit ? 1 : 0.28, transition: "opacity .4s, background .4s, border-color .4s" }}>
+      color: lit ? "var(--text-dark)" : "var(--text-medium)",
+      boxShadow: lit ? "0 1px 2px color-mix(in srgb, var(--text-dark) 8%, transparent)" : "none",
+      transition: "color .4s, background .4s, border-color .4s, box-shadow .4s" }}>
       {children}
     </div>
   );
@@ -235,7 +243,12 @@ function Scene({ step, reduced }: { step: number; reduced: boolean }) {
               {/* "allowed" in the medium ink, not the light one: the light ink
                   measured 3.32 on this surface in the light theme. the refusal
                   is the accent, so the allowed state should be the quiet one. */}
-              <span className="tabular shrink-0" style={{ color: !asking ? "transparent" : on ? "var(--text-medium)" : "var(--orange-text)", transition: "color .3s" }}>{on ? "allowed" : "refused"}</span>
+              {/* transparent, not absent, so the row keeps its width and does
+                  not jump when the verdict arrives at the third step. hidden
+                  from assistive tech while it is invisible, because a reader
+                  who cannot see it should not be told the app is "allowed"
+                  before the drawing has said anything. */}
+              <span aria-hidden={!asking} className="tabular shrink-0" style={{ color: !asking ? "transparent" : on ? "var(--text-medium)" : "var(--orange-text)", transition: "color .3s" }}>{on ? "allowed" : "refused"}</span>
             </div>
           ))}
         </Box>

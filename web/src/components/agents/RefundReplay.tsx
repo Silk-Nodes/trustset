@@ -39,14 +39,21 @@ export default function RefundReplay({ sample = false }: { sample?: boolean }) {
             <span className="hidden sm:block mono text-xs tabular text-right" style={{ color: "var(--text-medium)" }}>{r.s !== "held" ? "closed" : `${r.left}s left`}</span>
             <span className="flex gap-1.5">
               {r.s === "held" && <span className="drawn-btn btn-gold" style={{ padding: "6px 12px", fontSize: "0.75rem" }}>Release</span>}
-              {r.s === "held" && <span className="drawn-btn btn-orange" style={{ padding: "6px 12px", fontSize: "0.75rem", opacity: 0.45 }}>Refund</span>}
+              {/* a drawing of the control while the window is still open, so it
+                  has to read as unavailable AND stay readable. faded to 0.45 it
+                  measured 1.54:1, which is a label nobody can check against the
+                  seconds ticking down beside it. quiet colours, full opacity. */}
+              {r.s === "held" && <span className="drawn-btn" style={{ padding: "6px 12px", fontSize: "0.75rem", background: "transparent", border: "1px dashed var(--hairline)", color: "var(--text-medium)" }}>Refund</span>}
             </span>
           </div>
         );
       })}
       <div className="px-4 sm:px-5 py-3 min-h-[52px] mt-auto flex items-center gap-3">
         <span className="text-xs text-ink/70">A payment is exactly one of held, delivered, refunded. Never two.</span>
-        {sample && <span className="ml-auto eyebrow rounded-full px-2 py-1" style={{ background: "color-mix(in srgb, var(--orange) 16%, transparent)", color: "var(--orange-text)" }}>sample</span>}
+        {sample && <span className="ml-auto eyebrow rounded-full px-2 py-1" /* the tint it sits on lifts the ground, so --orange-text lands at 4.37:1
+                on it: a pass everywhere else and a miss here. 10% of the tint
+                keeps the badge reading as orange and clears the minimum. */
+            style={{ background: "color-mix(in srgb, var(--orange) 10%, transparent)", color: "var(--orange-text)" }}>sample</span>}
       </div>
     </div>
   );
