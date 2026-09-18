@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ethers } from "ethers";
 import { motion, AnimatePresence } from "motion/react";
 import { useMotionPrefs, DUR } from "@/lib/motion";
@@ -148,6 +148,13 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
     step === "verify" ? tailOk :
     step === "guardians" ? (guardians.length === 0 || (threshold >= 1 && threshold <= guardians.length)) : true;
 
+  /* a textarea does not size itself to its content, so it is measured: reset
+     the height, read what the content needs, apply that. done on input and
+     once on mount, because a value restored from a previous step would
+     otherwise open collapsed. */
+  const fit = (el: HTMLTextAreaElement) => { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; };
+  const grow = useCallback((el: HTMLTextAreaElement | null) => { if (el) fit(el); }, []);
+
   const body = () => {
     switch (step) {
       case "about": return (
@@ -159,8 +166,15 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
               className="text-sm w-full rounded-xl px-3 py-2.5 outline-none" style={inputStyle(name.length > 0 && !nameOk)} />
           </Field>
           <Field label="What it does" hint="Optional. What you would want to remember when deciding whether to stop it.">
-            <textarea value={purpose} onChange={e => setPurpose(e.target.value)} maxLength={200} rows={2} placeholder="Moves idle USDC from the hot wallet to the treasury every hour"
-              className="text-sm w-full rounded-xl px-3 py-2.5 outline-none resize-none" style={inputStyle()} />
+            {/* one line at rest, like the name above it, and it grows as you
+                type. rows={2} made this box half again as tall as the field it
+                sits under while both were empty, which reads as two different
+                kinds of thing rather than two answers to the same question.
+                rows={1} would have been the wrong fix: two hundred characters
+                would then scroll inside a single line. */}
+            <textarea value={purpose} onChange={e => setPurpose(e.target.value)} maxLength={200} rows={1} placeholder="Moves idle USDC from the hot wallet to the treasury every hour"
+              ref={grow} onInput={e => fit(e.currentTarget)}
+              className="text-sm w-full rounded-xl px-3 py-2.5 outline-none resize-none overflow-hidden" style={inputStyle()} />
           </Field>
         </>
       );
