@@ -1,0 +1,22 @@
+# /etc/systemd/system/trustset-keeper.service
+[Unit]
+Description=trustset refund keeper (posts refunds anyone could post)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/zoltan/trustset/keeper
+Environment=NODE_ENV=production
+Environment=TRUSTSET_ROOT=/home/zoltan/trustset
+Environment=KEEPER_STATE=/home/zoltan/trustset-state/.keeper-state.json
+# reading is free, so it looks every minute. it only sends when a window has
+# actually closed, so an idle rail costs nothing at all.
+Environment=SWEEP_SECONDS=60
+EnvironmentFile=/home/zoltan/trustset-state/keeper.env
+ExecStart=/usr/bin/node index.mjs
+Restart=always
+RestartSec=30
+User=zoltan
+
+[Install]
+WantedBy=multi-user.target
