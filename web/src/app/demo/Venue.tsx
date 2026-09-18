@@ -1,6 +1,5 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { ethers } from "ethers";
 import { motion, AnimatePresence } from "motion/react";
 import { useWallet } from "@/components/WalletProvider";
@@ -63,6 +62,9 @@ export default function Venue() {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   const [seen, setSeen] = useState<Set<Act>>(new Set());
   const [open, setOpen] = useState<Set<Act>>(new Set());
+  /* set once the saved progress has been read, so the first paint does not
+     write an empty set back over it. */
+  const [restored, setRestored] = useState(false);
   /* the block a trade was last refused at. it stays on the agent card until the
      agent changes status again, because that is the fact the reader came for. */
   const [refusedAt, setRefusedAt] = useState<number | null>(null);
@@ -78,9 +80,36 @@ export default function Venue() {
   }, []);
 
   useEffect(() => {
-    setS(null); setLog([]); setSeen(new Set()); setOpen(new Set()); setRefusedAt(null);
+    setS(null); setLog([]); setSeen(new Set()); setOpen(new Set()); setRefusedAt(null); setRestored(false);
     pull(me).catch(e => setNote(String(e)));
   }, [me, pull]);
+
+  /* how far the reader got, kept across a navigation.
+   *
+   * steps six and seven send you to another page, and the walkthrough lives in
+   * component state, so coming back remounted it and dropped you at step one
+   * with everything you had already done undone. it looked like the passkey
+   * step had failed and thrown the whole thing away.
+   *
+   * sessionStorage rather than localStorage: within this tab the position is
+   * held, and a fresh visit starts at the beginning, which is what a
+   * walkthrough should do. it is a convenience, so every access is guarded and
+   * the page is correct without it, in a private window or with site data
+   * blocked. the key carries the agent id, because progress against a shared
+   * agent is not progress against the one your wallet owns. */
+  const progressKey = s ? `trustset.demo.${s.agentId}` : null;
+  useEffect(() => {
+    if (!progressKey || restored) return;
+    try {
+      const raw = sessionStorage.getItem(progressKey);
+      if (raw) setSeen(new Set(JSON.parse(raw) as Act[]));
+    } catch { /* no storage here, so the walkthrough simply starts at the top */ }
+    setRestored(true);
+  }, [progressKey, restored]);
+  useEffect(() => {
+    if (!progressKey || !restored) return;
+    try { sessionStorage.setItem(progressKey, JSON.stringify([...seen])); } catch { /* nothing to do */ }
+  }, [seen, progressKey, restored]);
   /* the card says which block it last checked the switch at, so it has to keep
      checking. every twelve seconds, quietly; a failed read leaves the last one. */
   useEffect(() => { const t = setInterval(() => pull(me).catch(() => {}), 12_000); return () => clearInterval(t); }, [me, pull]);
@@ -248,13 +277,17 @@ export default function Venue() {
 
         <Step n={6} stage={stage("human")} onToggle={() => toggle("human")} title="A switch you can reach without a wallet"
           why="The emergency is exactly when the wallet is on another machine. A passkey on your phone can pause the agent with a fingerprint, verified on chain by Monad's own P256 precompile. It can pause and nothing else, so a lost phone costs you an interruption rather than an agent.">
-          <Link href={`/panic?id=${s?.agentId ?? ""}`} className="drawn-btn btn-gold" style={{ padding: "9px 16px", fontSize: "0.85rem" }} onClick={() => done("human")}>Open the panic page</Link>
-          <Aside>Needs a phone and an https address, so it will not work over a bare IP.</Aside>
+          {/* a new tab, because the panic page is meant to be opened on a phone
+              and because leaving this one mid walkthrough is how the reader
+              lost their place. */}
+          <a href={`/panic?id=${s?.agentId ?? ""}`} target="_blank" rel="noreferrer" className="drawn-btn btn-gold" style={{ padding: "9px 16px", fontSize: "0.85rem" }} onClick={() => done("human")}>Open the panic page</a>
+          <Do label="I have no passkey, carry on" tone="quiet" onClick={() => done("human")} />
+          <Aside>Needs a phone and an https address, so it will not work over a bare IP. Nominate one from the passkey page first, or skip: the last step does not depend on it.</Aside>
         </Step>
 
         <Step n={7} stage={stage("record")} onToggle={() => toggle("record")} title="And it is all on the record" last
           why="Every line above happened on Monad and none of it can be edited afterwards, by us or by you. Anyone deciding whether to deal with this agent can read the same history.">
-          <Link href={`/explorer/${s?.agentId ?? ""}`} className="drawn-btn btn-orange" style={{ padding: "9px 16px", fontSize: "0.85rem" }} onClick={() => done("record")}>See this agent&apos;s history</Link>
+          <a href={`/explorer/${s?.agentId ?? ""}`} target="_blank" rel="noreferrer" className="drawn-btn btn-orange" style={{ padding: "9px 16px", fontSize: "0.85rem" }} onClick={() => done("record")}>See this agent&apos;s history</a>
         </Step>
       </div>
 
@@ -291,7 +324,9 @@ function AgentCard({ s, off, refusedAt, reduced }: { s: State | null; off: boole
           <div className="mono tabular text-[26px] leading-none mt-1">{s ? s.trades : "…"}</div>
         </div>
         <div>
-          <div className="text-[10.5px] mono uppercase tracking-[0.12em]" style={{ color: "var(--text-medium)" }}>Checked the switch at</div>
+          <div className="text-[10.5px] mono uppercase tracking-[0.12em]" style={{ color: "var(--text-medium)" }}>
+            <span className="sm:hidden">Read at block</span><span className="hidden sm:inline">Checked the switch at</span>
+          </div>
           <div className="mono tabular text-[26px] leading-none mt-1">{s ? s.readAt : "…"}</div>
         </div>
       </div>
