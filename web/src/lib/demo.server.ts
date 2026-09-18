@@ -28,7 +28,12 @@ const KEEP = ethers.parseEther("0.01");
    payer says so in a sentence instead of through an RPC error. */
 const NEEDED = ethers.parseEther("0.12");
 
-export type Demo = { agentId: string; agentKey: string; coldKey: string; guardian: string; owned: boolean };
+export type Demo = {
+  agentId: string; agentKey: string; coldKey: string; guardian: string; owned: boolean;
+  /* set when the store hands back an agent the chain does not agree is this
+     visitor's. the page shows it instead of offering controls that revert. */
+  mismatch?: { storedFor: string; actualColdKey: string };
+};
 type Row = { id: string; priv: string; cold: string; guardian?: string };
 
 export async function cfg(): Promise<ChainCfg> {
@@ -83,11 +88,38 @@ export async function demoFor(owner: string | null): Promise<Demo> {
   }
   if (have) {
     const w = new ethers.Wallet(have.priv, p);
+    /* who the CHAIN says owns this agent, not who asked for it.
+     *
+     * this used to answer coldKey: cold and owned: !!owner, both straight from
+     * the request, so the api said "this is yours" purely because you asked as
+     * that address and had never checked. while the store agrees that is
+     * invisible; the moment it does not, after a redeploy or a hand edited
+     * record, the page offers you a switch and every press reverts with
+     * NotRevocationKey. reporting an assumption as a fact is how this reads as
+     * broken rather than as not yours. */
+    const ks = new ethers.Contract(c.killSwitch, [
+      "function getAgent(uint256) view returns (tuple(address agentKey,address revocationKey,address pendingRevocationKey,uint64 revocationKeyChangeAt,uint8 guardianThreshold,uint8 status,uint64 statusSince,uint256 successorId,bytes32 reasonHash,uint64 expiresAt,uint64 heartbeatWindow,uint64 lastBeat,address[] guardians))",
+    ], p);
+    /* positionally: a Result is an array first, so revocationKey by name is
+       safe but guardians is not, and mixing the two styles is how the wrong
+       field gets read later. */
+    const a = await ks.getAgent(have.id);
+    const actualCold = ethers.getAddress(a[1] as string);
+    const chainGuardians = [...(a[12] as string[])].map((g) => ethers.getAddress(g));
+    const reallyOwned = !!owner && actualCold.toLowerCase() === cold.toLowerCase();
+    const guardianOnChain = chainGuardians.includes(ethers.getAddress(guard.address));
+
     if ((await p.getBalance(guard.address)) < KEEP) await (await boss.sendTransaction({ to: guard.address, value: FUND })).wait();
     /* top the agent up if it has spent its gas down; a demo that stops working
        after fifty trades is worse than no demo. */
     if ((await p.getBalance(w.address)) < KEEP) await (await boss.sendTransaction({ to: w.address, value: FUND })).wait();
-    return { agentId: have.id, agentKey: w.address, coldKey: cold, guardian: guard.address, owned: !!owner };
+
+    return {
+      agentId: have.id, agentKey: w.address, coldKey: actualCold,
+      guardian: guardianOnChain ? guard.address : (chainGuardians[0] ?? guard.address),
+      owned: reallyOwned,
+      ...(owner && !reallyOwned ? { mismatch: { storedFor: cold, actualColdKey: actualCold } } : {}),
+    };
   }
   const w = ethers.Wallet.createRandom().connect(p);
   await (await boss.sendTransaction({ to: w.address, value: FUND })).wait();
