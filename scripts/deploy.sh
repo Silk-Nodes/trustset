@@ -11,19 +11,29 @@
 # than pretending it can finish on its own.
 set -euo pipefail
 
-HOST=${HOST:-zoltan@10.42.44.113}
-SITE=${SITE:-https://trustset.silknodes.io}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+
+# the box is not in this file. an address in a repo is a hostname and an open
+# port handed to whoever reads it, and an address that moves should be one line
+# edited on the machine rather than a commit and a redeploy.
+[ -f "$ROOT/.env" ] && . "$ROOT/.env"
+if [ -z "${DEPLOY_HOST:-}" ]; then
+  echo "DEPLOY_HOST is not set. Put it in $ROOT/.env as DEPLOY_HOST=user@host" >&2
+  exit 1
+fi
+HOST=$DEPLOY_HOST
+SITE=${DEPLOY_SITE:-https://trustset.silknodes.io}
+REMOTE=${DEPLOY_PATH:-/home/zoltan/trustset}
 
 echo "==> sending web/src"
 # anchored, so it excludes the top level demo/ and never web/src/app/demo
 rsync -az --delete \
   --exclude '/demo/' --exclude 'node_modules/' --exclude '.next/' \
   --exclude '.next-*/' --exclude '.env*' \
-  "$ROOT/web/src/" "$HOST:/home/zoltan/trustset/web/src/"
+  "$ROOT/web/src/" "$HOST:$REMOTE/web/src/"
 
 echo "==> building on the vm"
-ssh "$HOST" 'cd /home/zoltan/trustset/web && npm run build 2>&1 | grep -E "Compiled|Failed|error" || true'
+ssh "$HOST" "cd $REMOTE/web && npm run build 2>&1 | grep -E 'Compiled|Failed|error' || true"
 
 echo
 echo "==> now restart, in the same breath as the build:"
