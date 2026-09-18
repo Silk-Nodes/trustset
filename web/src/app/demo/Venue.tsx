@@ -243,8 +243,16 @@ export default function Venue() {
         <div className="sheet px-5 py-4 lg:col-span-2" style={{ borderColor: "var(--orange)" }}>
           <div className="text-[15px] font-semibold">This agent is not your wallet&apos;s.</div>
           <p className="text-[13px] mt-1.5" style={{ color: "var(--text-medium)" }}>
-            The switch says agent {s.agentId}&apos;s cold key is <span className="mono">{short(s.mismatch.actualColdKey)}</span>, and you are connected as <span className="mono">{short(s.mismatch.storedFor)}</span>. The steps that need the cold key are off here, because pressing them would only revert. Disconnect to use the shared agent, or connect the wallet that owns this one.
+            The switch says agent {s.agentId}&apos;s cold key is <span className="mono">{short(s.mismatch.actualColdKey)}</span>, and you are connected as <span className="mono">{short(s.mismatch.storedFor)}</span>. The steps that need the cold key are off here, because pressing them would only revert.
           </p>
+          {/* the way out, not just the instruction. disconnecting drops the
+              page back to the shared agent, which every step can drive, and it
+              only forgets the address here: nothing is revoked in the wallet
+              and no prompt is opened. */}
+          <div className="flex flex-wrap items-center gap-3 mt-4">
+            <Do label="Disconnect and use the shared agent" onClick={() => w.disconnect()} />
+            <span className="text-[12.5px]" style={{ color: "var(--text-medium)" }}>Or connect the wallet that owns agent {s.agentId}.</span>
+          </div>
         </div>
       )}
 
