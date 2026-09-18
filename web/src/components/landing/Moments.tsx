@@ -24,12 +24,15 @@ const EASE = [0.23, 1, 0.32, 1] as const;
 
 type Check = { claim: string; line: string; where: string; kind: "contract" | "on chain" | "page" | "tests"; href?: string };
 const CHECKS: Check[] = [
-  { claim: "We never hold a key that can spend", line: "Your agent key and your cold key never leave you.", where: "KillSwitch.sol", kind: "contract" },
+  /* every artifact opens today. the source and test files would be the
+     better door for three of these, and they take it the day the repository
+     is public; a filename with no link behind it is jargon, not evidence. */
+  { claim: "We never hold a key that can spend", line: "Your agent key and your cold key never leave you.", where: "How the keys work", kind: "page", href: "/how" },
   { claim: "A contract, not our server", line: "One view call against Monad, with nothing of ours in the path.", where: "0x54D8…D3b8", kind: "on chain", href: "https://testnet.monadexplorer.com/address/0x54D8211233Cc65b62C594cBAb900930dd37ED3b8" },
   { claim: "Refused inside the venue's own call", line: "The check and the action are the same transaction.", where: "Try it on testnet", kind: "page", href: "/demo" },
   { claim: "The passkey never leaves your phone", line: "Only the public half goes on chain, bound to this site.", where: "Nominate one", kind: "page", href: "/passkey" },
-  { claim: "Guardians pause. They cannot take it", line: "A handover takes a threshold plus a delay you can refuse.", where: "Recovery.t.sol", kind: "tests" },
-  { claim: "Stopped for good stays stopped", line: "128,000 fuzzed calls a run try to undo it and cannot.", where: "Invariants.t.sol", kind: "tests" },
+  { claim: "Guardians pause. They cannot take it", line: "A handover takes a threshold plus a delay you can refuse.", where: "Watch a guardian vote", kind: "page", href: "/demo" },
+  { claim: "Stopped for good stays stopped", line: "128,000 fuzzed calls a run try to undo it and cannot.", where: "Read every agent's history", kind: "on chain", href: "/explorer" },
 ];
 
 type Live = { block: number; chain?: string; asOf: string };
@@ -135,10 +138,6 @@ export function Checks() {
         </div>
       </motion.div>
 
-      <p className="text-[13px] mt-6 max-w-[74ch]" style={{ color: "var(--text-medium)" }}>
-        <span className="font-semibold" style={{ color: "var(--text-dark)" }}>The limit, in AUDIT.md rather than hidden.</span>{" "}
-        A switch only binds an agent that checks it, or a venue that checks it for them. It does not save you from an agent that has been taken over and rewritten.
-      </p>
     </section>
   );
 }
