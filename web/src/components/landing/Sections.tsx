@@ -55,7 +55,7 @@ const SNIPPET = `// inside your own function, before you act for an agent
 if (!killSwitch.isTrusted(agentId)) revert AgentNotTrusted(agentId);`;
 /* one snippet, one reader. the TypeScript version that used to sit beside
    this was for an agent checking itself, a different reader and the soft
-   version of the promise; it lives on /how now under its own heading. */
+   version of the promise; it lives in the docs now under its own heading. */
 export function OneLine() {
   const [copied, setCopied] = useState(false);
   return (
@@ -70,7 +70,7 @@ export function OneLine() {
         </div>
         <pre className="code-window" style={{ borderRadius: "var(--radius-sm)" }}>{SNIPPET}</pre>
       </div>
-      <p className="mt-4 text-sm max-w-[60ch] sm:ml-[72px]" style={{ color: "var(--text-medium)" }}>A stopped agent is refused inside your transaction, so nothing upstream can skip it. Addresses and the rest on <Link href="/how" className="underline">How it works</Link>.</p>
+      <p className="mt-4 text-sm max-w-[60ch] sm:ml-[72px]" style={{ color: "var(--text-medium)" }}>A stopped agent is refused inside your transaction, so nothing upstream can skip it. Addresses and the rest in the <Link href="/how" className="underline">docs</Link>.</p>
       {/* a compatibility fact, not a reason anyone would use this, so it sits at
           the end of the developer paragraph rather than anywhere a first-time
           reader has to step over it. */}

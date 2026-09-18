@@ -27,7 +27,7 @@ const CHECKS: Check[] = [
   /* every artifact opens today. the source and test files would be the
      better door for three of these, and they take it the day the repository
      is public; a filename with no link behind it is jargon, not evidence. */
-  { claim: "We never hold a key that can spend", line: "Your agent key and your cold key never leave you.", where: "How the keys work", kind: "page", href: "/how" },
+  { claim: "We never hold a key that can spend", line: "Your agent key and your cold key never leave you.", where: "Read the docs", kind: "page", href: "/how" },
   { claim: "A contract, not our server", line: "One view call against Monad, with nothing of ours in the path.", where: "0x54D8…D3b8", kind: "on chain", href: "https://testnet.monadexplorer.com/address/0x54D8211233Cc65b62C594cBAb900930dd37ED3b8" },
   { claim: "Refused inside the venue's own call", line: "The check and the action are the same transaction.", where: "Try it on testnet", kind: "page", href: "/demo" },
   { claim: "The passkey never leaves your phone", line: "Only the public half goes on chain, bound to this site.", where: "Nominate one", kind: "page", href: "/passkey" },

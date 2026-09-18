@@ -21,7 +21,9 @@ import { useMotionPrefs, DUR } from "@/lib/motion";
 const reader = [
   { href: "/demo", label: "Try it" },
   { href: "/explorer", label: "Explorer" },
-  { href: "/how", label: "How it works" },
+  /* docs is not one of the three things a reader does here, and a nav that
+     lists everything ranks nothing. it lives in the footer, where people look
+     for it. */
 ];
 const ACTION = { href: "/agents", label: "Agents" };
 

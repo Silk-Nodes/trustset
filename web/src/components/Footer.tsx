@@ -22,7 +22,7 @@ export default function Footer({ close = false }: { close?: boolean }) {
         <div className={`${close ? "mt-16 sm:mt-24" : "mt-10 sm:mt-14"} flex flex-wrap items-center gap-x-6 gap-y-2 text-xs`} style={{ color: "var(--text-medium)" }}>
           <span>Built by <a href="https://silknodes.io" target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline" style={{ color: "var(--text-dark)" }}>Silk Nodes</a></span>
           <nav className="ml-auto flex flex-wrap gap-x-5 gap-y-2">
-            <Link href="/how" className="hover:underline">How it works</Link>
+            <Link href="/how" className="hover:underline">Docs</Link>
             <a href="https://github.com/Silk-Nodes" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
             <a href="https://x.com/silk_nodes" target="_blank" rel="noopener noreferrer" className="hover:underline">X</a>
           </nav>
