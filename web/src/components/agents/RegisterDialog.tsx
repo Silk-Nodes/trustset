@@ -178,8 +178,10 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
     switch (step) {
       case "about": return (
         <>
-          <p className="text-sm text-ink/80 mb-3">Your agent already exists, somewhere you run it. This tells the switch which key it signs with, so you can stop it. Nothing is created here.</p>
-          <p className="text-sm text-ink/70 mb-4">Trustset cannot see what an agent does, so say what this one is, in your words. The name goes on chain, signed by your wallet.</p>
+          {/* one line. the switch cannot see what an agent does, and the two
+              field hints below already say what each box is for; two
+              paragraphs on top of them were the same thing three times. */}
+          <p className="text-sm text-ink/70 mb-4">The switch cannot see what this agent does, so name it in your words. The name goes on chain, signed by your wallet.</p>
           <Field label="Name" hint="Something you will recognise in a list at 3am. Two to forty characters.">
             <input ref={first} value={name} onChange={e => setName(e.target.value)} maxLength={40} placeholder="Treasury sweeper" autoComplete="off"
               className="text-sm w-full rounded-xl px-3 py-2.5 outline-none" style={inputStyle(name.length > 0 && !nameOk)} />
@@ -199,18 +201,11 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
       );
       case "key": return (
         <>
-          <p className="text-sm text-ink/70 mb-3">An agent signs with an <Term k="agent key">agent key</Term> of its own. Your wallet becomes its <Term k="cold key">cold key</Term>.</p>
-          {/* the wallet is chosen before this dialog opens, so this is the last
-              moment anyone thinks about which one it should be. the address is
-              published by the registration and stays published; the defence is
-              a wallet worth nothing to steal, not a hidden one. */}
-          <div className="rounded-xl px-3.5 py-3 mb-4 text-[12.5px]" style={{ border: "1px solid var(--hairline)", background: "color-mix(in srgb, var(--text-dark) 3%, transparent)" }}>
-            <span className="font-semibold">Use a wallet that holds nothing.</span>{" "}
-            <span style={{ color: "var(--text-medium)" }}>
-              The cold key is named on chain and anyone can read it. It never spends, so it only ever needs gas, and a wallet
-              with nothing in it is not worth anybody&apos;s trouble. If this one holds funds, disconnect and come back with another.
-            </span>
-          </div>
+          {/* the mechanics live in the two dotted terms, one tap away. the one
+              thing that is not in a tooltip, that the wallet you are holding
+              right now is about to be named on chain, is one line, not a box. */}
+          <p className="text-sm text-ink/70 mb-1">An agent signs with an <Term k="agent key">agent key</Term> of its own. Your wallet becomes its <Term k="cold key">cold key</Term>.</p>
+          <p className="text-[12.5px] mb-4" style={{ color: "var(--text-medium)" }}>That names this wallet <Term k="on chain forever">on chain</Term>. Use one that holds nothing; it only ever needs gas.</p>
           <div className="grid grid-cols-2 gap-2 mb-4">
             {(["paste", "generate"] as Mode[]).map(k => (
               <button key={k} type="button" onClick={() => setMode(k)} className="rounded-xl px-3 py-3 text-left text-sm transition-colors"
@@ -248,11 +243,11 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
                 <>
                   <div className="eyebrow mb-1">Agent address</div>
                   <div className="mono text-sm break-all">{wallet.address}</div>
-                  <div className="text-[11px] mt-2" style={{ color: "var(--text-medium)" }}>Made in this browser just now. Its private key comes next, and you will need to save it.</div>
+                  <div className="text-[11px] mt-2" style={{ color: "var(--text-medium)" }}>Made just now. Its private key comes next.</div>
                 </>
               ) : (
                 <>
-                  <p className="text-sm text-ink/80 mb-3">This makes a key, not an agent. Until you run something that signs with it, it is a key that can be stopped and nothing more. It is made in this browser and never sent anywhere. The next screen shows its private key once, and you will have to prove you saved it.</p>
+                  <p className="text-sm text-ink/80 mb-3">Made in this browser, never sent anywhere. The next screen shows its private key once.</p>
                   <button type="button" className="drawn-btn btn-gold" onClick={generate}>Make the key</button>
                 </>
               )}
@@ -262,7 +257,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
       );
       case "save": return (
         <>
-          <p className="text-sm text-ink/70 mb-3">This is the agent&apos;s private key. Whoever holds it can act as the agent, and the cold key can stop the agent but can never get back anything the key sends. It is shown here and nowhere else.</p>
+          <p className="text-sm text-ink/70 mb-3">Shown once, here, and nowhere else.</p>
           <div className="sheet p-4 mb-3">
             <div className="flex items-center justify-between gap-3 mb-2">
               <span className="eyebrow">Private key</span>
@@ -300,20 +295,14 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
         const add = () => { if (gValid && !gDup && guardians.length < 5) { setGuardians([...guardians, ethers.getAddress(gTrim)]); setGInput(""); setNoGuardiansAck(false); } };
         return (
           <>
-            <p className="text-sm text-ink/80 mb-2">Who stops this agent if you cannot? Lose your wallet, and a misbehaving agent has nobody left who can stop it.</p>
-            <p className="text-sm text-ink/70 mb-3"><Term k="guardians">Guardians</Term> are wallets you choose for that case. They can pause it by vote. If you then do nothing for three days, they can stop it. They can never spend, and never stop it instantly.</p>
-            {/* the contract has no setGuardians, addGuardian or removeGuardian:
-                the set is written at registration and is fixed for the life of
-                the agent. this screen used to call it optional and move on,
-                which gave the one irreversible choice in the dialog less weight
-                than the private key got with three checkboxes. saying so is the
-                whole fix; nobody can undo this for them later. */}
-            <div className="rounded-xl px-3.5 py-3 mb-4 text-[12.5px]" style={{ border: "1px solid var(--orange)", background: "color-mix(in srgb, var(--orange) 7%, transparent)" }}>
-              <span className="font-semibold">This is decided once.</span>{" "}
-              <span style={{ color: "var(--text-medium)" }}>
-                Guardians are written into the agent when you register it, and the switch has no way to add or remove one afterwards. Registering with none means this agent can never have them.
-              </span>
-            </div>
+            {/* one sentence. the mechanics, pause by vote, the delay, never
+                spend, are in the Guardians tooltip a tap away; this screen used
+                to print the tooltip, then a box saying it was permanent, then
+                a checkbox saying both again. the permanence is stated once
+                here and the consequence once in the checkbox. the contract has
+                no setGuardians, addGuardian or removeGuardian, so once is the
+                truth. */}
+            <p className="text-sm text-ink/70 mb-4"><Term k="guardians">Guardians</Term> can pause this agent if you cannot. They are chosen now, and the switch cannot add or remove one later.</p>
             <Field label="Add a guardian wallet" hint={guardians.length >= 5 ? "Five is the most." : "Up to five. Not your own wallet, not the agent's key."}>
               <div className="flex gap-2">
                 <input value={gInput} onChange={e => setGInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }} placeholder="0x…" spellCheck={false} autoComplete="off" disabled={guardians.length >= 5}
@@ -325,7 +314,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
             {guardians.length === 0 && (
               <div className="mb-4">
                 <Check on={noGuardiansAck} set={setNoGuardiansAck}>
-                  Register with no guardians. I understand this agent can never have them, and if I lose this wallet nobody will be able to stop it.
+                  Register with none. This agent can never have guardians, and if I lose this wallet nobody can stop it.
                 </Check>
               </div>
             )}
