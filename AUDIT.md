@@ -229,3 +229,22 @@ it some other way, and should not read a working `from8004` as proof of it.
 
 the reverse binding would need a claim on this side too, agent owner names
 token, and it is not built.
+
+## what the invariant suite does not reach
+
+`test/Invariants.t.sol` is the strongest evidence in this repo, so it is worth saying where it
+stops.
+
+it cannot forge a webauthn assertion, so `pauseWithPasskey` is never called in a fuzz run and no
+invariant there can fail. an invariant asserting the stop key nonce only rises was written, proved
+vacuous by deleting the `nonce++` from the contract and watching it stay green, and removed.
+`Panic.t.sol` covers that path with real signed vectors instead.
+
+two design choices in the handler bound what the fuzzer explores. it drives three agents with a
+fixed set of five actors, so nothing is said about many agents, many guardians, or a guardian who
+is also an agent key. and reaching a guardian agreement plus its delay is too unlikely to be found
+by a uniform fuzzer, so the handler offers those sequences as single actions. every call inside
+them goes through the real contract with real authorisation and the threshold is counted rather
+than assumed, but the fuzzer is being helped to the door rather than finding it.
+
+the run is 256 sequences of 500 calls. absence of a counterexample there is not proof.

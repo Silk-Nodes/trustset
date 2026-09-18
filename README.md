@@ -141,9 +141,29 @@ reverse binding, and `AUDIT.md` says so plainly.
 ## run
 
 ```bash
-forge test                  # 139 passing, 1 skipped
+forge test                  # 141 passing, 1 skipped
 scripts/demo.sh             # anvil, contracts, a venue, and a browser demo on 127.0.0.1:8787
 ```
+
+## what the tests actually claim
+
+unit tests prove each door works and refuses the obvious wrong caller. they cannot prove that no
+ORDER of those calls reaches a state the design forbids, which for a switch is the only question
+that matters. `test/Invariants.t.sol` puts the contract under 128,000 fuzzed calls per run in
+whatever order the fuzzer likes, and asserts eleven properties across them, including:
+
+- revoked and rotated are terminal, and `isTrustedAt` still says so about every later moment
+- the cold key moves through exactly two doors, both timelocked, and through nothing else
+- nothing skips its delay: not a key handover, not a recovery, not an escalation
+- guardians cannot pause below their threshold of DISTINCT votes
+- only a pause the guardians made can be escalated to revoked
+- trusted means all four ways of stopping are clear, not just the status
+- the history only grows, and never backwards in time
+
+each of those was checked by deleting the guard it depends on from `KillSwitch.sol` and confirming
+the suite goes red. three of them did not, at first, and the suite was wrong rather than the
+contract: it proved who may move a thing and never that they waited. `AUDIT.md` records what the
+invariants still do not reach.
 
 ## honest limits
 
