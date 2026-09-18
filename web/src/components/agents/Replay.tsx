@@ -74,7 +74,10 @@ export default function Replay({ sample = false }: { sample?: boolean }) {
       <div className="px-4 sm:px-5 py-3 min-h-[52px] mt-auto flex items-center gap-3">
         <AnimatePresence>{phase === 3 && <Stamp key="s" block={165} />}</AnimatePresence>
         {phase < 3 && <span className="text-xs text-ink/70">{phase === 0 ? "An agent trading on its own" : phase === 1 ? "The owner presses stop" : "The next block already refuses it"}</span>}
-        {sample && <span className="ml-auto eyebrow rounded-full px-2 py-1" style={{ background: "color-mix(in srgb, var(--orange) 16%, transparent)", color: "var(--orange-text)" }}>sample</span>}
+        {sample && <span className="ml-auto eyebrow rounded-full px-2 py-1" /* the tint it sits on lifts the ground, so --orange-text lands at 4.37:1
+                on it: a pass everywhere else and a miss here. 10% of the tint
+                keeps the badge reading as orange and clears the minimum. */
+            style={{ background: "color-mix(in srgb, var(--orange) 10%, transparent)", color: "var(--orange-text)" }}>sample</span>}
       </div>
     </div>
   );

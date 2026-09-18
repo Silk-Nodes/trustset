@@ -127,8 +127,11 @@ export default function Passkey({ initialId }: { initialId?: string }) {
       </div>
 
       {/* step two: the cold key writes it to the switch. */}
-      <div className="sheet px-4 py-4 mt-3" style={{ opacity: made ? 1 : 0.5 }}>
-        <div className="text-sm font-semibold">2. Nominate it on the switch</div>
+      {/* receded with colour, never with opacity. at 0.5 this card's own
+          explanation measured 3.31:1, and it is text somebody reads BEFORE
+          they have done step one, which is exactly when it is dimmed. */}
+      <div className="sheet px-4 py-4 mt-3">
+        <div className="text-sm font-semibold" style={{ color: made ? "var(--text-dark)" : "var(--text-medium)" }}>2. Nominate it on the switch</div>
         <p className="text-[12.5px] mt-1" style={{ color: "var(--text-medium)" }}>
           Signed by the agent&apos;s cold key. From then on that passkey can pause this agent and do nothing
           else: it cannot resume it, end it, move its limits or touch its keys.
