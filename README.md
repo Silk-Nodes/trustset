@@ -118,6 +118,30 @@ reverse binding, and `AUDIT.md` says so plainly.
 | `libraries/WebAuthn` | no | authenticator data, client data and low-s normalisation over the p256 precompile at `0x0100` |
 | `libraries/BLS` | no | rfc 9380 hash to g2, g1 and g2 add, pairing check |
 
+## the refund keeper
+
+the rail is permissionless: once a payment's window closes, `refund(id)` may be
+called by anybody, and the money goes to the payer rather than to whoever called
+it. that is what makes it safe for a stranger to press, and it is also why
+nothing happens until a stranger does. a deadline passing moves no money on its
+own.
+
+`keeper/` sends that transaction. it watches for payments whose window has
+closed while they are still open and calls refund. it is a convenience, never an
+authority: every payment it touches would have been refundable without it, the
+payer can always call refund themselves, and if the keeper is off the only thing
+lost is promptness.
+
+the key it holds can do exactly one thing. `refund(id)` takes no argument but an
+id and pays the payer named in storage, so the keeper cannot direct money
+anywhere, cannot settle, cannot pay, and cannot touch a payment whose window is
+still open. the worst a stolen keeper key can do is return other people's money
+on time and pay the gas for it.
+
+```bash
+KEEPER_KEY=0x... node keeper/index.mjs
+```
+
 ## the rest of it
 
 - `sdk/` the npm package apps integrate, `@trustset/check`
