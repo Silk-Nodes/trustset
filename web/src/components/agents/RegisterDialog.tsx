@@ -57,7 +57,10 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
   checkKey: (agentKey: string) => Promise<bigint | null>;
 }) {
   const m = useMotionPrefs();
-  const [step, setStep] = useState<Step>("about");
+  /* the first screen is the first entry in `steps`, which is the key
+     question now. leaving this at "about" opened the dialog three quarters of
+     the way along its own progress bar. */
+  const [step, setStep] = useState<Step>("key");
   const [mode, setMode] = useState<Mode>("paste");
   const [name, setName] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -66,6 +69,9 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [ack, setAck] = useState([false, false, false]);
+  /* registering with no guardians is permanent, so it is a decision taken
+     rather than a step walked past. */
+  const [noGuardiansAck, setNoGuardiansAck] = useState(false);
   const [tail, setTail] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -83,8 +89,12 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
 
   useEffect(() => {
     if (!open) return;
-    setStep("about"); setMode("paste"); setName(""); setPurpose(""); setPasted("");
-    setWallet(null); setRevealed(false); setCopied(false); setAck([false, false, false]); setTail(""); setErr(null); setTaken(null); setGuardians([]); setGInput(""); setThreshold(1); setConsent(""); setCopiedMsg(false);
+    /* "key" is the first entry in `steps`. this reset also said "about", which
+       is why reordering the flow was not enough on its own: the dialog opened
+       on the fourth screen of its own progress bar, showing 2 of 4 and a Back
+       button with nothing behind it. */
+    setStep("key"); setMode("paste"); setName(""); setPurpose(""); setPasted("");
+    setWallet(null); setRevealed(false); setCopied(false); setAck([false, false, false]); setNoGuardiansAck(false); setTail(""); setErr(null); setTaken(null); setGuardians([]); setGInput(""); setThreshold(1); setConsent(""); setCopiedMsg(false);
     setTimeout(() => first.current?.focus(), 60);
   }, [open]);
 
@@ -127,7 +137,16 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
     finally { setBusy(false); }
   }
 
-  const steps: Step[] = mode === "generate" ? ["about", "key", "save", "verify", "guardians", "review"] : ["about", "key", "guardians", "review"];
+  /* the key question leads.
+   *
+   * the name used to be first, and it is the cheapest thing here: a label,
+   * written by its own transaction, changeable whenever you like. the question
+   * that actually decides the shape of this dialog is whether the agent already
+   * has a key, because answering "not yet" inserts a private key ceremony and
+   * turns four screens into six. asking it first means the count on screen is
+   * true from the moment it is knowable, and the ceremony is chosen rather than
+   * stumbled into on screen three. */
+  const steps: Step[] = mode === "generate" ? ["key", "save", "verify", "about", "guardians", "review"] : ["key", "about", "guardians", "review"];
   const at = steps.indexOf(step);
   const back = () => setStep(steps[Math.max(0, at - 1)]);
   const next = () => {
@@ -146,7 +165,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
     step === "key" ? (mode === "paste" ? pastedValid && !pastedSelf && consentValid(conn, ethers.getAddress(pastedTrim), coldKey, consent.trim()) : !!wallet) :
     step === "save" ? allAck && revealed :
     step === "verify" ? tailOk :
-    step === "guardians" ? (guardians.length === 0 || (threshold >= 1 && threshold <= guardians.length)) : true;
+    step === "guardians" ? (guardians.length === 0 ? noGuardiansAck : (threshold >= 1 && threshold <= guardians.length)) : true;
 
   /* a textarea does not size itself to its content, so it is measured: reset
      the height, read what the content needs, apply that. done on input and
@@ -278,11 +297,23 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
       case "guardians": {
         const gTrim = gInput.trim(); const gValid = ethers.isAddress(gTrim);
         const gDup = gValid && (guardians.some(g => g.toLowerCase() === gTrim.toLowerCase()) || gTrim.toLowerCase() === coldKey.toLowerCase() || gTrim.toLowerCase() === agentKey.toLowerCase());
-        const add = () => { if (gValid && !gDup && guardians.length < 5) { setGuardians([...guardians, ethers.getAddress(gTrim)]); setGInput(""); } };
+        const add = () => { if (gValid && !gDup && guardians.length < 5) { setGuardians([...guardians, ethers.getAddress(gTrim)]); setGInput(""); setNoGuardiansAck(false); } };
         return (
           <>
             <p className="text-sm text-ink/80 mb-2">Who stops this agent if you cannot? Lose your wallet, and a misbehaving agent has nobody left who can stop it.</p>
-            <p className="text-sm text-ink/70 mb-4"><Term k="guardians">Guardians</Term> are wallets you choose for that case. They can pause it by vote. If you then do nothing for three days, they can stop it. They can never spend, and never stop it instantly. Optional: skip this if it is only you.</p>
+            <p className="text-sm text-ink/70 mb-3"><Term k="guardians">Guardians</Term> are wallets you choose for that case. They can pause it by vote. If you then do nothing for three days, they can stop it. They can never spend, and never stop it instantly.</p>
+            {/* the contract has no setGuardians, addGuardian or removeGuardian:
+                the set is written at registration and is fixed for the life of
+                the agent. this screen used to call it optional and move on,
+                which gave the one irreversible choice in the dialog less weight
+                than the private key got with three checkboxes. saying so is the
+                whole fix; nobody can undo this for them later. */}
+            <div className="rounded-xl px-3.5 py-3 mb-4 text-[12.5px]" style={{ border: "1px solid var(--orange)", background: "color-mix(in srgb, var(--orange) 7%, transparent)" }}>
+              <span className="font-semibold">This is decided once.</span>{" "}
+              <span style={{ color: "var(--text-medium)" }}>
+                Guardians are written into the agent when you register it, and the switch has no way to add or remove one afterwards. Registering with none means this agent can never have them.
+              </span>
+            </div>
             <Field label="Add a guardian wallet" hint={guardians.length >= 5 ? "Five is the most." : "Up to five. Not your own wallet, not the agent's key."}>
               <div className="flex gap-2">
                 <input value={gInput} onChange={e => setGInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }} placeholder="0x…" spellCheck={false} autoComplete="off" disabled={guardians.length >= 5}
@@ -291,6 +322,13 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
               </div>
               <div className="text-[11px] mt-1.5 min-h-[16px]" style={{ color: "var(--orange-text)" }}>{gTrim && !gValid ? "That is not an address." : gDup ? "Already listed, or it is the cold key or the agent key." : ""}</div>
             </Field>
+            {guardians.length === 0 && (
+              <div className="mb-4">
+                <Check on={noGuardiansAck} set={setNoGuardiansAck}>
+                  Register with no guardians. I understand this agent can never have them, and if I lose this wallet nobody will be able to stop it.
+                </Check>
+              </div>
+            )}
             {guardians.length > 0 && (
               <div className="sheet px-3 py-1 mb-4">
                 {guardians.map((g, i) => (
@@ -343,7 +381,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
     }
   };
 
-  const title: Record<Step, string> = { about: "What is this agent?", key: "Which key does it sign with?", save: "Save the private key", verify: "Confirm you saved it", guardians: "Who else can pause it?", review: "Register on chain" };
+  const title: Record<Step, string> = { about: "What is this agent?", key: "Which key does it sign with?", save: "Save the private key", verify: "Confirm you saved it", guardians: "Who else can pause it, for good?", review: "Register on chain" };
 
   return (
     <AnimatePresence>
@@ -360,10 +398,24 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
             <div className="drawn-box p-5 sm:p-6 max-h-[calc(100vh-4rem)] overflow-y-auto" style={{ background: "var(--surface)", backdropFilter: "none" }}>
               {/* progress: one dot per step, the current one lit */}
               <div className="flex items-center gap-1.5 mb-4" aria-hidden>
-                {steps.map((s, i) => <span key={s} className="h-1 rounded-full transition-all" style={{ width: i === at ? 22 : 8, background: i <= at ? "var(--orange)" : "var(--hairline)" }} />)}
+                {steps.map((s, i) => <span key={s} title={title[s]} className="h-1 rounded-full transition-all" style={{ width: i === at ? 22 : 8, background: i <= at ? "var(--orange)" : "var(--hairline)" }} />)}
                 <span className="ml-auto text-[11px] tabular" style={{ color: "var(--text-medium)" }}>{at + 1} of {steps.length}</span>
               </div>
-              <h2 className="text-lg font-semibold tracking-tight mb-3">{title[step]}</h2>
+              <h2 className="text-lg font-semibold tracking-tight">{title[step]}</h2>
+
+              {/* what you are building, filled in as you answer. six screens of
+                  inputs with the first sight of the whole thing on the last one
+                  asks the reader to hold it all in their head; this way the
+                  agent takes shape where they can see it. it shows only what is
+                  already decided, so it never promises anything. */}
+              {(name.trim() || agentKey || guardians.length > 0) && (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 mb-3 text-[11.5px]" style={{ color: "var(--text-medium)" }}>
+                  {name.trim() && <span className="font-semibold" style={{ color: "var(--text-dark)" }}>{name.trim()}</span>}
+                  {agentKey && <span className="mono">{agentKey.slice(0, 6)}…{agentKey.slice(-4)}</span>}
+                  {guardians.length > 0 && <span>{guardians.length} guardian{guardians.length === 1 ? "" : "s"}, {threshold} to pause</span>}
+                  {step === "guardians" && guardians.length === 0 && noGuardiansAck && <span>no guardians</span>}
+                </div>
+              )}
 
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div key={step} initial={m.reduced ? false : { opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={m.reduced ? { opacity: 0 } : { opacity: 0, x: -8 }} transition={m.reduced ? { duration: 0.1 } : { duration: 0.22, ease: EASE }}>
