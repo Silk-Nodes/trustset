@@ -6,6 +6,7 @@ import { useMotionPrefs } from "@/lib/motion";
 import { OneLine } from "@/components/landing/Sections";
 import Footer from "@/components/Footer";
 import { Why, HowItWorks, Features } from "@/components/landing/Story";
+import { Checks } from "@/components/landing/Moments";
 import { Reveal } from "@/components/Reveal";
 
 /* the landing page argues the read side.
@@ -46,6 +47,10 @@ export default function Home() {
       <Why />
       <HowItWorks />
       <Features />
+      {/* the slides say when it would be you, which is the question somebody
+          actually decides on. checks say why any of it should be believed, and
+          come after, because a reader not yet convinced will not read proof. */}
+      <Checks />
       <OneLine />
       </div>
     </main>

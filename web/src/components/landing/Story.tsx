@@ -7,6 +7,7 @@ import { ZapIcon } from "@/components/icons/zap";
 import { IdCardIcon } from "@/components/icons/id-card";
 import { RefreshCWIcon } from "@/components/icons/refresh-cw";
 import { LayersIcon } from "@/components/icons/layers";
+import { HandCoinsIcon } from "@/components/icons/hand-coins";
 import type { IconHandle } from "@/hooks/useIconHover";
 
 /* the features, as slides.
@@ -425,6 +426,69 @@ export function LimitsVisual() {
   );
 }
 
+/* when: two orders and a stop, judged by the clock rather than by now.
+   the venue asks isTrustedAt(id, signedAt), so the order from before the stop
+   is honoured and the one from after is refused, and the point of the window
+   is that both verdicts land AFTER the stop and still come out differently. */
+const WHEN = [
+  { k: "a", t: "14:30", what: "Order signed", verdict: "honoured", tone: "live" as const },
+  { k: "stop", t: "14:32", what: "Switched off", verdict: null, tone: "off" as const },
+  { k: "b", t: "14:35", what: "Order signed", verdict: "refused", tone: "off" as const },
+];
+export function WhenVisual() {
+  const m = useMotionPrefs();
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    const run = (n: number) => { setStep(n); t = setTimeout(() => run(n >= 4 ? 0 : n + 1), n === 0 ? 1200 : n === 4 ? 2800 : 900); };
+    run(0); return () => clearTimeout(t);
+  }, []);
+  /* 0 nothing, 1 first order, 2 the stop, 3 second order, 4 both verdicts */
+  const shown = (i: number) => step >= i + 1;
+  const judged = step >= 4;
+  return (
+    <div className="drawn-box overflow-clip">
+      <div className="px-4 sm:px-5 py-3 flex items-center gap-3 text-sm" style={{ borderBottom: "1px solid var(--hairline)" }}>
+        <span className="w-2 h-2 rounded-full" style={{ background: step >= 2 ? "var(--orange)" : "var(--sage)", transition: "background .3s" }} />
+        <span className="mono text-xs">Agent 14 · {step >= 2 ? "paused at 14:32" : "trusted"}</span>
+        <span className="ml-auto mono text-[11px]" style={{ color: "var(--text-medium)" }}>venue settles at 14:40</span>
+      </div>
+      <div className="px-4 sm:px-5 py-4">
+        <ol className="relative grid gap-2.5">
+          <span aria-hidden className="absolute left-[27px] top-3 bottom-3 w-px" style={{ background: "var(--hairline)" }} />
+          {WHEN.map((w, i) => (
+            <motion.li key={w.k} initial={false} animate={{ opacity: shown(i) ? 1 : 0.18, x: shown(i) ? 0 : -4 }} transition={m.t(DUR.base)}
+              className="grid grid-cols-[56px_10px_minmax(0,1fr)_auto] items-center gap-2.5 text-sm">
+              <span className="mono text-[12px] tabular" style={{ color: "var(--text-medium)" }}>{w.t}</span>
+              <span className="w-[10px] h-[10px] rounded-full justify-self-center z-10" style={{ background: w.k === "stop" ? "var(--orange)" : "var(--surface)", border: `2px solid ${w.k === "stop" ? "var(--orange)" : "var(--text-medium)"}` }} />
+              <span className={w.k === "stop" ? "font-semibold" : ""} style={{ color: w.k === "stop" ? "var(--orange-text)" : "var(--text-dark)" }}>{w.what}</span>
+              <AnimatePresence initial={false}>
+                {w.verdict && judged && (
+                  <motion.span key="v" initial={m.reduced ? false : { opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={m.t(DUR.fast)}
+                    className="mono text-[11px] rounded-full px-2 py-0.5"
+                    style={{ color: w.tone === "live" ? "var(--sage-text)" : "var(--orange-text)", background: `color-mix(in srgb, ${w.tone === "live" ? "var(--sage)" : "var(--orange)"} 12%, transparent)` }}>
+                    {w.verdict}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.li>
+          ))}
+        </ol>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.p key={judged ? "j" : "w"} initial={m.reduced ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={m.t(DUR.fast)} className="text-sm mt-4">
+            {judged
+              ? <><span className="font-semibold">isTrustedAt(14, signedAt).</span> <span style={{ color: "var(--text-medium)" }}>Both settle after the stop. Only one was signed before it.</span></>
+              : <span style={{ color: "var(--text-medium)" }}>The venue does not ask what is true now. It asks what was true then.</span>}
+          </motion.p>
+        </AnimatePresence>
+      </div>
+      <div className="px-4 sm:px-5 py-2.5 text-[11px] mono" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
+        one view call per order · no service in the path
+      </div>
+    </div>
+  );
+}
+
 /* panic: a phone, a touch, and the agent paused. the three beats are the ones
    that matter, no wallet anywhere in them. */
 const PANIC = [
@@ -468,12 +532,22 @@ export function PanicVisual() {
 }
 
 /* ---------- the slides ---------- */
+/* each slide leads with the hour it is for, not the feature it is. the same
+   four things were once labelled "the switch", "guardians", "limits", "panic
+   button", which is the product's own vocabulary and nobody's problem. a reader
+   deciding whether they need this is not asking what it has; they are asking
+   whether the thing they are dreading is on the list. so the headline is the
+   moment and the dim line is what happens, and the window on the right shows
+   it happening. the fifth is new: an order signed before the stop, which is
+   the one integrators ask about first and the one no other switch answers. */
 const FEATURES = [
-  { k: "The switch", Icon: ZapIcon, lit: "One transaction.", dim: "Every app sees it next block.", body: "A cold key that can pause, stop and bring an agent back, and can never spend. Apps check it inside their own call, so there is nothing to sync.", Visual: TripVisual },
-  { k: "Guardians", Icon: LayersIcon, lit: "Who stops it if you cannot?", dim: "The people you chose.", body: "Guardians can pause your agent by vote. If you then do nothing for three days, they can stop it. They can never spend.", Visual: GuardianVisual },
-  { k: "Limits", Icon: RefreshCWIcon, lit: "Trust that ends by itself.", dim: "Nobody has to be awake.", body: "Give an agent an end date, or a heartbeat it has to keep. When either runs out it stops being trusted, with no transaction and nobody watching.", Visual: LimitsVisual },
-  { k: "Panic button", Icon: IdCardIcon, lit: "No wallet in the room.", dim: "A fingerprint is enough.", body: "A passkey on your phone can pause the agent, checked on chain by Monad's own P256 precompile. It can pause and nothing else, so a lost phone costs an interruption.", Visual: PanicVisual },
+  { k: "3am", Icon: ZapIcon, lit: "It is 3am and the key has leaked.", dim: "One transaction. Off from the next block.", body: "Your cold key pauses or stops it, and every app that checks refuses that key from the next block. Nothing already mined is undone, because nothing can be.", Visual: TripVisual },
+  { k: "No wallet", Icon: IdCardIcon, lit: "You are on a plane. The wallet is at home.", dim: "A fingerprint is enough.", body: "A passkey on your phone pauses it, checked on chain by Monad's own P256 precompile. It can pause and nothing else, so a lost phone costs you an interruption.", Visual: PanicVisual },
+  { k: "Asleep", Icon: LayersIcon, lit: "You are asleep and something is going wrong.", dim: "The people you chose can stop it.", body: "Guardians pause your agent by vote. They can never spend from it or hand it to anyone, and your cold key overrules whatever they do.", Visual: GuardianVisual },
+  { k: "Forgotten", Icon: RefreshCWIcon, lit: "You forgot the agent was still running.", dim: "Trust that ends by itself.", body: "Give it an end date, or a heartbeat it has to keep. When either lapses it stops being trusted, with no transaction and nobody awake.", Visual: LimitsVisual },
+  { k: "Too late?", Icon: HandCoinsIcon, lit: "An order arrives, signed before the stop.", dim: "Judged by when it was signed.", body: "The switch keeps every change with its timestamp. A venue asks what was true at the moment of signing, so a stop at 14:32 voids the 14:35 order and honours the 14:30 one.", Visual: WhenVisual },
 ] as const;
+
 const DWELL = 7000;
 
 export function Features() {
@@ -505,14 +579,14 @@ export function Features() {
           own rhythm and not a seam between two unrelated things. */}
       <div className="max-w-5xl">
         <h2 className="text-[34px] sm:text-[46px] lg:text-[54px] font-semibold tracking-[-0.03em] leading-[1.04]">
-          <span>You built the agent.</span>{" "}<span style={{ color: "var(--dim)" }}>Here is everything around it.</span>
+          <span>When you will need this.</span>
         </h2>
         <p className="text-[17px] sm:text-[19px] text-ink/70 mt-4 max-w-[52ch]">
-          Four things it should have had from day one. None of them need you to change a line of the agent.
+          Five hours that happen to people who run agents. None of them need you to change a line of the agent.
         </p>
       </div>
       {/* the rail. each tab carries its own progress line while it is the one showing. */}
-      <div role="tablist" aria-label="Features" className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-8 sm:mt-10 mb-8 sm:mb-10 max-w-4xl">
+      <div role="tablist" aria-label="Moments" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mt-8 sm:mt-10 mb-8 sm:mb-10 max-w-5xl">
         {FEATURES.map((t, k) => {
           const on = k === i;
           return (
