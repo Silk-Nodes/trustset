@@ -223,7 +223,14 @@ export default function Venue() {
       </AnimatePresence>
 
       {/* on a phone the agent comes first, because it is the thing the steps act on */}
-      <div className="lg:hidden">{agent}</div>
+      {/* on a phone the card sticks to the top of the viewport. measured before
+          this: from step five onward it sat at -314, -383 and -451, so the one
+          thing on the page that reacts to the buttons was above the fold
+          exactly while you were pressing them. the header is position relative
+          measures relative, but its ancestor is pinned: after scrolling 1200px
+          it still reported top 0 and bottom 64. so the card sits below that
+          rather than at the top of the viewport, and under it in the stack. */}
+      <div className="lg:hidden sticky top-[72px] z-20">{agent}</div>
 
       <div className="grid gap-3 min-w-0">
         <Step n={1} stage={stage("runs")} onToggle={() => toggle("runs")} title="Your agent is already running"
