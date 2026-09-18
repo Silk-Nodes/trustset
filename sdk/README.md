@@ -2,6 +2,22 @@
 
 Ask the trustset switch whether an agent may act, before you act for it.
 
+Try it against live Monad testnet without installing anything:
+
+```bash
+npx @trustset/check 7
+```
+
+```
+agent 7  REFUSED
+  why        silent, it missed its heartbeat
+  ends       none
+  next beat  2026-09-17 16:10 utc
+```
+
+No keys, no accounts, no config, and it writes nothing. `--address 0x...` looks
+up whichever agent owns a key instead.
+
 ```bash
 npm i @trustset/check ethers
 ```
@@ -93,3 +109,25 @@ client({ rpc: "...", killSwitch: "0x..." });
 ```
 
 Contracts, addresses and the audit: https://github.com/silk-nodes/trustset
+
+## ERC-8004 identities
+
+If you only know an agent by its ERC-8004 identity, ask about that instead. The
+Trustless Agents identity registry is live on Monad testnet, and an owner can
+publish a `trustset` metadata key on their token saying where their switch is.
+
+```js
+await trustset.isTrusted8004(1873);
+// { ok: true, tokenId: 1873, agentId: 7, trusted: false, why: "paused", ... }
+```
+
+```bash
+npx @trustset/check --erc8004 1873
+```
+
+Two view calls against two public contracts, with no server of ours in between.
+The pointer is the token owner's claim, so it is checked rather than trusted: a
+value naming another chain or another switch is refused instead of being
+quietly answered about the wrong agent. What cannot be checked is the other
+direction, since the switch does not know which token claims it. `from8004`
+returns `{ ok: false, reason }` in every case where it will not answer.

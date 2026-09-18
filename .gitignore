@@ -9,4 +9,6 @@
 broadcast/
 cache/
 indexer/node_modules/
+sdk/node_modules/
+sdk/package-lock.json
 out/

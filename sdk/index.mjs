@@ -17,7 +17,13 @@ export const MONAD_TESTNET = {
   chainId: 10143,
   explorer: "https://testnet.monadexplorer.com",
   killSwitch: "0x54D8211233Cc65b62C594cBAb900930dd37ED3b8",
+  /* erc-8004 trustless agents, identity registry, live on monad testnet. */
+  identityRegistry: "0x8004A818BFB912233c491871b3d84c89A494BD9e",
 };
+
+/* the metadata key an 8004 owner sets to say where their switch is. */
+export const ERC8004_KEY = "trustset";
+const IDENTITY_ABI = ["function getMetadata(uint256, string) view returns (bytes)"];
 
 const ABI = [
   "function isTrusted(uint256) view returns (bool)",
@@ -78,6 +84,14 @@ export function client({ rpc = MONAD_TESTNET.rpc, killSwitch = MONAD_TESTNET.kil
 
     /** Which agent is this key, or 0 if it was never registered. */
     idForKey: (address) => ks.agentIdByKey(address),
+
+    /** The agent an ERC-8004 identity points at, or null. See from8004 below. */
+    from8004(tokenId, opts) { return from8004(this, tokenId, opts); },
+    /** Is the agent behind an ERC-8004 identity allowed to act right now. */
+    async isTrusted8004(tokenId, opts) {
+      const link = await from8004(this, tokenId, opts);
+      return link.ok ? { ...link, trusted: await ks.isTrusted(link.agentId), why: await this.why(link.agentId) } : link;
+    },
 
     /** Say the agent is alive. Only the agent key can, and only inside its window.
      *  Overrides are passed through because Monad charges the whole gas limit,
@@ -153,3 +167,41 @@ export class NotTrusted extends Error {
 }
 
 export default client;
+
+/* ---------- the other direction: an erc-8004 identity to its switch ----------
+ *
+ * the registry links one way already. an owner sets a metadata key on their
+ * token whose value is abi.encode(chainId, killSwitch, agentId), which is them
+ * saying "the switch for this identity is over there". nothing reads it back.
+ *
+ * so this reads it back, and the reading is the point. an app that only knows
+ * an agent by its 8004 identity can ask whether that agent has been switched
+ * off, without knowing trustset exists beforehand and without asking any
+ * server of ours: it is two view calls against two public contracts.
+ *
+ * the pointer is the owner's claim and is checked, not trusted. a value naming
+ * another chain or another switch is somebody else's arrangement and is
+ * refused here rather than silently answered about the wrong agent. what this
+ * cannot check is the reverse direction: the switch does not know which 8004
+ * token claims it, so a token could point at an agent whose owner never agreed.
+ * that costs the liar nothing and gains them nothing, because the answer is
+ * about the agent they named, not about them. it is in AUDIT.md.
+ */
+export async function from8004(c, tokenId, { registry = MONAD_TESTNET.identityRegistry, chainId = MONAD_TESTNET.chainId } = {}) {
+  const reg = new ethers.Contract(registry, IDENTITY_ABI, c.provider);
+  let raw;
+  try { raw = await reg.getMetadata(BigInt(tokenId), ERC8004_KEY); }
+  catch { return { ok: false, reason: "that identity registry did not answer" }; }
+  if (!raw || raw === "0x") return { ok: false, reason: `erc-8004 agent ${tokenId} has not published a trustset pointer` };
+  let decoded;
+  try { decoded = ethers.AbiCoder.defaultAbiCoder().decode(["uint256", "address", "uint256"], raw); }
+  catch { return { ok: false, reason: "its trustset pointer is not readable" }; }
+  /* positionally. a Result is an array first, so a named field can collide
+     with Array.prototype and quietly become undefined. */
+  const [onChain, switchAddr, agentId] = [Number(decoded[0]), decoded[1], Number(decoded[2])];
+  if (onChain !== chainId) return { ok: false, reason: `its switch is on chain ${onChain}, not ${chainId}` };
+  if (switchAddr.toLowerCase() !== c.address.toLowerCase()) {
+    return { ok: false, reason: `it points at a different switch, ${switchAddr}` };
+  }
+  return { ok: true, tokenId: Number(tokenId), agentId, killSwitch: switchAddr, chainId: onChain };
+}

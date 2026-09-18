@@ -213,3 +213,19 @@ switch, so they were not redeployed. The guardian escalation delay on
 this deployment is ten minutes rather than three days, so the escalation path
 can be exercised on a testnet. The previous contracts are abandoned with their
 state.
+
+## the erc-8004 pointer is one directional
+
+`from8004` reads a `trustset` metadata key off an ERC-8004 identity and follows
+it to an agent on this switch. the pointer is checked for the chain and the
+switch it names, and refused when either is somebody else's.
+
+what is not checked, because it cannot be: the switch does not record which
+8004 token claims which agent, so anybody may publish a pointer at an agent
+whose owner never agreed to it. the answer that comes back is still about the
+agent that was named, so a false pointer misreports whose agent it is, never
+whether that agent may act. an app that cares about ownership has to establish
+it some other way, and should not read a working `from8004` as proof of it.
+
+the reverse binding would need a claim on this side too, agent owner names
+token, and it is not built.
