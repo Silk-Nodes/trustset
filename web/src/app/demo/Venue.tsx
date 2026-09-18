@@ -37,6 +37,10 @@ type State = {
   agentId: string; agentKey: string; coldKey: string; guardian: string; owned: boolean;
   status: number; trades: number; venue: string; trusted: boolean; expired: boolean; expiresAt: number;
   readAt: number; error?: string;
+  /* present when the chain disagrees that this agent is the connected
+     wallet's. the page stops offering the owner's controls rather than
+     letting them revert. */
+  mismatch?: { storedFor: string; actualColdKey: string };
 };
 type Line = { id: number; kind: Kind; hash?: string; block?: number | null };
 type Kind = "accepted" | "refused" | "paused" | "resumed" | "guardian" | "limits" | "cleared";
@@ -49,6 +53,7 @@ const SAID: Record<Kind, string> = {
 };
 const ORDER: Act[] = ["runs", "switch", "back", "guardians", "limits", "human", "record"];
 const EASE = [0.23, 1, 0.32, 1] as const;
+const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 let seq = 0;
 
 export default function Venue() {
@@ -156,6 +161,8 @@ export default function Venue() {
      server is refused if it tries. same call the console makes. */
   async function flip(to: 1 | 2, act?: Act) {
     if (!s) return;
+    /* the chain, not the store, decides whose agent this is. */
+    if (s.mismatch) { setNote(`This agent's cold key is ${short(s.mismatch.actualColdKey)}, not your wallet, so it cannot be switched from here.`); return; }
     if (!s.owned) return post(to === 2 ? "pause" : "resume", to === 2 ? "paused" : "resumed", act);
     const c = w.conn, signer = w.who?.signer;
     if (!c || !signer) { setNote("Connect your wallet first"); return; }
@@ -232,6 +239,15 @@ export default function Venue() {
           rather than at the top of the viewport, and under it in the stack. */}
       <div className="lg:hidden sticky top-[72px] z-20">{agent}</div>
 
+      {s?.mismatch && (
+        <div className="sheet px-5 py-4 lg:col-span-2" style={{ borderColor: "var(--orange)" }}>
+          <div className="text-[15px] font-semibold">This agent is not your wallet&apos;s.</div>
+          <p className="text-[13px] mt-1.5" style={{ color: "var(--text-medium)" }}>
+            The switch says agent {s.agentId}&apos;s cold key is <span className="mono">{short(s.mismatch.actualColdKey)}</span>, and you are connected as <span className="mono">{short(s.mismatch.storedFor)}</span>. The steps that need the cold key are off here, because pressing them would only revert. Disconnect to use the shared agent, or connect the wallet that owns this one.
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-3 min-w-0">
         <Step n={1} stage={stage("runs")} onToggle={() => toggle("runs")} title="Your agent is already running"
           why="You wrote it, or you will. It holds a key and it trades. trustset did not create it and cannot make it do anything: all it knows is that this key is agent number one of yours.">
@@ -242,7 +258,7 @@ export default function Venue() {
         <Step n={2} stage={stage("switch")} onToggle={() => toggle("switch")} title="Something goes wrong. You switch it off."
           why="A key leaks, a strategy misfires, or you simply want it to stop. One transaction from your wallet, and from the next block every app that checks refuses that key. Nothing already mined is undone.">
           {!off
-            ? <Do label="Switch it off" busy={busy === "pause" || busy === "flip"} disabled={!s} onClick={() => flip(2)} />
+            ? <Do label="Switch it off" busy={busy === "pause" || busy === "flip"} disabled={!s || !!s.mismatch} onClick={() => flip(2)} />
             : <Do label="Send the same trade" busy={busy === "trade"} disabled={!s} onClick={() => post("trade", "refused", "switch")} />}
           <Aside>
             {!off
@@ -253,7 +269,7 @@ export default function Venue() {
 
         <Step n={3} stage={stage("back")} onToggle={() => toggle("back")} title="It is a breaker, not a fuse"
           why="A stop that cannot be undone is a fuse, and people hesitate to pull a fuse. This one goes both ways: pause while you look into it, bring it back when you are satisfied. Only ending it for good is permanent.">
-          <Do label={off ? "Bring it back" : "It is back"} busy={busy === "resume" || busy === "flip"} disabled={!s || !off} onClick={() => flip(1, "back")} />
+          <Do label={off ? "Bring it back" : "It is back"} busy={busy === "resume" || busy === "flip"} disabled={!s || !off || !!s.mismatch} onClick={() => flip(1, "back")} />
         </Step>
 
         <Step n={4} stage={stage("guardians")} onToggle={() => toggle("guardians")} title="Who stops it when you cannot?"
@@ -418,7 +434,15 @@ function Step({ n, stage, onToggle, title, why, children, last }: {
         {!last && <span className="w-px flex-1 mt-1" style={{ background: "var(--hairline)" }} />}
       </div>
 
-      <div className="sheet min-w-0" style={{ boxShadow: stage === "current" ? "inset 3px 0 0 0 var(--orange)" : "none", transition: "box-shadow .3s" }}>
+      {/* the step you are on is ringed, not tagged down one edge. the inset bar
+          read as a decoration stuck to the side of a card rather than as the
+          card being the live one; a border the whole way round says it without
+          ornament. it replaces the hairline rather than adding to it, so
+          nothing shifts by a pixel when a step becomes current. */}
+      <div className="sheet min-w-0" style={{
+        borderColor: stage === "current" ? "var(--orange)" : "var(--hairline)",
+        transition: "border-color .3s",
+      }}>
         {isDone ? (
           <button type="button" onClick={onToggle} className="w-full text-left px-5 sm:px-6 py-3.5 flex items-center gap-3">
             <h2 className="text-[15px] font-semibold tracking-tight truncate">{title}</h2>
