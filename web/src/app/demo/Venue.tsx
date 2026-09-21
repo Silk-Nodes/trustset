@@ -259,8 +259,30 @@ export default function Venue() {
       <div className="grid gap-3 min-w-0">
         <Step n={1} stage={stage("runs")} onToggle={() => toggle("runs")} title="Your agent is already running"
           why="You wrote it, or you will. It holds a key and it trades. trustset did not create it and cannot make it do anything: all it knows is that this key is agent number one of yours.">
-          <Do label="Send a trade" busy={busy === "trade"} disabled={!s} onClick={() => post("trade", "accepted", "runs")} />
-          <Aside>The venue accepts it because the switch says the agent is active. {s ? `${s.trades} trades so far.` : ""}</Aside>
+          {/* the shared agent keeps whatever state the last visitor left it in,
+              so somebody who switched it off and closed the tab hands the next
+              reader an agent that is already off. step one used to invite a
+              trade anyway and promise the venue would accept it, which meant
+              the walkthrough opened on a revert and copy saying that could not
+              happen. it says what is true and offers the way back instead. */}
+          {!off
+            ? <Do label="Send a trade" busy={busy === "trade"} disabled={!s} onClick={() => post("trade", "accepted", "runs")} />
+            : s?.status === 2
+              ? <Do label="Bring it back first" busy={busy === "resume" || busy === "flip"} disabled={!s || !!s.mismatch} onClick={() => flip(1)} />
+              : s?.expired && !s.owned
+                ? <Do label="Clear the end date first" busy={busy === "clearLimits"} disabled={!s} onClick={() => post("clearLimits", "cleared")} />
+                : null}
+          <Aside tone={off ? "off" : "plain"}>
+            {!off
+              ? <>The venue accepts it because the switch says the agent is active. {s ? `${s.trades} trades so far.` : ""}</>
+              : s?.status === 2
+                ? "This agent is shared, and whoever came before left it switched off. A trade sent now would be refused, which is step two. Bring it back to start from the beginning."
+                : s?.expired
+                  ? (s.owned
+                      ? "The end date on this agent has passed, so no app will serve it. Your wallet holds the cold key, so clear that date from the console."
+                      : "This agent is shared, and whoever came before gave it an end date that has since run out, which is step five. A trade sent now would be refused. Clear the date to start from the beginning.")
+                  : "The switch does not trust this agent right now, so a trade sent now would be refused."}
+          </Aside>
         </Step>
 
         <Step n={2} stage={stage("switch")} onToggle={() => toggle("switch")} title="Something goes wrong. You switch it off."
