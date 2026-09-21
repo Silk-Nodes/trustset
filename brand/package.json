@@ -1,0 +1,14 @@
+{
+  "name": "@trustset/brand",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Regenerates every trustset brand asset from one definition.",
+  "type": "module",
+  "scripts": {
+    "build": "node make.mjs"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2"
+  }
+}

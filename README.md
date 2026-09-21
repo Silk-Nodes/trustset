@@ -1,6 +1,11 @@
+<p align="center">
+  <img src="brand/assets/banner-dark.png#gh-dark-mode-only" alt="trustset" width="820">
+  <img src="brand/assets/banner-light.png#gh-light-mode-only" alt="trustset" width="820">
+</p>
+
 # trustset
 
-an on-chain off switch for ai agents, on monad.
+**an on-chain off switch for ai agents, on monad.**
 
 an agent with a key can trade, pay and sign for as long as it runs. trustset gives the person who
 owns it one place to say stop, and gives every app the agent talks to one call to check before it
@@ -8,11 +13,45 @@ acts. pausing is reversible, stopping for good is not, and both land in the next
 
 built for monad metropolis, track 04: trust, identity and ai infrastructure.
 
-- live: https://trustset.silknodes.io
-- chain: monad testnet, chain id 10143
+- live: **https://trustset.silknodes.io**
+- chain: monad testnet, chain id **10143**
 - switch: [`0x54D8211233Cc65b62C594cBAb900930dd37ED3b8`](https://testnet.monadexplorer.com/address/0x54D8211233Cc65b62C594cBAb900930dd37ED3b8)
+- package: [`@trustset/check`](https://www.npmjs.com/package/@trustset/check)
+- built by [silk nodes](https://silknodes.io) · mit licensed
+
+---
+
+## what trustset does
+
+an agent key is a standing authorisation. nothing about it expires, nothing about it can be
+withdrawn, and the only way to take it back today is to drain the wallet it holds or hope every
+venue it talks to happens to notice. trustset makes that authorisation revocable:
+
+- **the owner** gets one place to pause, stop, time-limit or require a heartbeat from an agent
+- **an app** gets one view call, `isTrusted(agentId)`, to ask before it acts for that agent
+- **a phone** gets a passkey that can pause the agent with no wallet, no seed phrase and no gas
+- **guardians** get a way to recover an agent whose cold key is gone, without being able to steal it
+- **a payment rail** gets an escrow whose money comes back when the agent stops mid-flight
+
+no server of ours sits in any of those paths. the contract is immutable, has no admin, and holds no
+funds. there is no key anybody could subpoena and no switch we could flip.
 
 ## check an agent
+
+```bash
+npx @trustset/check 7
+```
+
+```
+switch 0x54D8211233Cc65b62C594cBAb900930dd37ED3b8 on https://testnet-rpc.monad.xyz
+
+agent 7  TRUSTED
+  why        trusted, may act
+  ends       none
+  next beat  2026-09-21 08:02 utc
+```
+
+in an app:
 
 ```bash
 npm i @trustset/check ethers
@@ -33,6 +72,54 @@ works from two places and they are not equally strong. inside your own agent it 
 chose, and it does not save you from an agent that has been taken over and rewritten. inside a
 venue's own function it is compulsory, and nothing upstream can skip it. `sdk/README.md` is honest
 about which you are getting.
+
+in solidity, inside the function that acts:
+
+```solidity
+if (!killSwitch.isTrusted(agentId)) revert AgentNotTrusted(agentId);
+```
+
+## features
+
+- **four independent ways to stop**, two of which need nobody to send a transaction
+- **passkey panic button** over monad's native p256 precompile, verified on chain, proven on testnet
+- **guardian recovery** with a threshold and a cancellable delay, so a lost key is not a lost agent
+- **history by timestamp**, so an app can judge an order by what was true when it was signed
+- **erc-8004 both directions**, so an app that knows an agent only by its identity token can still
+  ask whether it has been switched off
+- **refund rail** for x402 style payments, with a permissionless refund anybody can trigger
+- **an explorer** derived from logs rather than from anything we assert
+- **141 tests**, including 128,000 fuzzed calls per run asserting eleven invariants
+
+## architecture
+
+```
+          owner's wallet            a phone with a passkey
+                │                            │
+                │ pause / stop / limit       │ pause only, gasless
+                ▼                            ▼
+        ┌───────────────────────────────────────────┐
+        │  KillSwitch.sol        monad testnet      │
+        │  immutable · no admin · holds no funds    │
+        │  status · expiry · heartbeat · guardians  │
+        └───────────────────────────────────────────┘
+             ▲            ▲                   ▲
+  isTrusted()│            │isTrusted()        │ getMetadata("trustset")
+             │            │                   │
+      the agent        a venue          ERC-8004 Identity
+      (obedience)    (compulsory)        0x8004A8…BD9e
+                          │
+                          ▼
+                  ┌───────────────┐
+                  │ RefundRail    │  escrow, refundable once the window closes
+                  └───────────────┘
+                          │ logs
+                          ▼
+                  indexer → postgres → web (explorer, demo, panic, passkey)
+```
+
+the indexer only ever reads logs, so the explorer cannot show anything the chain did not say. the
+keeper only ever calls `refund(id)`, which pays the payer named in storage and nobody else.
 
 ## the four ways an agent stops
 
@@ -118,36 +205,71 @@ reverse binding, and `AUDIT.md` says so plainly.
 | `libraries/WebAuthn` | no | authenticator data, client data and low-s normalisation over the p256 precompile at `0x0100` |
 | `libraries/BLS` | no | rfc 9380 hash to g2, g1 and g2 add, pairing check |
 
+deployed addresses are in [`deployments/monad-testnet.json`](deployments/monad-testnet.json).
+
 ## the refund keeper
 
-the rail is permissionless: once a payment's window closes, `refund(id)` may be
-called by anybody, and the money goes to the payer rather than to whoever called
-it. that is what makes it safe for a stranger to press, and it is also why
-nothing happens until a stranger does. a deadline passing moves no money on its
-own.
+the rail is permissionless: once a payment's window closes, `refund(id)` may be called by anybody,
+and the money goes to the payer rather than to whoever called it. that is what makes it safe for a
+stranger to press, and it is also why nothing happens until a stranger does. a deadline passing
+moves no money on its own.
 
-`keeper/` sends that transaction. it watches for payments whose window has
-closed while they are still open and calls refund. it is a convenience, never an
-authority: every payment it touches would have been refundable without it, the
-payer can always call refund themselves, and if the keeper is off the only thing
-lost is promptness.
+`keeper/` sends that transaction. it watches for payments whose window has closed while they are
+still open and calls refund. it is a convenience, never an authority: every payment it touches would
+have been refundable without it, the payer can always call refund themselves, and if the keeper is
+off the only thing lost is promptness.
 
-the key it holds can do exactly one thing. `refund(id)` takes no argument but an
-id and pays the payer named in storage, so the keeper cannot direct money
-anywhere, cannot settle, cannot pay, and cannot touch a payment whose window is
-still open. the worst a stolen keeper key can do is return other people's money
-on time and pay the gas for it.
+the key it holds can do exactly one thing. `refund(id)` takes no argument but an id and pays the
+payer named in storage, so the keeper cannot direct money anywhere, cannot settle, cannot pay, and
+cannot touch a payment whose window is still open. the worst a stolen keeper key can do is return
+other people's money on time and pay the gas for it.
 
 ```bash
 KEEPER_KEY=0x... node keeper/index.mjs
 ```
 
-## the rest of it
+## run locally
 
-- `sdk/` the npm package apps integrate, `@trustset/check`
-- `agent/` a real agent on testnet: it checks the switch every minute, trades every hour, and stops when told
-- `indexer/` walks the chain into postgres, around monad's 100 block log cap, so the explorer is log derived rather than trusted
-- `web/` the site: the landing page, the explorer, the `/demo` walkthrough, `/panic` and `/passkey`
+### prerequisites
+
+- [foundry](https://getfoundry.sh) for the contracts
+- node 18 or newer for the sdk, agent, keeper, indexer and site
+- postgres, only if you want the explorer's indexer
+
+### the contracts
+
+```bash
+forge build
+forge test                  # 141 passing, 1 skipped, across 10 suites
+```
+
+forge-std is vendored under `lib/`, so a clone builds with no submodule step.
+
+### the whole thing on anvil
+
+```bash
+scripts/demo.sh             # anvil, contracts, a venue, and a browser demo on 127.0.0.1:8787
+```
+
+### the site
+
+```bash
+cd web && npm install && npm run dev
+```
+
+### the sdk
+
+```bash
+cd sdk && npm install && node cli.mjs 7
+```
+
+reads monad testnet. no keys, no config, no writes.
+
+### environment
+
+every service reads its configuration from the environment and none of it is committed.
+`.env.example` lists the keys with empty values. nothing falls back to a plausible default: a
+missing variable is logged by name and the service degrades visibly rather than pretending.
 
 ## monad specifics
 
@@ -159,15 +281,10 @@ KEEPER_KEY=0x... node keeper/index.mjs
   go to finalised minus four
 - `isTrustedAt` reads history by timestamp and never `latest`, because `latest` is speculative
 - one struct per agent, so a status read is one storage page under mip-8
+- the p256 precompile at `0x0100` is present on both testnet and mainnet. `eth_getCode` returns
+  empty for a precompile even when it works, so it is a useless availability test
 - the staking precompile at `0x1000` has no code on testnet, which is why `OperatorRegistry` is not
   part of the deployed path
-
-## run
-
-```bash
-forge test                  # 141 passing, 1 skipped
-scripts/demo.sh             # anvil, contracts, a venue, and a browser demo on 127.0.0.1:8787
-```
 
 ## what the tests actually claim
 
@@ -191,6 +308,64 @@ invariants still do not reach.
 
 ## honest limits
 
-`AUDIT.md` is the part worth reading if you are deciding whether to trust this. it says what each
-piece does not protect against, including the one that matters most: a switch only binds an agent
-that checks it, or a venue that checks it for them.
+[`AUDIT.md`](AUDIT.md) is the part worth reading if you are deciding whether to trust this. it says
+what each piece does not protect against, including the one that matters most: **a switch only binds
+an agent that checks it, or a venue that checks it for them.** an agent that never asks is not
+stopped by anything here.
+
+other limits it records:
+
+- the erc-8004 pointer can be checked in one direction only
+- `isTrustedAt` checks expiry against the agent's current end date, because only the current one is
+  stored, so moving the end date changes the answer about the past
+- the heartbeat is not part of the historical answer at all: liveness is a fact about now, and no
+  record of past beats is kept
+- this is testnet, and unaudited
+
+## project layout
+
+```
+src/            the contracts
+  libraries/    WebAuthn over the p256 precompile, BLS over monad's pairing precompiles
+test/           141 unit tests plus the invariant suite and its handler
+script/         forge deployment scripts
+deployments/    the deployed addresses, per chain
+sdk/            @trustset/check, the npm package apps integrate
+agent/          a real agent on testnet: checks the switch, trades, stops when told
+keeper/         the refund keeper, plus its systemd unit
+indexer/        walks logs into postgres around monad's 100 block cap
+web/            next.js site: landing, explorer, /demo, /panic, /passkey
+brand/          the mark, the palette, and make.mjs to regenerate every asset
+scripts/        demo.sh, deploy.sh, site-audit.js
+```
+
+## tech stack
+
+- **contracts**: solidity 0.8.28, foundry, via-ir, evm version osaka
+- **sdk**: node 18+, ethers v6, zero config
+- **web**: next.js 16, react, tailwind 4, motion
+- **indexer**: node, postgres
+- **chain**: monad testnet, p256 and bls precompiles, erc-8004
+
+## brand
+
+the mark is a face: a top bar, two eyes and a bottom bar, with the eyes orange at rest. the tile
+takes the text colour and the bars take the ground colour, so it inverts against whatever page it
+sits on. [`brand/BRAND.md`](brand/BRAND.md) has the palette with measured contrast ratios, the type
+rules, and the one place orange must not be used. every asset regenerates with `node brand/make.mjs`.
+
+## contributing
+
+issues and pull requests are welcome. if you are changing a contract, add the invariant that would
+have caught the bug, then delete the guard and confirm the suite goes red. a test that passes
+against a broken contract is worse than no test.
+
+## license
+
+mit. see [`LICENSE`](LICENSE).
+
+## acknowledgments
+
+- the monad team for the p256 precompile, without which the panic button would need a server
+- the erc-8004 trustless agents registries, live on monad testnet
+- foundry, for the invariant fuzzer that found three places this was wrong
