@@ -36,18 +36,39 @@ rsync -az --delete \
   --exclude '.next-*/' --exclude '.env*' \
   "$ROOT/web/src/" "$HOST:$REMOTE/web/src/"
 
+echo "==> sending web/public"
+# next reads the CONTENT of public/ from disk at request time, but it fixes
+# the LIST of files at build time: a filename that was not there when the
+# build ran answers 404 until the next build. so this is sent before the
+# build, on purpose. it was not sent at all for the first four days, and the
+# og image and the new favicon sat at 404 while every page reported 200.
+rsync -az --delete --exclude '.env*' "$ROOT/web/public/" "$HOST:$REMOTE/web/public/"
+
 echo "==> building on the vm"
 ssh "$HOST" "cd $REMOTE/web && npm run build 2>&1 | grep -E 'Compiled|Failed|error' || true"
 
 echo
-echo "==> now restart, in the same breath as the build:"
-echo "    ssh -t $HOST 'sudo systemctl restart trustset-web'"
-echo
-read -r -p "press enter once that has finished, to verify" _
+# restart without a keypress when the box allows it. the one time this was
+# left to a prompt, enter was pressed before the restart ran and every chunk
+# on the site answered 500 for the rest of the day. sudo -n never asks for a
+# password: it either works or fails at once, and only then is a person asked.
+echo "==> restarting"
+if ssh -o BatchMode=yes "$HOST" 'sudo -n systemctl restart trustset-web' 2>/dev/null; then
+  echo "    restarted"
+else
+  echo "    passwordless sudo refused. run this yourself, then come back:"
+  echo "    ssh -t $HOST 'sudo systemctl restart trustset-web'"
+  read -r -p "press enter once the restart has FINISHED, not before" _
+fi
+echo "==> waiting for the server to answer"
+for i in $(seq 1 30); do
+  sleep 1
+  curl -sS -o /dev/null --max-time 3 "$SITE/" && break
+done
 
 echo "==> checking every asset the pages reference"
 fail=0
-for path in / /demo /explorer /agents /passkey /panic; do
+for path in / /demo /explorer /agents /passkey /panic /how; do
   code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$SITE$path" || echo 000)
   printf '%-10s %s\n' "$path" "$code"
   [ "$code" = "200" ] || fail=1
@@ -56,5 +77,10 @@ for path in / /demo /explorer /agents /passkey /panic; do
     if [ "$a" != "200" ]; then echo "   $a  $u"; fail=1; fi
   done
 done
+for f in og.png icon.svg favicon-32.png apple-touch-icon.png; do
+  a=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$SITE/$f" || echo 000)
+  printf '%-10s %s\n' "/$f" "$a"
+  [ "$a" = "200" ] || fail=1
+done
 echo
-[ "$fail" = "0" ] && echo "all pages and every asset they name answered 200" || { echo "SOMETHING IS STALE: restart again, the build moved under the server"; exit 1; }
+[ "$fail" = "0" ] && echo "all pages, every chunk they name, and the public assets answered 200" || { echo "SOMETHING IS STALE: restart again, the build moved under the server"; exit 1; }
