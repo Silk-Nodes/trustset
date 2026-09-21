@@ -14,6 +14,7 @@ cache/
 indexer/node_modules/
 keeper/node_modules/
 out/
+scripts/node_modules/
 sdk/node_modules/
 sdk/package-lock.json
 web/node_modules/

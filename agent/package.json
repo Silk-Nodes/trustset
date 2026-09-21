@@ -1,0 +1,11 @@
+{
+  "name": "@trustset/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The live agent: asks the switch before it acts.",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "ethers": "^6.13.0"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@trustset/keeper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The refund keeper: sends the refunds anybody could send.",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "ethers": "^6.13.0"
+  }
+}

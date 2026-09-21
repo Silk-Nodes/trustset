@@ -1,0 +1,14 @@
+# every ten minutes. the agent beats about hourly against a two hour window,
+# so a dead agent leaves roughly an hour to notice. ten minutes gives six
+# chances inside that hour, which is enough to restart and still beat.
+[Unit]
+Description=run the trustset watchdog every ten minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+AccuracySec=30s
+Unit=trustset-watch.service
+
+[Install]
+WantedBy=timers.target
