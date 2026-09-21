@@ -47,7 +47,7 @@ const SETUP = "An agent with a key can trade, pay and sign for as long as it run
 const TURNS = [
   { was: "Nothing could stop it.", now: "one transaction does." },
   { was: "Nothing could stop it while you slept.", now: "your guardians can. Or a date you set." },
-  { was: "Nothing could reach it without a wallet.", now: "a fingerprint can." },
+  { was: "Nothing could stop it without a signature.", now: "a fingerprint can." },
 ];
 function Turn({ was, now, turned, reduced }: { was: string; now: string; turned: boolean; reduced: boolean }) {
   const t = reduced ? { duration: 0 } : { duration: 0.32, ease: EASE };
@@ -727,7 +727,7 @@ export function RefundVisual() {
    always had and the page never named: identity, human proof and refunds. */
 const FEATURES = [
   { k: "The switch", Icon: ZapIcon, lit: "It is 3am and the key has leaked.", dim: "One transaction. Off from the next block.", accent: "next block", body: "Your cold key pauses or stops it, and every app that checks refuses that key from the next block. Nothing already mined is undone, because nothing can be.", Visual: TripVisual },
-  { k: "Panic button", Icon: IdCardIcon, lit: "You are on a plane. The wallet is at home.", dim: "A fingerprint is enough.", accent: "fingerprint", body: "A passkey on your phone pauses it, checked on chain by Monad's own P256 precompile. It can pause and nothing else, so a lost phone costs you an interruption.", Visual: PanicVisual },
+  { k: "Panic button", Icon: IdCardIcon, lit: "You need it stopped, not signed.", dim: "A fingerprint is enough.", accent: "fingerprint", body: "A passkey on your phone pauses it, checked on chain by Monad's own P256 precompile. It can pause and nothing else, so a lost phone costs you an interruption.", Visual: PanicVisual },
   { k: "Guardians", Icon: LayersIcon, lit: "You are asleep and something is going wrong.", dim: "The people you chose can stop it.", accent: "people you chose", body: "Guardians pause your agent by vote. They can never spend from it or hand it to anyone, and your cold key overrules whatever they do.", Visual: GuardianVisual },
   { k: "Limits", Icon: RefreshCWIcon, lit: "You forgot the agent was still running.", dim: "Trust that ends by itself.", accent: "by itself", body: "Give it an end date, or a heartbeat it has to keep. When either lapses it stops being trusted, with no transaction and nobody awake.", Visual: LimitsVisual },
   { k: "Past signatures", Icon: HandCoinsIcon, lit: "An order arrives, signed before the stop.", dim: "Judged by when it was signed.", accent: "when it was signed", body: "The switch keeps every change with its timestamp. A venue asks what was true at the moment of signing, so a stop at 14:32 voids the 14:35 order and honours the 14:30 one.", Visual: WhenVisual },
