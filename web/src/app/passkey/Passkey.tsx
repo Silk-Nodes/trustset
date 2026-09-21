@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { registerPasskey, platformAvailable } from "@/lib/webauthn";
 import { useWallet } from "@/components/WalletProvider";
-import { explain, ownerTx, settled } from "@/lib/chain";
+import { explain, ownerTx, settled, STATUS } from "@/lib/chain";
 
 /* nominating the passkey that may pause an agent.
  *
@@ -25,7 +25,12 @@ type Info = {
 type Made = { credentialId: string; x: bigint; y: bigint; rpIdHash: string; rpId: string };
 type Done = { ok: boolean; hash: string; block: number | null; explorer: string };
 
-const STATUS = ["unknown", "active", "paused", "stopped for good", "rotated"];
+/* the words this page uses, built from the one list in chain.ts rather than
+   retyped beside it. a second hand-written table is a table that drifts: the
+   indexes have to line up with the contract's enum for ever, and nothing would
+   tell us the day they stopped. only the wording differs here. */
+const SOFTER: Record<string, string> = { none: "unknown", revoked: "stopped for good" };
+const statusName = (n: number) => { const s = STATUS[n]; return s ? (SOFTER[s] ?? s) : "not active"; };
 const short = (v: string) => v.length > 18 ? `${v.slice(0, 10)}…${v.slice(-8)}` : v;
 
 export default function Passkey({ initialId }: { initialId?: string }) {
@@ -204,7 +209,7 @@ export default function Passkey({ initialId }: { initialId?: string }) {
           <div className="text-sm font-semibold">Agent {id} now has a panic button.</div>
           <div className="text-[12.5px] mt-1" style={{ color: "var(--text-medium)" }}>
             Landed in block {done.block}.{" "}
-            {info && info.status !== 1 ? `The agent is ${STATUS[info.status] ?? "not active"} right now, and a passkey can only pause an active agent, so bring it back before trying this.` : "Open the panic page on your phone and hold your finger on it."}
+            {info && info.status !== 1 ? `The agent is ${statusName(info.status)} right now, and a passkey can only pause an active agent, so bring it back before trying this.` : "Open the panic page on your phone and hold your finger on it."}
           </div>
           <div className="flex flex-wrap gap-3 mt-2 text-[12.5px]">
             <a href={`${done.explorer}/tx/${done.hash}`} target="_blank" rel="noreferrer" className="underline" style={{ color: "var(--orange-text)" }}>View the transaction</a>

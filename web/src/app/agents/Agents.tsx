@@ -323,7 +323,7 @@ export default function Agents() {
               {!loaded && agents.length === 0 && <div className="px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>Reading your agents from {conn.cfg.chain}…</div>}
               {loaded && agents.length === 0 && <div className="px-5 py-8 text-sm text-ink/70">Nothing under {short(ownerAddr(conn)!)} yet. <Term k="register">Register</Term> the <Term k="agent key">agent key</Term> of an agent you already run, and this wallet becomes the one that can stop it.</div>}
               {agents.map(a => (
-                <AgentRow key={a.id.toString()} agent={a} name={labelFor(a).name} last={last[a.id.toString()] ?? (a.status === "revoked" ? "Revoked" : "Registered")}
+                <AgentRow key={a.id.toString()} agent={a} name={labelFor(a).name} last={last[a.id.toString()] ?? (a.status === "revoked" ? "Revoked" : a.status === "rotated" ? "Rotated to a successor" : "Registered")}
                   selected={sel === a.id} stopState={busy.has(a.id.toString()) ? "busy" : "ready"} onSelect={() => setSel(sel === a.id ? null : a.id)} onStop={() => stop(a)}
                   onPause={() => pause(a)} pausing={busy.has("p" + a.id.toString())} />
               ))}
@@ -335,7 +335,10 @@ export default function Agents() {
                 {selected ? (
                   <AgentPanel key={selected.id.toString()} agent={selected} label={labelFor(selected)} onPublishLabel={() => publishLabel(selected)} stamp={stamps[selected.id.toString()]} explorer={conn.cfg.explorer} onClose={() => setSel(null)}
                     actions={<PanelActions agent={selected} name={labelFor(selected).name} purpose={labelFor(selected).purpose} now={now} delayDays={delayDays} busy={act}
-                      others={agents.filter(o => o.id !== selected.id && o.status === "active").map(o => ({ id: o.id, name: labelFor(o).name }))}
+                      /* the contract only refuses a successor that is not Active,
+                         so an expired one is accepted and trust lands on an agent
+                         nothing will serve. this offers the ones truly trusted. */
+                      others={agents.filter(o => o.id !== selected.id && trusted(o, now)).map(o => ({ id: o.id, name: labelFor(o).name }))}
                       onRename={(n, p) => rename(selected, n, p)} onLimits={(e, w) => limits(selected, e, w)}
                       hasStopKey={!!stopKeys[selected.id.toString()]?.set} stopKeyUses={stopKeys[selected.id.toString()]?.nonce ?? 0}
                       onSetStopKey={() => setStopKey(selected)} onClearStopKey={() => clearStopKey(selected)} onProposeKey={addr => proposeKey(selected, addr)} onApplyKey={() => applyKey(selected)} onRotate={id => rotate(selected, id)} />}
