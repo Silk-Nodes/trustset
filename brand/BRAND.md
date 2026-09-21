@@ -3,7 +3,8 @@
 locked 2026-09-15. contrast numbers remeasured 2026-09-21, three were wrong.
 
 ## name
-trustset. lowercase everywhere. tagline: an off switch for ai agents on monad.
+trustset. lowercase everywhere. tagline: the trust stack for ai agents.
+the off switch is the door, not the whole product: it is the thirty second demo and the one line an app integrates. the stack is the eight layers behind it.
 sub products: trip (kill switch, built), touch (human touch attestation, built), refund (x402 refund rail, built).
 the operator registry is in the repo and out of the product: reading the chain already answers the question on monad.
 
