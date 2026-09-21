@@ -109,7 +109,10 @@ for (const t of ["light", "dark"]) {
   out(`logo-${t}.svg`, svg(body));
   out(`logo-${t}.png`, png(svg(body), 1024));
 }
-/* favicon rasters, for the browsers that will not read an svg one. */
-const fav = svg(tileBody(P.dark.text, P.dark.ground, P.dark.orange));
+/* favicon rasters, for the browsers that will not read an svg one. the dark
+   tile, fixed rather than theme-aware: the face inside it is cream and orange,
+   so it reads on a light tab bar and a dark one alike. */
+const fav = svg(tileBody(P.light.text, P.light.ground, P.light.orange));
+out("favicon-dark-tile.svg", fav);
 for (const size of [16, 32, 180, 512]) out(`favicon-${size}.png`, png(fav, size));
 console.log("done");
