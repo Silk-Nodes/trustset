@@ -789,12 +789,12 @@ export function Features() {
         </p>
       </div>
       {/* the rail. each tab carries its own progress line while it is the one showing. */}
-      <div role="tablist" aria-label="Features" className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-8 sm:mt-10 mb-8 sm:mb-10 max-w-5xl">
+      <div role="tablist" aria-label="Features" className="grid grid-cols-2 md:grid-cols-4 gap-2 lg:gap-3 mt-8 sm:mt-10 mb-8 sm:mb-10 max-w-5xl">
         {FEATURES.map((t, k) => {
           const on = k === i;
           return (
             <button key={t.k} role="tab" aria-selected={on} type="button" onClick={() => setI(k)}
-              className="text-left rounded-xl px-3 py-3 sm:px-4 transition-colors outline-none focus-visible:ring-2"
+              className="text-left rounded-xl px-3 py-3 lg:px-4 transition-colors outline-none focus-visible:ring-2"
               style={{ background: on ? "color-mix(in srgb, var(--text-dark) 6%, transparent)" : "transparent" }}>
               <div className="flex items-center gap-2">
                 <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: on ? "color-mix(in srgb, var(--orange) 16%, transparent)" : "var(--hairline)", color: on ? "var(--orange-text)" : "var(--text-light)" }}>
