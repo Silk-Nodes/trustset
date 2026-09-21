@@ -15,7 +15,7 @@ import PanelActions from "@/components/agents/PanelActions";
 import TxLink, { addrUrl } from "@/components/agents/TxLink";
 import Term from "@/components/Term";
 import { adoptParked, fallbackName, getLabel, parkLabel, setLabel, type Label } from "@/lib/labels";
-import { READ, agentIdForKey, cachedAgents, coldKeyDelay, consentMessage, explain, settled, labelOnChain, loadAgents, loadGuarded, loadHistory, ownerTx, registerOnChain, short, type Agent, type Conn, type Guarded } from "@/lib/chain";
+import { READ, agentIdForKey, cachedAgents, coldKeyDelay, consentMessage, explain, settled, labelOnChain, loadAgents, loadGuarded, loadHistory, ownerTx, registerOnChain, short, statusWord, trusted, type Agent, type Conn, type Guarded } from "@/lib/chain";
 
 type StampInfo = { block?: number; txHash?: string; human?: boolean };
 const msg = (e: unknown) => explain(e);
@@ -361,12 +361,19 @@ export default function Agents() {
                 const k = "g" + g.id.toString(); const b = busy.has(k);
                 const canEscalate = g.status === "paused" && now >= g.escalateAt;
                 const wait = g.status === "paused" ? Math.max(0, g.escalateAt - now) : 0;
+                /* a guardian is the person who acts on this row, so it must not
+                   call an agent Active when its end date has passed or it has
+                   gone quiet. the contract still says Active; isTrusted does
+                   not, and the guardian is told what isTrusted says. */
+                const live = trusted(g, now);
+                const why = live ? "Active" : statusWord(g, now) === "expired" ? "Its end date has passed" : "It has gone quiet";
+                const dot = live ? "var(--sage)" : (g.status === "active" || g.status === "paused") ? "var(--terra)" : "var(--orange)";
                 return (
                   <div key={k} className="grid grid-cols-[1fr_auto] sm:grid-cols-[18px_250px_1fr_auto] items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 text-sm" style={{ borderBottom: "1px solid var(--hairline)" }}>
-                    <span className="hidden sm:block w-2 h-2 rounded-full" style={{ background: g.status === "active" ? "var(--sage)" : g.status === "paused" ? "var(--terra)" : "var(--orange)" }} />
+                    <span className="hidden sm:block w-2 h-2 rounded-full" style={{ background: dot }} />
                     <div className="min-w-0"><div className="font-semibold truncate">{g.label?.name || `Agent ${g.id}`}</div><div className="mono text-[11px] text-ink/70 whitespace-nowrap truncate">agent {g.id.toString()} · owner {short(g.coldKey)}</div></div>
                     <div className="hidden sm:block text-ink/70 min-w-0">
-                      {g.status === "active" && (g.voted ? `Your vote to pause is in. ${g.votes} of ${g.threshold} needed.` : `Active. ${g.votes} of ${g.threshold} votes to pause so far.`)}
+                      {g.status === "active" && (g.voted ? `Your vote to pause is in. ${g.votes} of ${g.threshold} needed.` : `${why}. ${g.votes} of ${g.threshold} votes to pause so far.`)}
                       {g.status === "paused" && (canEscalate ? `Paused, and its owner has done nothing for ${span(g.delay)}. You may stop it for good.` : `Paused. If its owner does nothing for ${span(g.delay)}, you may stop it. ${span(wait)} left.`)}
                       {(g.status === "revoked" || g.status === "rotated") && "Stopped"}
                     </div>

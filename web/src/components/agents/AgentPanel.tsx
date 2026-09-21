@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import { useMotionPrefs, DUR } from "@/lib/motion";
 import StatusDot from "./StatusDot";
 import Stamp from "./Stamp";
-import { type Agent, short } from "@/lib/chain";
+import { type Agent, short, statusWord, trusted } from "@/lib/chain";
 import Term from "@/components/Term";
 /* the detail panel: keys, guardians, the history, the stop record. facts only. */
 export default function AgentPanel({ agent, label, onPublishLabel, stamp, proof, onClose, actions, explorer }: { agent: Agent; label: { name: string; purpose?: string; where: "chain" | "local" | "none" }; onPublishLabel: () => void; stamp?: { block?: number; txHash?: string; human?: boolean }; proof?: React.ReactNode; onClose: () => void; actions?: React.ReactNode; explorer?: string }) {
@@ -14,8 +14,11 @@ export default function AgentPanel({ agent, label, onPublishLabel, stamp, proof,
     <motion.aside initial={m.reduced ? false : { opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={m.t(DUR.base)}
       className="drawn-box p-5 flex flex-col gap-4 min-w-0 flex-1">
       <div className="flex items-center gap-3">
-        <StatusDot status={agent.status} size={12} />
-        <div className="min-w-0"><div className="font-semibold truncate">{label.name}</div><div className="eyebrow">agent {agent.id.toString()} · {agent.status}</div></div>
+        {/* the row beside this panel already says Expired when the end date has
+            passed. the panel used to say active, in green, about the same
+            agent, because it printed the raw status. both read the chain now. */}
+        <StatusDot status={agent.status} size={12} live={trusted(agent)} />
+        <div className="min-w-0"><div className="font-semibold truncate">{label.name}</div><div className="eyebrow">agent {agent.id.toString()} · {statusWord(agent)}</div></div>
         <button type="button" onClick={onClose} aria-label="close" className="ml-auto w-8 h-8 rounded-full hover:bg-ink/5 text-ink/70">×</button>
       </div>
       {/* the owner's words about the agent, marked as theirs. the chain has
@@ -41,7 +44,8 @@ export default function AgentPanel({ agent, label, onPublishLabel, stamp, proof,
         <ol className="flex flex-col gap-1.5">
           {[...agent.history].reverse().map((h, i) => (
             <li key={i} className="grid grid-cols-[10px_1fr_auto] items-center gap-2 text-xs">
-              <StatusDot status={h.status} size={7} /><span>{h.status}</span><span className="mono text-ink/70 tabular">{t(h.at)}</span>
+              {/* history is what was, not what is: nothing in it breathes. */}
+              <StatusDot status={h.status} size={7} live={false} /><span>{h.status}</span><span className="mono text-ink/70 tabular">{t(h.at)}</span>
             </li>
           ))}
         </ol>

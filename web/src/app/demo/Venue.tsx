@@ -35,7 +35,7 @@ import { useMotionPrefs } from "@/lib/motion";
  * without a wallet acts on the same one, which is stated rather than hidden. */
 type State = {
   agentId: string; agentKey: string; coldKey: string; guardian: string; owned: boolean;
-  status: number; trades: number; venue: string; trusted: boolean; expired: boolean; expiresAt: number;
+  status: number; trades: number; venue: string; trusted: boolean; expired: boolean; lapsed: boolean; expiresAt: number;
   readAt: number; error?: string;
   /* present when the chain disagrees that this agent is the connected
      wallet's. the page stops offering the owner's controls rather than
@@ -171,7 +171,10 @@ export default function Venue() {
       const tx = await (c.ks.connect(signer) as ethers.Contract).setStatus(s.agentId, to, ethers.id(to === 2 ? "demo pause" : "demo resume"));
       const rc = await tx.wait(1);
       record(to === 2 ? "paused" : "resumed", tx.hash, rc?.blockNumber);
-      setS(v => (v ? { ...v, status: to, trusted: to === 1 } : v));
+      /* the status word does not decide trust: an agent resumed while its end
+         date is in the past is Active and still not trusted. so only the
+         status is assumed here, and trust waits for the chain a line below. */
+      setS(v => (v ? { ...v, status: to, trusted: to === 1 && !v.expired && !v.lapsed } : v));
       if (act) done(act);
       await settled(c, rc?.blockNumber); await pull(me);
     } catch (e) { setNote(explain(e, c ?? undefined)); }
@@ -213,6 +216,12 @@ export default function Venue() {
 
   const cfg = w.conn?.cfg;
   const off = !!s && !s.trusted;
+  /* off means the switch does not trust it, for any of three reasons. paused
+     is the only one a resume fixes: an expired or lapsed agent is still Active
+     in the contract, so setStatus(Active) on it costs a transaction, emits a
+     status change and leaves the agent exactly as untrusted as before. the
+     controls that resume key off this, not off `off`. */
+  const paused = s?.status === 2;
   const left = s?.expiresAt ? s.expiresAt - now : 0;
   /* the step the reader is on: the first one not yet done. everything after it
      waits, everything before it folds. */
@@ -319,9 +328,11 @@ export default function Venue() {
             ? <Do label="Send a trade" busy={busy === "trade"} disabled={!s} onClick={() => post("trade", "accepted", "runs")} />
             : s?.status === 2
               ? <Do label="Bring it back first" busy={busy === "resume" || busy === "flip"} disabled={!s || !!s.mismatch} onClick={() => flip(1)} />
-              : s?.expired && !s.owned
-                ? <Do label="Clear the end date first" busy={busy === "clearLimits"} disabled={!s} onClick={() => post("clearLimits", "cleared")} />
-                : null}
+              : s?.expired || s?.lapsed
+                ? <Do label={s.expired ? "Clear the end date first" : "Clear the heartbeat first"} busy={busy === "clearLimits"} disabled={!s || !!s.mismatch} onClick={() => limits(0)} />
+                : s?.status === 3 || s?.status === 4
+                  ? <Do label="Use the shared agent instead" tone="quiet" onClick={() => w.disconnect()} />
+                  : null}
           <Aside tone={off ? "off" : "plain"}>
             {!off
               ? <>The venue accepts it because the switch says the agent is active. {s ? `${s.trades} trades so far.` : ""}</>
@@ -329,9 +340,13 @@ export default function Venue() {
                 ? "This agent is shared, and whoever came before left it switched off. A trade sent now would be refused, which is step two. Bring it back to start from the beginning."
                 : s?.expired
                   ? (s.owned
-                      ? "The end date on this agent has passed, so no app will serve it. Your wallet holds the cold key, so clear that date from the console."
+                      ? "The end date on this agent has run out, so no app will serve it and a trade sent now would be refused. Your wallet holds the cold key, so clearing it is yours to sign."
                       : "This agent is shared, and whoever came before gave it an end date that has since run out, which is step five. A trade sent now would be refused. Clear the date to start from the beginning.")
-                  : "The switch does not trust this agent right now, so a trade sent now would be refused."}
+                  : s?.lapsed
+                    ? "This agent was given a heartbeat to keep and has missed it, so trust lapsed on its own and a trade sent now would be refused. Clearing the heartbeat starts it again."
+                    : s?.status === 3 || s?.status === 4
+                      ? "This agent was stopped for good. That is permanent by design, so there is no way to bring this one back. The shared agent is a fresh one to walk through."
+                      : "The switch does not trust this agent right now, so a trade sent now would be refused."}
           </Aside>
         </Step>
 
@@ -349,16 +364,16 @@ export default function Venue() {
 
         <Step n={3} stage={stage("back")} onToggle={() => toggle("back")} title="It is a breaker, not a fuse"
           why="A stop that cannot be undone is a fuse, and people hesitate to pull a fuse. This one goes both ways: pause while you look into it, bring it back when you are satisfied. Only ending it for good is permanent.">
-          <Do label={off ? "Bring it back" : "It is back"} busy={busy === "resume" || busy === "flip"} disabled={!s || !off || !!s.mismatch} onClick={() => flip(1, "back")} />
+          <Do label={paused ? "Bring it back" : "It is back"} busy={busy === "resume" || busy === "flip"} disabled={!s || !paused || !!s.mismatch} onClick={() => flip(1, "back")} />
         </Step>
 
         <Step n={4} stage={stage("guardians")} onToggle={() => toggle("guardians")} title="Who stops it when you cannot?"
           why="You are asleep, or the wallet is in a drawer. Guardians are people you chose who can pause your agent by vote. They can never spend from it and never end it outright, and you can undo anything they do.">
-          {!off
+          {!paused
             ? <Do label="Have a guardian vote" busy={busy === "guardianVote"} disabled={!s} onClick={() => post("guardianVote", "guardian")} />
-            : <Do label="Undo it, as the owner" busy={busy === "resume" || busy === "flip"} disabled={!s} onClick={() => flip(1, "guardians")} />}
+            : <Do label="Undo it, as the owner" busy={busy === "resume" || busy === "flip"} disabled={!s || !!s.mismatch} onClick={() => flip(1, "guardians")} />}
           <Aside>
-            {!off
+            {!paused
               ? "This agent has one guardian and needs one vote. Yours would have as many as you name and the threshold you set."
               : "The guardian paused it. Your cold key overrules a guardian, which is why they can never lock you out."}
           </Aside>
@@ -385,7 +400,7 @@ export default function Venue() {
               lost their place. */}
           <a href={`/panic?id=${s?.agentId ?? ""}`} target="_blank" rel="noreferrer" className="drawn-btn btn-gold" style={{ padding: "9px 16px", fontSize: "0.85rem" }} onClick={() => done("human")}>Open the panic page</a>
           <Do label="I have no passkey, carry on" tone="quiet" onClick={() => done("human")} />
-          <Aside>Needs a phone and an https address, so it will not work over a bare IP. Nominate one from the passkey page first, or skip: the last step does not depend on it.</Aside>
+          <Aside>Needs a phone and an https address, so it will not work over a bare IP. Nominating a passkey needs the cold key, so it lives in the console beside your own agents, not here. Or skip: the last step does not depend on it.</Aside>
         </Step>
 
         <Step n={7} stage={stage("record")} onToggle={() => toggle("record")} title="And it is all on the record" last

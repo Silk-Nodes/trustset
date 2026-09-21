@@ -129,6 +129,20 @@ export const expired = (a: Agent, now = Date.now() / 1000) => a.expiresAt !== 0 
 export const lapsed = (a: Agent, now = Date.now() / 1000) => a.heartbeatWindow !== 0 && now > a.lastBeat + a.heartbeatWindow;
 export const trusted = (a: Agent, now = Date.now() / 1000) => a.status === "active" && !expired(a, now) && !lapsed(a, now);
 
+/* the word to print, which is not always the agent's status.
+ *
+ * the contract still calls an agent Active when its end date has passed or its
+ * heartbeat has gone quiet, because status and the limits are separate things
+ * in storage. a reader told "active" about an agent that no app will serve has
+ * been told something false, and a panel saying it beside a row saying
+ * "Expired" is the page arguing with itself. so nothing prints a.status: it
+ * prints this. */
+export function statusWord(a: Agent, now = Date.now() / 1000): string {
+  if (a.status === "active" && expired(a, now)) return "expired";
+  if (a.status === "active" && lapsed(a, now)) return "gone quiet";
+  return a.status;
+}
+
 /* who signs owner transactions: a connected wallet, or the demo key on the
    local chain. the page never sees a private key from a wallet. */
 export type Signer = { address: string; signer: ethers.Signer; kind: "demo" | "wallet" };

@@ -84,7 +84,12 @@ export async function POST(req: Request) {
     const { owner, action } = (await req.json()) as { owner?: string; action: string };
     who = owner ?? null;
     const d = await demoFor(owner ?? null);
-    const found = await agentWallet(d.coldKey);
+    /* the store is keyed by the address that asked for the agent, while
+       d.coldKey is who the chain says owns it. those are the same until they
+       are not, and under a mismatch looking up by the chain's answer found
+       nothing, so every action returned "no demo agent" including trade and
+       the guardian vote, neither of which needs the cold key at all. */
+    const found = await agentWallet(d.mismatch?.storedFor ?? d.coldKey);
     if (!found) throw new Error("no demo agent");
     const { w, id, c } = found;
 
@@ -154,7 +159,10 @@ async function state(agentId: string) {
      contract and no app will serve it. */
   return {
     status: Number(a.status), trades: Number(n), explorer: c.explorer, venue: c.venue,
-    trusted: live.trusted, expired: live.expired, expiresAt: Number(live.expiresAt),
+    /* lapsed travels with expired. without it the page could see that an agent
+       was not trusted and not say why, so a heartbeat that had gone quiet fell
+       through every branch and left step one with nothing to offer. */
+    trusted: live.trusted, expired: live.expired, lapsed: live.lapsed, expiresAt: Number(live.expiresAt),
     guardians: [...a.guardians],
     /* the block this was read at, so the page can say when it last looked rather
        than implying it is watching continuously. not called block: the POST

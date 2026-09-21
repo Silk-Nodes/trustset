@@ -47,6 +47,11 @@ export async function GET(req: Request) {
     return NextResponse.json({
       agentId: id, set: k.set, x: k.x.toString(), y: k.y.toString(), rpIdHash: k.rpIdHash,
       nonce: Number(k.nonce), status: Number(a.status), holdsColdKey, explorer: c.explorer,
+      /* who the chain says may nominate. the page compares a connected wallet
+         against this, so a reader who holds the cold key signs it themselves
+         rather than being told the server cannot. */
+      coldKey: ethers.getAddress(a.revocationKey as string),
+      expiresAt: Number(a.expiresAt), heartbeatWindow: Number(a.heartbeatWindow), lastBeat: Number(a.lastBeat),
     }, { headers: { "cache-control": "no-store" } });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });

@@ -68,7 +68,16 @@ export async function GET(req: Request) {
       p.query(
         `SELECT
            (SELECT count(*) FROM agents)                                          AS agents,
-           (SELECT count(*) FROM agents WHERE status = 'active')                  AS active,
+           /* "live now" has to mean isTrusted, not the status word. an agent
+              whose end date has passed or whose heartbeat has gone quiet is
+              still 'active' in storage, so counting the word made the landing
+              page say three were live while clicking each one showed Expired.
+              the same three conditions the contract checks, in sql. */
+           (SELECT count(*) FROM agents
+             WHERE status = 'active'
+               AND (expires_at = 0 OR expires_at > extract(epoch FROM now())::bigint)
+               AND (heartbeat_window = 0 OR last_beat + heartbeat_window >= extract(epoch FROM now())::bigint))
+                                                                                  AS active,
            (SELECT count(*) FROM agents WHERE status = 'paused')                  AS paused,
            (SELECT count(*) FROM agents WHERE status IN ('revoked','rotated'))    AS stopped,
            (SELECT count(*) FROM agents WHERE expires_at > 0 OR heartbeat_window > 0) AS limited,

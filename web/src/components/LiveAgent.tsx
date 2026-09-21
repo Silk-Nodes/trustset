@@ -69,7 +69,9 @@ export default function LiveAgent() {
     finally { setBusy(false); }
   }
 
+  /* paused is the only not-trusted state a resume fixes. */
   const off = !!s && !s.chain.trusted;
+  const paused = s?.chain.status === 2;
   const says = s?.said ? (SAYS[s.said.why] ?? s.said.why) : "Reading the agent…";
   const heard = s?.said ? Math.max(0, Math.round((Date.now() - new Date(s.said.at).getTime()) / 1000)) : null;
 
@@ -123,12 +125,18 @@ export default function LiveAgent() {
           that explains why it does nothing is worse than no button. */}
       {s?.holdsColdKey ? (
         <div className="flex flex-wrap items-center gap-2 mt-4">
-          <button type="button" className={`drawn-btn ${off ? "btn-gold" : "btn-orange"}`} style={{ padding: "9px 16px", fontSize: "0.85rem", opacity: busy ? 0.6 : 1 }}
-            disabled={busy} onClick={() => flip(off ? "resume" : "pause")}>
-            {busy ? "Signing…" : off ? "Bring it back" : "Switch it off"}
+          {/* off covers three reasons and a resume only answers one of them.
+              an expired or lapsed agent is still Active in the contract, so
+              setStatus(Active) on it would cost a transaction and change
+              nothing. the button offers a resume only when it was paused. */}
+          <button type="button" className={`drawn-btn ${paused ? "btn-gold" : "btn-orange"}`} style={{ padding: "9px 16px", fontSize: "0.85rem", opacity: busy || (off && !paused) ? 0.6 : 1 }}
+            disabled={busy || (off && !paused)} onClick={() => flip(paused ? "resume" : "pause")}>
+            {busy ? "Signing…" : paused ? "Bring it back" : "Switch it off"}
           </button>
           <span className="text-[12px]" style={{ color: "var(--text-medium)" }}>
-            {off ? "It will notice within a minute and start again." : "It will notice within a minute and stop spending."}
+            {off && !paused
+              ? "Its trust ran out on a limit, not a switch, so bringing it back means clearing that limit from the console."
+              : paused ? "It will notice within a minute and start again." : "It will notice within a minute and stop spending."}
           </span>
           {asking && (
             <input type="password" autoComplete="off" placeholder="operator token" value={token} onChange={e => setToken(e.target.value)}

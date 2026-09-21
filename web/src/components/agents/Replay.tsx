@@ -104,7 +104,7 @@ export default function Replay({ sample = false }: { sample?: boolean }) {
         return (
           <div key={r.name} className="grid grid-cols-[18px_1fr_auto] sm:grid-cols-[18px_180px_1fr_110px_auto] items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3.5"
             style={{ borderBottom: "1px solid var(--hairline)", background: s.phase >= 1 ? "color-mix(in srgb, var(--orange) 6%, transparent)" : "transparent", transition: "background .3s" }}>
-            <StatusDot status={stopped ? "revoked" : "active"} />
+            <StatusDot status={stopped ? "revoked" : "active"} live={!stopped} />
             <div className="min-w-0"><div className="text-sm font-semibold truncate">{r.name}</div><div className="mono text-[11px] text-ink/70">{r.key}</div></div>
             <div className="hidden sm:block text-sm text-ink/70 truncate tabular">
               <AnimatePresence mode="popLayout" initial={false}>
