@@ -47,7 +47,7 @@ type Kind = "accepted" | "refused" | "paused" | "resumed" | "guardian" | "limits
 type Act = "runs" | "switch" | "back" | "guardians" | "limits" | "human" | "record";
 
 const SAID: Record<Kind, string> = {
-  accepted: "Trade accepted", refused: "Trade refused on chain", paused: "Agent switched off",
+  accepted: "Trade accepted", refused: "Trade refused, this transaction fails on purpose", paused: "Agent switched off",
   resumed: "Agent active again", guardian: "Guardian voted, agent paused", limits: "End date set",
   cleared: "End date cleared",
 };
@@ -172,6 +172,39 @@ export default function Venue() {
       const rc = await tx.wait(1);
       record(to === 2 ? "paused" : "resumed", tx.hash, rc?.blockNumber);
       setS(v => (v ? { ...v, status: to, trusted: to === 1 } : v));
+      if (act) done(act);
+      await settled(c, rc?.blockNumber); await pull(me);
+    } catch (e) { setNote(explain(e, c ?? undefined)); }
+    finally { setBusy(null); }
+  }
+
+  /* an end date, set by whoever actually holds the cold key.
+   *
+   * this used to be server only, so connecting a wallet disabled it: the page
+   * owned the agent, the server could not sign for it, and the step pointed at
+   * the console instead. that stranded a connected reader at step five with
+   * nothing to press and steps six and seven still folded behind it, which is
+   * the walkthrough refusing to finish for the people most likely to be
+   * evaluating it.
+   *
+   * setLimits wants the cold key and nothing else, exactly like the stop does,
+   * so it takes the same road: the server signs for the shared agent, and the
+   * reader signs for their own. same call either way. */
+  async function limits(seconds: number, act?: Act) {
+    if (!s) return;
+    if (s.mismatch) { setNote(`This agent's cold key is ${short(s.mismatch.actualColdKey)}, not your wallet, so its end date cannot be set from here.`); return; }
+    const kind: Kind = seconds ? "limits" : "cleared";
+    const action = seconds ? "limits" : "clearLimits";
+    if (!s.owned) return post(action, kind, act);
+    const c = w.conn, signer = w.who?.signer;
+    if (!c || !signer) { setNote("Connect your wallet first"); return; }
+    setBusy(action); setNote(null);
+    try {
+      const until = seconds ? Math.floor(Date.now() / 1000) + seconds : 0;
+      const tx = await (c.ks.connect(signer) as ethers.Contract).setLimits(s.agentId, until, 0);
+      const rc = await tx.wait(1);
+      record(kind, tx.hash, rc?.blockNumber);
+      setS(v => (v ? { ...v, expiresAt: until } : v));
       if (act) done(act);
       await settled(c, rc?.blockNumber); await pull(me);
     } catch (e) { setNote(explain(e, c ?? undefined)); }
@@ -310,7 +343,7 @@ export default function Venue() {
           <Aside>
             {!off
               ? "Then send the same trade again and watch the venue refuse it."
-              : "The agent is off. Refused inside the venue's own call, so nothing upstream can skip it. The refusal is a real transaction that reverted."}
+              : "The agent is off. Refused inside the venue's own call, so nothing upstream can skip it. The explorer marks this one failed, and that is the proof: a refusal that went through would not be a refusal."}
           </Aside>
         </Step>
 
@@ -333,7 +366,7 @@ export default function Venue() {
 
         <Step n={5} stage={stage("limits")} onToggle={() => toggle("limits")} title="Trust that ends by itself"
           why="Most agents should not be trusted forever. Give one an end date and it stops being trusted when the date passes, with nobody sending anything and nobody needing to be awake. A heartbeat does the same for silence: miss it and the trust lapses.">
-          {!s?.expiresAt && <Do label="Trust it for 90 seconds" busy={busy === "limits"} disabled={!s || s.owned} onClick={() => post("limits", "limits", "limits")} />}
+          {!s?.expiresAt && <Do label="Trust it for 90 seconds" busy={busy === "limits"} disabled={!s || !!s.mismatch} onClick={() => limits(90, "limits")} />}
           {!!s?.expiresAt && (
             <Aside tone={left > 0 ? "plain" : "off"}>
               {left > 0
@@ -341,8 +374,8 @@ export default function Venue() {
                 : <>It ran out. No transaction ended it, and no app will serve it now.</>}
             </Aside>
           )}
-          {!!s?.expiresAt && <Do label="Clear the end date" busy={busy === "clearLimits"} tone="quiet" disabled={!s} onClick={() => post("clearLimits", "cleared")} />}
-          {s?.owned && <Aside>Your wallet holds the cold key here, so set this one from the console instead.</Aside>}
+          {!!s?.expiresAt && <Do label="Clear the end date" busy={busy === "clearLimits"} tone="quiet" disabled={!s || !!s.mismatch} onClick={() => limits(0)} />}
+          {s?.owned && <Aside>Your wallet holds the cold key, so this one is yours to sign.</Aside>}
         </Step>
 
         <Step n={6} stage={stage("human")} onToggle={() => toggle("human")} title="A switch you can reach without a wallet"
@@ -417,7 +450,7 @@ function AgentCard({ s, off, refusedAt, reduced }: { s: State | null; off: boole
           <motion.div key="refused" initial={reduced ? { opacity: 0 } : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.28, ease: EASE }}
             className="mt-4 pt-3 text-[13px] font-semibold break-words" style={{ borderTop: "1px solid var(--hairline)", color: "var(--orange-text)" }}>
-            Trade refused at block <span className="mono tabular">{refusedAt}</span>. The venue asked the switch and the switch said no.
+            Trade refused at block <span className="mono tabular">{refusedAt}</span>. The venue asked the switch and the switch said no, so the transaction failed. That is the point, not a fault.
           </motion.div>
         )}
       </AnimatePresence>
