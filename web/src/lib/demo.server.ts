@@ -43,7 +43,15 @@ export async function cfg(): Promise<ChainCfg> {
 }
 
 export function provider(c: ChainCfg) {
-  return new ethers.JsonRpcProvider(c.rpc, undefined, { staticNetwork: true, batchMaxCount: 4 });
+  /* the public testnet rpc answers fifteen requests a second and rejects the
+     rest with a 429. ethers reports that as "missing revert data", which names
+     neither the limit nor the cause, so the retry belongs here: a few attempts
+     with backoff turns a burst of readers into a slower answer rather than a
+     failed one. the cache in the demo route is what keeps the burst small; this
+     is what survives the one that gets through anyway. */
+  const req = new ethers.FetchRequest(c.rpc);
+  req.setThrottleParams({ slotInterval: 250, maxAttempts: 5 });
+  return new ethers.JsonRpcProvider(req, undefined, { staticNetwork: true, batchMaxCount: 4 });
 }
 
 /* who pays for the demo, and who is the cold key for visitors who have not
