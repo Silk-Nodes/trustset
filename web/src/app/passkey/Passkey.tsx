@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { registerPasskey, platformAvailable } from "@/lib/webauthn";
+import { useWallet } from "@/components/WalletProvider";
+import { explain, ownerTx, settled } from "@/lib/chain";
 
 /* nominating the passkey that may pause an agent.
  *
@@ -16,6 +18,9 @@ import { registerPasskey, platformAvailable } from "@/lib/webauthn";
 type Info = {
   agentId: string; set: boolean; x: string; y: string; rpIdHash: string;
   nonce: number; status: number; holdsColdKey: boolean; explorer: string; error?: string;
+  /* who the chain says may nominate, so a connected wallet can be compared
+     against it rather than the page assuming the server is the only signer. */
+  coldKey?: string;
 };
 type Made = { credentialId: string; x: bigint; y: bigint; rpIdHash: string; rpId: string };
 type Done = { ok: boolean; hash: string; block: number | null; explorer: string };
@@ -24,6 +29,7 @@ const STATUS = ["unknown", "active", "paused", "stopped for good", "rotated"];
 const short = (v: string) => v.length > 18 ? `${v.slice(0, 10)}…${v.slice(-8)}` : v;
 
 export default function Passkey({ initialId }: { initialId?: string }) {
+  const w = useWallet();
   const [id, setId] = useState(initialId ?? "");
   const [info, setInfo] = useState<Info | null>(null);
   const [made, setMade] = useState<Made | null>(null);
@@ -54,8 +60,34 @@ export default function Passkey({ initialId }: { initialId?: string }) {
     } finally { setBusy(""); }
   }
 
+  /* whoever actually holds the cold key does the writing.
+   *
+   * this page only ever asked the server, so a reader whose own wallet was the
+   * cold key made a passkey on their phone and then met a disabled button
+   * saying the server could not finish. the key was burned for nothing and the
+   * only way on was knowing the console had its own control. setStopKey wants
+   * the cold key and nothing else, so a connected owner signs it here, exactly
+   * as the console does. */
+  const mine = !!w.who && !!info?.coldKey && w.who.address.toLowerCase() === info.coldKey.toLowerCase();
+
+  async function nominateAsOwner() {
+    if (!made || !w.conn || !w.who) return;
+    setBusy("send"); setNote(null);
+    try {
+      const ks = w.conn.ks.connect(w.who.signer) as ethers.Contract;
+      const rc = await ownerTx(async () => {
+        const tx = await ks.setStopKey(Number(id), made.x, made.y, made.rpIdHash);
+        return tx.wait(1);
+      });
+      await settled(w.conn, rc?.blockNumber);
+      setDone({ ok: true, hash: rc?.hash ?? "", block: rc?.blockNumber ?? null, explorer: info?.explorer ?? "" });
+    } catch (e) { setNote(explain(e, w.conn ?? undefined)); }
+    finally { setBusy(""); }
+  }
+
   async function nominate() {
     if (!made) return;
+    if (mine) return nominateAsOwner();
     setBusy("send"); setNote(null);
     try {
       const r = await fetch("/api/stop-key", {
@@ -95,10 +127,16 @@ export default function Passkey({ initialId }: { initialId?: string }) {
          "No passkey is nominated for this agent yet."}
       </div>
 
-      {info && !info.error && !info.holdsColdKey && (
+      {/* the old copy said the server could not finish and stopped there, which
+          for a reader holding the cold key was both true and useless. it names
+          the key the switch is waiting for and offers the way to it. */}
+      {info && !info.error && !info.holdsColdKey && !mine && (
         <div className="sheet px-4 py-3 mt-3 text-[12.5px]" style={{ color: "var(--text-medium)" }}>
-          <span className="font-semibold" style={{ color: "var(--text-dark)" }}>This server does not hold that agent&apos;s cold key.</span>{" "}
-          Only the cold key can nominate a passkey, so this page cannot finish the second step for agent {id}.
+          <span className="font-semibold" style={{ color: "var(--text-dark)" }}>Only agent {id}&apos;s cold key can nominate a passkey.</span>{" "}
+          {info.coldKey && <>The switch says that key is <span className="mono">{short(info.coldKey)}</span>. </>}
+          {w.who
+            ? <>This browser is connected as <span className="mono">{short(w.who.address)}</span>, so this agent is not yours to nominate for.</>
+            : <>Connect that wallet and you can sign it here. <button type="button" onClick={() => { w.connectNow().catch(() => {}); }} className="underline" style={{ color: "var(--orange-text)" }}>Connect a wallet</button></>}
         </div>
       )}
 
@@ -135,15 +173,26 @@ export default function Passkey({ initialId }: { initialId?: string }) {
         <p className="text-[12.5px] mt-1" style={{ color: "var(--text-medium)" }}>
           Signed by the agent&apos;s cold key. From then on that passkey can pause this agent and do nothing
           else: it cannot resume it, end it, move its limits or touch its keys.
+          {mine && " Your wallet holds that key, so this one is yours to sign."}
         </p>
         <div className="flex flex-wrap items-center gap-2 mt-3">
-          <input type="password" autoComplete="off" placeholder="operator token" value={token} onChange={e => setToken(e.target.value)}
-            className="mono text-[12px] rounded-lg px-3 py-2 w-full sm:w-56"
-            style={{ border: "1px solid var(--hairline)", background: "transparent", color: "var(--text-dark)" }} />
-          <button type="button" onClick={nominate} disabled={!made || !token || busy !== "" || !info?.holdsColdKey}
-            className="drawn-btn btn-orange" style={{ padding: "9px 16px", fontSize: "0.85rem", opacity: !made || !token || busy !== "" || !info?.holdsColdKey ? 0.55 : 1 }}>
-            {busy === "send" ? "Signing…" : "Nominate this passkey"}
-          </button>
+          {/* the token is how the operator authorises the SERVER to sign. a
+              reader signing with their own wallet is authorised by holding the
+              key, so asking them for a token would be asking for nothing. */}
+          {!mine && (
+            <input type="password" autoComplete="off" placeholder="operator token" value={token} onChange={e => setToken(e.target.value)}
+              className="mono text-[12px] rounded-lg px-3 py-2 w-full sm:w-56"
+              style={{ border: "1px solid var(--hairline)", background: "transparent", color: "var(--text-dark)" }} />
+          )}
+          {(() => {
+            const blocked = !made || busy !== "" || (mine ? false : (!token || !info?.holdsColdKey));
+            return (
+              <button type="button" onClick={nominate} disabled={blocked}
+                className="drawn-btn btn-orange" style={{ padding: "9px 16px", fontSize: "0.85rem", opacity: blocked ? 0.55 : 1 }}>
+                {busy === "send" ? "Signing…" : mine ? "Sign it with your wallet" : "Nominate this passkey"}
+              </button>
+            );
+          })()}
         </div>
         {already && <p className="mt-2 text-[12.5px]" style={{ color: "var(--text-medium)" }}>This is already the nominated key.</p>}
       </div>

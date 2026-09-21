@@ -3,8 +3,13 @@ import { motion } from "motion/react";
 import type { Status } from "@/lib/chain";
 /* one dot, four meanings. active breathes, revoked is orange and still.
    an agent whose end date passed or whose heartbeat lapsed is still Active in
-   the contract but is not trusted, so it must not breathe like one that is. */
-export default function StatusDot({ status, size = 10, live = true }: { status: Status; size?: number; live?: boolean }) {
+   the contract but is not trusted, so it must not breathe like one that is.
+
+   `live` has no default on purpose. it used to default to true, and every
+   caller that forgot it drew a breathing green dot for an agent nothing would
+   serve. making it required turns that omission into a build error instead of
+   a page that lies quietly. */
+export default function StatusDot({ status, size = 10, live }: { status: Status; size?: number; live: boolean }) {
   const on = status === "active" && live;
   const color = on ? "var(--sage)" : status === "active" || status === "paused" ? "var(--terra)" : status === "revoked" ? "var(--orange)" : "var(--text-light)";
   return (
