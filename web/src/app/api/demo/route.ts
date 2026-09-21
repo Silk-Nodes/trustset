@@ -19,19 +19,70 @@ const VENUE = ["function trade(uint256)", "function trades() view returns (uint2
    explorer shows next to the successful ones. */
 const REFUSABLE = 120000n;
 
+/* one read of the chain, shared between everybody looking at the same agent.
+ *
+ * a single page read costs seven calls, and every visitor who has not
+ * connected a wallet is looking at the same shared agent, so they were all
+ * asking the chain the same seven questions at the same time. the public
+ * testnet rpc answers fifteen requests a second and rejects the rest with a
+ * 429, which ethers renders as "missing revert data": a sentence that names
+ * neither the limit nor the cause, and reads on the page as the demo being
+ * broken. measured before this: one read in eight failed on its own, and six
+ * simultaneous reads failed every time.
+ *
+ * so a read is kept for a few seconds, and anybody arriving while one is
+ * already in flight waits on that one instead of starting another. the page
+ * polls every twelve seconds, so nothing served here is staler than a poll
+ * would be anyway, and a POST drops the entry because the thing it just
+ * changed is the thing the next read asks about. */
+const TTL = 5000;
+type Snap = { at: number; v: Record<string, unknown> };
+const key = (owner: string | null) => (owner ?? "shared").toLowerCase();
+const snaps = new Map<string, Snap>();
+const inflight = new Map<string, Promise<Record<string, unknown>>>();
+/* when each key last changed under us, so a read that was already in the air
+   when it changed cannot land afterwards and become the kept answer. */
+const dirty = new Map<string, number>();
+
+function invalidate(owner: string | null) {
+  const k = key(owner);
+  snaps.delete(k);
+  dirty.set(k, Date.now());
+}
+
+function snapshot(owner: string | null): Promise<Record<string, unknown>> {
+  const k = key(owner);
+  const hit = snaps.get(k);
+  if (hit && Date.now() - hit.at < TTL) return Promise.resolve(hit.v);
+  const running = inflight.get(k);
+  if (running) return running;
+  const started = Date.now();
+  const job = (async () => {
+    const d = await demoFor(owner);
+    const v = { ...d, ...(await state(d.agentId)) } as Record<string, unknown>;
+    /* this caller still gets what it read. it just does not get to speak for
+       the next five seconds if the chain moved while it was reading. */
+    if ((dirty.get(k) ?? 0) < started) snaps.set(k, { at: Date.now(), v });
+    return v;
+  })().finally(() => inflight.delete(k));
+  inflight.set(k, job);
+  return job;
+}
+
 export async function GET(req: Request) {
   try {
     const owner = new URL(req.url).searchParams.get("owner");
-    const d = await demoFor(owner);
-    return NextResponse.json({ ...d, ...(await state(d.agentId)) }, { headers: { "cache-control": "no-store" } });
+    return NextResponse.json(await snapshot(owner), { headers: { "cache-control": "no-store" } });
   } catch (e) {
     return NextResponse.json({ error: reason(e) }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
+  let who: string | null = null;
   try {
     const { owner, action } = (await req.json()) as { owner?: string; action: string };
+    who = owner ?? null;
     const d = await demoFor(owner ?? null);
     const found = await agentWallet(d.coldKey);
     if (!found) throw new Error("no demo agent");
@@ -87,6 +138,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "unknown action" }, { status: 400 });
   } catch (e) {
     return NextResponse.json({ error: reason(e) }, { status: 500 });
+  } finally {
+    /* whatever just happened, a kept read is now behind the chain. */
+    invalidate(who);
   }
 }
 
