@@ -5,7 +5,8 @@ import Replay from "@/components/agents/Replay";
 import { useMotionPrefs } from "@/lib/motion";
 import { OneLine } from "@/components/landing/Sections";
 import Footer from "@/components/Footer";
-import { Why, HowItWorks, Features } from "@/components/landing/Story";
+import { Why, HowItWorks } from "@/components/landing/Story";
+import { Day } from "@/components/landing/Day";
 import { Checks } from "@/components/landing/Moments";
 import { Reveal } from "@/components/Reveal";
 
@@ -46,7 +47,7 @@ export default function Home() {
           thing an app has to do. and the claim again, to leave on. */}
       <Why />
       <HowItWorks />
-      <Features />
+      <Day />
       {/* the slides say when it would be you, which is the question somebody
           actually decides on. checks say why any of it should be believed, and
           come after, because a reader not yet convinced will not read proof. */}
