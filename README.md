@@ -20,6 +20,7 @@ built for monad metropolis, track 04: trust, identity and ai infrastructure.
 - chain: monad testnet, chain id **10143**
 - switch: [`0x54D8211233Cc65b62C594cBAb900930dd37ED3b8`](https://testnet.monadexplorer.com/address/0x54D8211233Cc65b62C594cBAb900930dd37ED3b8)
 - package: [`@trustset/check`](https://www.npmjs.com/package/@trustset/check)
+- **trying it as a judge or a reviewer: [`JUDGES.md`](JUDGES.md)**
 - who would adopt this and why: [`ADOPTION.md`](ADOPTION.md)
 - what it does not protect against: [`AUDIT.md`](AUDIT.md)
 - built by [silk nodes](https://silknodes.io) · mit licensed

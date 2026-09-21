@@ -1,0 +1,28 @@
+# a template. copy to /etc/systemd/system/, fill in the User= line, then:
+#   systemctl enable --now trustset-watch.timer
+#
+# it needs one sudoers rule so it can restart the agent without a password.
+# scope it to that one unit and nothing else, with visudo:
+#   <user> ALL=(root) NOPASSWD: /usr/bin/systemctl restart trustset-agent
+[Unit]
+Description=trustset watchdog (keeps the advertised agent from lapsing)
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/trustset
+Environment=TRUSTSET_ROOT=%h/trustset
+Environment=AGENT_STATE=%h/trustset-state/.agent-state.json
+# the agent named in the readme, the docs page and the cli help text
+Environment=WATCH_AGENT_ID=7
+Environment=WATCH_SITE=https://trustset.silknodes.io
+Environment=WATCH_PACKAGE=@trustset/check
+Environment=WATCH_AGENT_UNIT=trustset-agent
+# optional. a slack or discord webhook, so a failure reaches a person.
+# put it in this file, mode 600, never in the repository.
+EnvironmentFile=-%h/trustset-state/watch.env
+ExecStart=/usr/bin/node scripts/watch.mjs
+User=REPLACE_WITH_SERVICE_USER
+
+[Install]
+WantedBy=multi-user.target
