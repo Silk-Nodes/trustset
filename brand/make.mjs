@@ -147,8 +147,8 @@ console.log("social card");
     `<rect width="${W}" height="${H}" fill="${p.ground}"/>` +
     `<defs><pattern id="g" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="16" cy="16" r="1.2" fill="${p.text}" fill-opacity="0.12"/></pattern></defs><rect width="${W}" height="${H}" fill="url(#g)"/>` +
     lock +
-    mono(X, 262, 72, "the off switch", 500, 'letter-spacing="-2.5"') +
-    mono(X, 342, 72, "in the agent stack", 500, 'letter-spacing="-2.5"') +
+    mono(X, 262, 72, "the trust stack", 500, 'letter-spacing="-2.5"') +
+    mono(X, 342, 72, "for ai agents", 500, 'letter-spacing="-2.5"') +
     beats +
     `<text x="${X}" y="488" font-family="DM Mono" font-weight="400" font-size="26" fill="${p.text}" fill-opacity="0.62">agent 7 on monad testnet  ·  <tspan fill="${p.orange}" fill-opacity="1" font-weight="500">REFUSED</tspan></text>` +
     mono(X, 524, 26, "paused by its owner, and may come back", 400, 'fill-opacity="0.62"');

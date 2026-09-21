@@ -23,6 +23,7 @@ import Link from "next/link";
 const EXPLORER = "https://testnet.monadexplorer.com";
 
 const NAV = [
+  ["stack", "The stack"],
   ["start", "Start here"],
   ["addresses", "Addresses"],
   ["states", "The four states"],
@@ -31,6 +32,20 @@ const NAV = [
   ["limits", "What it is not"],
   ["status", "What is true today"],
 ] as const;
+
+/* the eight layers, in the order the landing page shows them. each one names
+   the contract it lives in, because a stack that cannot be traced to code is a
+   diagram, and the point of this page is that everything here can be read. */
+const LAYERS: [string, string, string][] = [
+  ["Identity", "An agent id, a human label, its cold key, and an ERC-8004 identity that points back at the switch.", "KillSwitch, AgentLabels"],
+  ["The switch", "Pause or stop from the cold key. Every app that checks refuses it from the next block.", "KillSwitch"],
+  ["Panic button", "A passkey on a phone that can pause and nothing else, verified on chain by the P256 precompile.", "KillSwitch"],
+  ["Guardians", "People you chose pause by vote, and recover a lost cold key through a delay you can cancel.", "KillSwitch"],
+  ["Limits", "An end date, or a heartbeat it has to keep. When either lapses it stops being trusted with nobody awake.", "KillSwitch"],
+  ["Past signatures", "isTrustedAt(id, at), so a venue judges an order by when it was signed rather than by now.", "KillSwitch"],
+  ["Human proof", "A passkey assertion recorded against an action, so anyone can later ask whether a person was present.", "HumanTouch"],
+  ["Refunds", "An escrow with a window, and a refund anybody may send that pays the payer named in storage.", "RefundRail"],
+];
 
 const CONTRACTS: [string, string, string?][] = [
   ["Kill switch", "0x54D8211233Cc65b62C594cBAb900930dd37ED3b8", "The one an app reads."],
@@ -145,6 +160,21 @@ export default function Docs() {
       </nav>
 
       <div className="min-w-0">
+        <Section id="stack" title="The stack">
+          <p>trustset is the trust stack for AI agents: eight primitives that make an agent&apos;s standing authorisation revocable, recoverable and accountable. Each is its own immutable contract with no admin, no owner and no funds, except the escrow, which only ever moves money back to whoever put it in. A set an app picks from, not a platform it joins.</p>
+          <div className="drawn-box overflow-clip not-prose">
+            {LAYERS.map(([name, what, where], i) => (
+              <div key={name} className="grid sm:grid-cols-[132px_minmax(0,1fr)_auto] gap-x-4 gap-y-1 items-baseline px-4 sm:px-5 py-3.5"
+                style={{ borderBottom: i < LAYERS.length - 1 ? "1px solid var(--hairline)" : undefined }}>
+                <div className="text-[14px] font-semibold" style={{ color: "var(--text-dark)" }}>{name}</div>
+                <div className="text-[13px]">{what}</div>
+                <div className="mono text-[11px] whitespace-nowrap" style={{ color: "var(--text-medium)" }}>{where}</div>
+              </div>
+            ))}
+          </div>
+          <p>The switch is the door: one view call is the whole integration, and the rest of this page is about that call. The other seven are there the day you need them and cost nothing until then.</p>
+        </Section>
+
         <Section id="start" title="Start here">
           <p>An app asks the switch inside its own transaction, so the check and the action cannot be separated. That is the whole integration.</p>
           <Code label="Solidity, inside your own function" code={SOLIDITY} />

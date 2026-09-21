@@ -5,7 +5,7 @@
 
 # trustset
 
-**the off switch in the agent stack.** an on-chain kill switch for ai agents, on monad.
+**the trust stack for ai agents.** eight on-chain primitives, each an immutable contract with no admin, on monad.
 
 an agent with a key can trade, pay and sign for as long as it runs. trustset gives the person who
 owns it one place to say stop, and gives every app the agent talks to one call to check before it
@@ -27,16 +27,24 @@ built for monad metropolis, track 04: trust, identity and ai infrastructure.
 
 an agent key is a standing authorisation. nothing about it expires, nothing about it can be
 withdrawn, and the only way to take it back today is to drain the wallet it holds or hope every
-venue it talks to happens to notice. trustset makes that authorisation revocable:
+venue it talks to happens to notice. trustset is the set of primitives that makes that
+authorisation revocable, recoverable and accountable. eight layers, each its own contract:
 
-- **the owner** gets one place to pause, stop, time-limit or require a heartbeat from an agent
-- **an app** gets one view call, `isTrusted(agentId)`, to ask before it acts for that agent
-- **a phone** gets a passkey that can pause the agent with no wallet, no seed phrase and no gas
-- **guardians** get a way to recover an agent whose cold key is gone, without being able to steal it
-- **a payment rail** gets an escrow whose money comes back when the agent stops mid-flight
+| layer | what it gives you | contract |
+| --- | --- | --- |
+| identity | an agent id, a human label, its cold key, and an erc-8004 identity that points back at the switch | `KillSwitch`, `AgentLabels` |
+| the switch | pause or stop from the cold key, and every app that checks refuses it from the next block | `KillSwitch` |
+| panic button | a passkey on a phone that can pause and nothing else, verified on chain by the p256 precompile | `KillSwitch` |
+| guardians | people you chose can pause by vote, and recover a lost cold key through a delay you can cancel | `KillSwitch` |
+| limits | an end date, or a heartbeat it has to keep. when either lapses it stops being trusted with nobody awake | `KillSwitch` |
+| past signatures | `isTrustedAt(id, at)`, so a venue judges an order by when it was signed rather than by now | `KillSwitch` |
+| human proof | a passkey assertion recorded against an action, so anyone can later ask whether a person was present | `HumanTouch` |
+| refunds | an escrow with a window, and a refund anybody may send that pays the payer named in storage | `RefundRail` |
 
-no server of ours sits in any of those paths. the contract is immutable, has no admin, and holds no
-funds. there is no key anybody could subpoena and no switch we could flip.
+no server of ours sits in any of those paths. every contract is immutable, has no admin, and holds
+no funds except the escrow, which only ever moves money back to whoever put it in. there is no key
+anybody could subpoena and no switch we could flip. a stack of primitives an app picks from, not a
+platform an app joins.
 
 ## check an agent
 

@@ -8,6 +8,9 @@ import { IdCardIcon } from "@/components/icons/id-card";
 import { RefreshCWIcon } from "@/components/icons/refresh-cw";
 import { LayersIcon } from "@/components/icons/layers";
 import { HandCoinsIcon } from "@/components/icons/hand-coins";
+import { TagIcon } from "@/components/icons/tag";
+import { FingerprintIcon } from "@/components/icons/fingerprint";
+import { UndoIcon } from "@/components/icons/undo";
 import type { IconHandle } from "@/hooks/useIconHover";
 
 /* the features, as slides.
@@ -544,6 +547,174 @@ export function PanicVisual() {
   );
 }
 
+/* identity: a registration filling in, then the pointer from the erc-8004
+   registry resolving back to it. the point is the last row: an app that only
+   knows the identity token can still find the switch and ask it. */
+const IDENT = [
+  { k: "id", label: "agent", value: "14" },
+  { k: "name", label: "label", value: "Treasury sweeper" },
+  { k: "cold", label: "cold key", value: "0x3cad…96C5" },
+  { k: "8004", label: "erc-8004", value: "#1873 → agent 14" },
+];
+export function IdentityVisual() {
+  const m = useMotionPrefs();
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    const run = (n: number) => { setStep(n); t = setTimeout(() => run(n >= IDENT.length + 1 ? 0 : n + 1), n === 0 ? 900 : n > IDENT.length ? 2800 : 700); };
+    run(0); return () => clearTimeout(t);
+  }, []);
+  const shown = (i: number) => step >= i + 1;
+  const linked = step > IDENT.length;
+  return (
+    <div className="drawn-box overflow-clip">
+      <div className="px-4 sm:px-5 py-3 flex items-center gap-3 text-sm" style={{ borderBottom: "1px solid var(--hairline)" }}>
+        <span className="w-2 h-2 rounded-full" style={{ background: linked ? "var(--sage)" : "var(--hairline)", transition: "background .3s" }} />
+        <span className="mono text-xs">Agent 14 · {linked ? "identity linked" : "registering"}</span>
+        <span className="ml-auto mono text-[11px]" style={{ color: "var(--text-medium)" }}>two public registries</span>
+      </div>
+      <div className="px-4 sm:px-5 py-4">
+        <dl className="grid gap-2.5">
+          {IDENT.map((r, i) => (
+            <motion.div key={r.k} initial={false} animate={{ opacity: shown(i) ? 1 : 0.18, x: shown(i) ? 0 : -4 }} transition={m.t(DUR.base)}
+              className="grid grid-cols-[84px_minmax(0,1fr)] items-baseline gap-3 text-sm">
+              <dt className="mono text-[12px]" style={{ color: "var(--text-medium)" }}>{r.label}</dt>
+              <dd className={r.k === "8004" ? "mono text-[13px]" : "font-semibold"} style={{ color: r.k === "8004" && linked ? "var(--sage-text)" : "var(--text-dark)", transition: "color .3s" }}>{r.value}</dd>
+            </motion.div>
+          ))}
+        </dl>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.p key={linked ? "l" : "w"} initial={m.reduced ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={m.t(DUR.fast)} className="text-sm mt-4">
+            {linked
+              ? <><span className="font-semibold">from8004(1873) → agent 14.</span> <span style={{ color: "var(--text-medium)" }}>Two view calls. The pointer is checked, not believed.</span></>
+              : <span style={{ color: "var(--text-medium)" }}>An app that only knows the identity token can still ask the switch.</span>}
+          </motion.p>
+        </AnimatePresence>
+      </div>
+      <div className="px-4 sm:px-5 py-2.5 text-[11px] mono" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
+        registered once · read from anywhere
+      </div>
+    </div>
+  );
+}
+
+/* human proof: two actions, one with a person behind it and one without,
+   and a view call that tells them apart afterwards. the agent cannot make the
+   first kind, because the assertion comes from a passkey it does not hold. */
+const TOUCH = [
+  { k: "a", t: "03:12", what: "Transfer 250 USDC", human: true },
+  { k: "b", t: "03:40", what: "Rebalance 3 pools", human: false },
+];
+export function HumanVisual() {
+  const m = useMotionPrefs();
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    const run = (n: number) => { setStep(n); t = setTimeout(() => run(n >= 3 ? 0 : n + 1), n === 0 ? 1100 : n === 3 ? 2800 : 900); };
+    run(0); return () => clearTimeout(t);
+  }, []);
+  const shown = (i: number) => step >= i + 1;
+  const judged = step >= 3;
+  return (
+    <div className="drawn-box overflow-clip">
+      <div className="px-4 sm:px-5 py-3 flex items-center gap-3 text-sm" style={{ borderBottom: "1px solid var(--hairline)" }}>
+        <span className="w-2 h-2 rounded-full" style={{ background: judged ? "var(--sage)" : "var(--hairline)", transition: "background .3s" }} />
+        <span className="mono text-xs">Agent 14 · {judged ? "two actions, judged" : "acting overnight"}</span>
+        <span className="ml-auto mono text-[11px]" style={{ color: "var(--text-medium)" }}>HumanTouch</span>
+      </div>
+      <div className="px-4 sm:px-5 py-4">
+        <ol className="relative grid gap-2.5">
+          <span aria-hidden className="absolute left-[27px] top-3 bottom-3 w-px" style={{ background: "var(--hairline)" }} />
+          {TOUCH.map((w, i) => (
+            <motion.li key={w.k} initial={false} animate={{ opacity: shown(i) ? 1 : 0.18, x: shown(i) ? 0 : -4 }} transition={m.t(DUR.base)}
+              className="grid grid-cols-[56px_10px_minmax(0,1fr)_auto] items-center gap-2.5 text-sm">
+              <span className="mono text-[12px] tabular" style={{ color: "var(--text-medium)" }}>{w.t}</span>
+              <span className="w-[10px] h-[10px] rounded-full justify-self-center z-10" style={{ background: "var(--surface)", border: "2px solid var(--text-medium)" }} />
+              <span style={{ color: "var(--text-dark)" }}>{w.what}</span>
+              <AnimatePresence initial={false}>
+                {judged && (
+                  <motion.span key="v" initial={m.reduced ? false : { opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={m.t(DUR.fast)}
+                    className="mono text-[11px] rounded-full px-2 py-0.5"
+                    style={{ color: w.human ? "var(--sage-text)" : "var(--text-medium)", background: w.human ? "color-mix(in srgb, var(--sage) 12%, transparent)" : "var(--hairline)" }}>
+                    {w.human ? "a person was present" : "the agent alone"}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.li>
+          ))}
+        </ol>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.p key={judged ? "j" : "w"} initial={m.reduced ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={m.t(DUR.fast)} className="text-sm mt-4">
+            {judged
+              ? <><span className="font-semibold">wasHuman(action) is a view call.</span> <span style={{ color: "var(--text-medium)" }}>Verified by the P256 precompile. The agent cannot forge a person.</span></>
+              : <span style={{ color: "var(--text-medium)" }}>Any action can carry a proof of who was there when it happened.</span>}
+          </motion.p>
+        </AnimatePresence>
+      </div>
+      <div className="px-4 sm:px-5 py-2.5 text-[11px] mono" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
+        attested by a passkey · asked by anyone
+      </div>
+    </div>
+  );
+}
+
+/* refunds: a payment, a stop in the middle of it, and the money coming back
+   once the window closes. the last row is the one that matters: anybody may
+   send it, and it pays the payer named in storage whoever sent it. */
+const RAIL = [
+  { k: "pay", t: "12:00", what: "Paid 25 USDC into the rail", tone: "plain" as const },
+  { k: "stop", t: "12:03", what: "Agent switched off", tone: "off" as const },
+  { k: "close", t: "12:30", what: "Window closed, unsettled", tone: "plain" as const },
+  { k: "back", t: "12:31", what: "25 USDC back to the payer", tone: "live" as const },
+];
+export function RefundVisual() {
+  const m = useMotionPrefs();
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    const run = (n: number) => { setStep(n); t = setTimeout(() => run(n >= RAIL.length ? 0 : n + 1), n === 0 ? 900 : n === RAIL.length ? 2800 : 850); };
+    run(0); return () => clearTimeout(t);
+  }, []);
+  const shown = (i: number) => step >= i + 1;
+  const stopped = step >= 2, done = step >= RAIL.length;
+  return (
+    <div className="drawn-box overflow-clip">
+      <div className="px-4 sm:px-5 py-3 flex items-center gap-3 text-sm" style={{ borderBottom: "1px solid var(--hairline)" }}>
+        <span className="w-2 h-2 rounded-full" style={{ background: stopped ? "var(--orange)" : "var(--sage)", transition: "background .3s" }} />
+        <span className="mono text-xs">Agent 14 · {stopped ? "paused at 12:03" : "paying for work"}</span>
+        <span className="ml-auto mono text-[11px]" style={{ color: "var(--text-medium)" }}>refund rail</span>
+      </div>
+      <div className="px-4 sm:px-5 py-4">
+        <ol className="relative grid gap-2.5">
+          <span aria-hidden className="absolute left-[27px] top-3 bottom-3 w-px" style={{ background: "var(--hairline)" }} />
+          {RAIL.map((w, i) => {
+            const c = w.tone === "off" ? "var(--orange)" : w.tone === "live" ? "var(--sage)" : "var(--text-medium)";
+            const ink = w.tone === "off" ? "var(--orange-text)" : w.tone === "live" ? "var(--sage-text)" : "var(--text-dark)";
+            return (
+              <motion.li key={w.k} initial={false} animate={{ opacity: shown(i) ? 1 : 0.18, x: shown(i) ? 0 : -4 }} transition={m.t(DUR.base)}
+                className="grid grid-cols-[56px_10px_minmax(0,1fr)] items-center gap-2.5 text-sm">
+                <span className="mono text-[12px] tabular" style={{ color: "var(--text-medium)" }}>{w.t}</span>
+                <span className="w-[10px] h-[10px] rounded-full justify-self-center z-10" style={{ background: w.tone === "plain" ? "var(--surface)" : c, border: `2px solid ${c}` }} />
+                <span className={w.tone === "plain" ? "" : "font-semibold"} style={{ color: ink }}>{w.what}</span>
+              </motion.li>
+            );
+          })}
+        </ol>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.p key={done ? "d" : "w"} initial={m.reduced ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={m.t(DUR.fast)} className="text-sm mt-4">
+            {done
+              ? <><span className="font-semibold">refund(id) pays the payer named in storage.</span> <span style={{ color: "var(--text-medium)" }}>Anyone may call it. Nobody can redirect it.</span></>
+              : <span style={{ color: "var(--text-medium)" }}>A deadline moves no money by itself. Somebody sends the refund, and it can be anybody.</span>}
+          </motion.p>
+        </AnimatePresence>
+      </div>
+      <div className="px-4 sm:px-5 py-2.5 text-[11px] mono" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
+        permissionless refund · a keeper only adds promptness
+      </div>
+    </div>
+  );
+}
+
 /* ---------- the slides ---------- */
 /* the tab is the feature's name and the headline is the hour you would need
    it. both, on purpose. the names are how somebody scanning for capabilities
@@ -552,13 +723,17 @@ export function PanicVisual() {
    asking what it has, they are asking whether the thing they dread is on the
    list. the window on the right shows it happening. the fifth is new: an order
    signed before the stop, which is the one integrators ask about first and the
-   one no other switch answers. */
+   one no other switch answers. the last three are the layers the contracts
+   always had and the page never named: identity, human proof and refunds. */
 const FEATURES = [
   { k: "The switch", Icon: ZapIcon, lit: "It is 3am and the key has leaked.", dim: "One transaction. Off from the next block.", accent: "next block", body: "Your cold key pauses or stops it, and every app that checks refuses that key from the next block. Nothing already mined is undone, because nothing can be.", Visual: TripVisual },
   { k: "Panic button", Icon: IdCardIcon, lit: "You are on a plane. The wallet is at home.", dim: "A fingerprint is enough.", accent: "fingerprint", body: "A passkey on your phone pauses it, checked on chain by Monad's own P256 precompile. It can pause and nothing else, so a lost phone costs you an interruption.", Visual: PanicVisual },
   { k: "Guardians", Icon: LayersIcon, lit: "You are asleep and something is going wrong.", dim: "The people you chose can stop it.", accent: "people you chose", body: "Guardians pause your agent by vote. They can never spend from it or hand it to anyone, and your cold key overrules whatever they do.", Visual: GuardianVisual },
   { k: "Limits", Icon: RefreshCWIcon, lit: "You forgot the agent was still running.", dim: "Trust that ends by itself.", accent: "by itself", body: "Give it an end date, or a heartbeat it has to keep. When either lapses it stops being trusted, with no transaction and nobody awake.", Visual: LimitsVisual },
   { k: "Past signatures", Icon: HandCoinsIcon, lit: "An order arrives, signed before the stop.", dim: "Judged by when it was signed.", accent: "when it was signed", body: "The switch keeps every change with its timestamp. A venue asks what was true at the moment of signing, so a stop at 14:32 voids the 14:35 order and honours the 14:30 one.", Visual: WhenVisual },
+  { k: "Identity", Icon: TagIcon, lit: "A venue meets a key it has never seen.", dim: "It can still ask whose agent that is.", accent: "whose agent", body: "Every agent has an id, a label and its cold key on chain, and its ERC-8004 identity points back at the switch. An app that knows the agent only by that identity can ask whether it has been stopped, without knowing trustset exists.", Visual: IdentityVisual },
+  { k: "Human proof", Icon: FingerprintIcon, lit: "A transfer went out at 3am.", dim: "Was it you, or the agent?", accent: "you, or the agent", body: "HumanTouch records a passkey assertion against that exact action, verified on chain by the P256 precompile. Afterwards anyone can ask whether a person was present for it, and the agent cannot forge the answer.", Visual: HumanVisual },
+  { k: "Refunds", Icon: UndoIcon, lit: "It was mid-payment when you stopped it.", dim: "The money comes back.", accent: "comes back", body: "Payments run through a rail with a window. Once it closes unsettled, refund(id) pays the payer named in storage, and anybody may call it, so money in flight returns without needing you awake.", Visual: RefundVisual },
 ] as const;
 
 /* the dim line carries one phrase at full strength: the surprising part, which
@@ -610,11 +785,11 @@ export function Features() {
           <span>You built the agent.</span>{" "}<span style={{ color: "var(--dim)" }}>Here is everything around it.</span>
         </h2>
         <p className="text-[17px] sm:text-[19px] text-ink/70 mt-4 max-w-[52ch]">
-          Five things it should have had from day one, each shown at the hour you would need it. None of them need you to change a line of the agent.
+          The trust stack: eight things it should have had from day one, each shown at the hour you would need it. None of them need you to change a line of the agent.
         </p>
       </div>
       {/* the rail. each tab carries its own progress line while it is the one showing. */}
-      <div role="tablist" aria-label="Features" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mt-8 sm:mt-10 mb-8 sm:mb-10 max-w-5xl">
+      <div role="tablist" aria-label="Features" className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-8 sm:mt-10 mb-8 sm:mb-10 max-w-5xl">
         {FEATURES.map((t, k) => {
           const on = k === i;
           return (
@@ -640,14 +815,15 @@ export function Features() {
       </div>
 
       {/* the frame: headline on the left, the product's window on the right. */}
-      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-8 lg:gap-14 items-center">
-        {/* the four bodies are not the same length, so without a floor the column
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-8 lg:gap-14">
+        {/* the eight bodies are not the same length, so without a floor the column
             changes height as the rail advances and everything under it moves.
-            measured at the tallest: 393 wants the most, because the copy wraps
-            hardest there and the frame sits below rather than beside it. */}
-        <div className="min-w-0 min-h-[236px] sm:min-h-[210px] lg:min-h-[268px]">
+            floors are the tallest body measured at each width, 289 at 393,
+            265 at 768 and 398 at 1400, plus a little. the column is a flex box so
+            the copy sits centred inside its floor, level with the frame beside it. */}
+        <div className="min-w-0 min-h-[296px] sm:min-h-[272px] lg:min-h-[404px] flex items-center">
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={f.k} initial={m.reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={m.reduced ? { opacity: 0 } : { opacity: 0, y: -8 }} transition={m.reduced ? { duration: 0.1 } : { duration: 0.35, ease: EASE }}>
+            <motion.div key={f.k} className="w-full" initial={m.reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={m.reduced ? { opacity: 0 } : { opacity: 0, y: -8 }} transition={m.reduced ? { duration: 0.1 } : { duration: 0.35, ease: EASE }}>
               <h2 className="text-[34px] sm:text-[44px] lg:text-[52px] font-semibold tracking-[-0.03em] leading-[1.04]">
                 <span>{f.lit}</span><br /><Dim text={f.dim} accent={f.accent} />
               </h2>
@@ -655,17 +831,19 @@ export function Features() {
             </motion.div>
           </AnimatePresence>
         </div>
-        <div className="min-w-0 rounded-[28px] p-2" style={{ background: "color-mix(in srgb, var(--text-dark) 5%, transparent)", border: "1px solid var(--hairline)" }}>
+        <div className="min-w-0 rounded-[28px] p-2 flex flex-col" style={{ background: "color-mix(in srgb, var(--text-dark) 5%, transparent)", border: "1px solid var(--hairline)" }}>
           <div className="flex items-center gap-1.5 px-3 py-2">
             {[0, 1, 2].map(d => <span key={d} className="w-2 h-2 rounded-full" style={{ background: "var(--hairline)" }} />)}
             <span className="ml-3 mono text-[11px]" style={{ color: "var(--text-medium)" }}>trustset.silknodes.io</span>
           </div>
-          {/* the four slides are not the same height to the pixel, and without a
+          {/* the eight slides are not the same height to the pixel, and without a
               floor the whole page below shifts every time one advances. the
-              frame holds the tallest and each visual fills it. */}
-          <div className="min-h-[300px] sm:min-h-[292px]">
+              floor is the tallest visual measured, 301 at 393, and flex-1 lets
+              the frame grow to the row when the copy beside it is taller, so the
+              two columns always share a top and a bottom. the visual centres. */}
+          <div className="min-h-[304px] sm:min-h-[292px] flex-1 flex items-center">
             <AnimatePresence mode="wait" initial={false}>
-              <motion.div key={f.k} className="h-full" initial={m.reduced ? false : { opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} exit={m.reduced ? { opacity: 0 } : { opacity: 0, scale: 0.99 }} transition={m.reduced ? { duration: 0.1 } : { duration: 0.3, ease: EASE }}>
+              <motion.div key={f.k} className="w-full" initial={m.reduced ? false : { opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} exit={m.reduced ? { opacity: 0 } : { opacity: 0, scale: 0.99 }} transition={m.reduced ? { duration: 0.1 } : { duration: 0.3, ease: EASE }}>
                 <f.Visual />
               </motion.div>
             </AnimatePresence>
