@@ -10,7 +10,8 @@
   "files": [
     "index.mjs",
     "cli.mjs",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "keywords": [
     "monad",
@@ -20,6 +21,7 @@
   ],
   "license": "MIT",
   "bin": {
+    "check": "cli.mjs",
     "trustset": "cli.mjs"
   },
   "dependencies": {
@@ -30,5 +32,11 @@
     "url": "https://github.com/Zoltan118/trustset.git",
     "directory": "sdk"
   },
-  "homepage": "https://trustset.silknodes.io"
+  "homepage": "https://trustset.silknodes.io",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }
