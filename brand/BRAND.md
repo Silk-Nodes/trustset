@@ -1,27 +1,55 @@
 # trustset brand
 
-locked 2026-09-15.
+locked 2026-09-15. contrast numbers remeasured 2026-09-21, three were wrong.
 
 ## name
 trustset. lowercase everywhere. tagline: an off switch for ai agents on monad.
-sub products: trip (kill switch, built), touch (human touch attestation, built), refund (x402 refund rail, planned).
+sub products: trip (kill switch, built), touch (human touch attestation, built), refund (x402 refund rail, built).
 the operator registry is in the repo and out of the product: reading the chain already answers the question on monad.
 
 ## mark
 the face. top bar, two eyes, bottom bar. eyes are orange at rest, the face is the brand.
-- f7 tile is the mark: text colour tile, bars in ground colour, orange eyes. favicons, nav, cards.
-- f8 orange tile for x cards only: all ink on orange.
-- svgs: assets/mark-tile.svg, assets/mark-orange.svg. 48 grid.
+- `assets/tile-on-*.svg` is the mark, f7. the tile takes the TEXT colour and the bars take the GROUND colour, so it inverts against the page it sits on and never sinks into it. favicons, nav, cards.
+- `assets/tile-orange.svg`, f8, for x cards only: all ink on orange.
+- `assets/mark-on-*.svg` is the face with no tile, for placing directly on a page ground.
+- 48 grid. every asset regenerates from `make.mjs`.
 
 ## colour
-dark (default)   ground #0b0c0a   panel #141512   text #f2f1ec   muted rgba(242,241,236,.62)   line rgba(242,241,236,.12)   orange #ff6a3d
-light            ground #f4f3ee   panel #ffffff   text #111210   muted rgba(17,18,16,.62)       line rgba(17,18,16,.12)       orange #e8552b
+```
+dark (default)  ground #0b0c0a  text #f2f1ec  muted 62% of text  line 12% of text  orange #ff6a3d
+light           ground #f4f3ee  text #111210  muted 62% of text  line 12% of text  orange #e8552b
+```
 orange is the accent and the trip colour. at rest it appears only in the eyes and on primary actions. a tripped state is the only other place it is allowed.
-contrast: text on ground 15:1 dark, 16:1 light. muted 8:1. orange on dark ground 5.4:1, orange on light ground 4.6:1, both pass for large text and ui, never for body copy.
+
+### measured contrast, not estimated
+| | light | dark |
+| --- | --- | --- |
+| text on ground | 16.91 | 17.33 |
+| muted on ground | 5.05 | 6.94 |
+| orange on ground | **3.28** | 6.89 |
+
+**orange is not a text colour on light.** at 3.28 it clears 3:1 for large text and ui only. the earlier spec said 4.6 and that was wrong, which is how an unreadable caption gets written on purpose. the site already carries a separate `--orange-text: #B83F1B` for this, which measures 5.06 and is the token to reach for whenever orange has to carry words on a light ground. on dark, `--orange` doubles as the text colour because 6.89 already clears body.
+
+nothing below 4.5 may carry body copy. do not reuse a fill token as a type token without measuring it first.
 
 ## type
 words: instrument sans, 400 500 600 700. figures, labels, wordmark, code: dm mono 400 500.
 every number is mono. uppercase labels get 1.5px tracking. headings text-wrap balance.
+
+the wordmark is dm mono 500 at -0.5 tracking, locked up with the face scaled so its ink height equals the word's. `fonts/` vendors the two weights so the lockup renders identically on a machine that has never seen the font.
+
+## known drift, decide before it spreads
+the site in `web/` does not match this file exactly, and both are in use:
+
+| | this file | globals.css |
+| --- | --- | --- |
+| light ground | `#f4f3ee` | `#F4F4F2` |
+| light text | `#111210` | `#17181A` |
+| dark ground | `#0b0c0a` | `#100E0B` |
+| dark text | `#f2f1ec` | `#EDEEEC` |
+| body font | instrument sans | the system stack, instrument sans is never loaded |
+
+the oranges match exactly in both. the ground and text deltas are imperceptible side by side, so nothing is visibly broken, but two sources of truth is one too many. the brand assets in this folder follow this file, because a logo travels to places that never load the site's css.
 
 ## voice
 lowercase, direct, operator grounded. no em dashes, no en dashes. sentences end on the thought.
@@ -30,3 +58,9 @@ a timestamp on every page that shows data. say testnet and unaudited while it is
 ## layout
 flat nav: overview, console, how it works. footer: methodology, changelog, disclaimer, status, github, x, built by silk nodes.
 columns align top and bottom. no button label wraps. no horizontal scroll. one spacing rhythm, 8px.
+
+## regenerating
+```
+cd brand && npm install && node make.mjs
+```
+writes every svg and png in `assets/`. the pngs are committed so nobody needs node to use the brand.
