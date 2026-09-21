@@ -29,7 +29,12 @@ export default function AgentRow({ agent, name, last, selected, stopState, onSel
       <div className="hidden sm:block text-sm text-ink/70 truncate">{last}</div>
       <div className="hidden sm:block mono text-xs text-ink/70 tabular text-right">{ago(agent.since)}</div>
       <div onClick={e => e.stopPropagation()} className="flex items-center gap-1.5 justify-end">
-        {live && onPause && (
+        {/* pausing an agent whose trust already ran out changes nothing a
+            reader can see, and resuming it is a transaction that costs gas and
+            leaves it exactly as untrusted. the row offers the control only
+            while it means something; the panel beside it holds the limits,
+            which is what actually brings one of these back. */}
+        {live && onPause && (!out || agent.status === "paused") && (
           <button type="button" className="drawn-btn btn-gold" style={{ padding: "6px 12px", fontSize: "0.78rem" }} disabled={pausing} onClick={onPause}>
             {pausing ? "…" : agent.status === "paused" ? "Resume" : "Pause"}
           </button>

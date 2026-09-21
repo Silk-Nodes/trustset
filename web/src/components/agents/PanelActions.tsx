@@ -161,7 +161,7 @@ export default function PanelActions({ agent, name, purpose, others, now, delayD
 
       <Row id="rotate" open={open} setOpen={setOpen} title="Rotate to a successor" hint={terminal ? "closed" : "permanent"}>
         {terminal ? <p className="text-xs text-ink/70">Already {agent.status}.</p> : others.length === 0 ? (
-          <p className="text-xs text-ink/70">Register the successor first. It has to be another active agent under this wallet.</p>
+          <p className="text-xs text-ink/70">Register the successor first. It has to be another agent under this wallet that the switch still trusts, so one whose end date and heartbeat are both clear.</p>
         ) : (
           <>
             <p className="text-xs text-ink/70 mb-2.5">Retire this agent in favour of one you already run. Anyone who trusted this id can read where trust moved. This id is closed for good afterwards.</p>
