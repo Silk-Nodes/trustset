@@ -20,7 +20,7 @@ import { useMotionPrefs, DUR } from "@/lib/motion";
  * the row goes busy, then stopped, then counts refusals, and the stamp lands.
  * a reset in the footer hands the loop back. */
 const ROWS = [
-  { name: "Market maker #7", key: "0x90f7…b906", unit: "trade", idle: (n: number) => `${n} ${n === 1 ? "trade" : "trades"} on venue`, since: "2h ago" },
+  { name: "Market maker #7", key: "0x90f7…b906", unit: "trade", idle: (n: number) => (n ? `${n} ${n === 1 ? "trade" : "trades"} on venue` : "Trading"), since: "2h ago" },
   { name: "Treasury sweeper #3", key: "0x15d3…6a65", unit: "sweep", idle: () => "Swept 1,240 USDC to treasury", since: "14m ago" },
   { name: "Research bot #12", key: "0x9965…a4dc", unit: "call", idle: () => "Idle", since: "3d ago" },
 ];
@@ -70,7 +70,13 @@ export default function Replay({ sample = false }: { sample?: boolean }) {
 
   const press = (i: number) => {
     if (rows[i].phase !== 0) return;
-    if (auto) setAuto(false);
+    if (auto) {
+      setAuto(false);
+      /* the loop's timers go when it yields, so a row it left mid-stop would
+         sit on "Stopping" for good. rewind anything still in flight. a row it
+         already stopped stays stopped: that one is a finished state, and true. */
+      setRows(rs => rs.map((r, k) => (k !== i && r.phase === 1 ? { phase: 0 as Phase, n: 0 } : r)));
+    }
     stopRow(userBag.current, i);
   };
   const reset = () => { clear(userBag.current); setRows(FRESH); setAuto(true); setRun(x => x + 1); };
