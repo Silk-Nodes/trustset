@@ -54,7 +54,10 @@ the oranges match exactly in both. the ground and text deltas are imperceptible 
 
 ## voice
 lowercase, direct, operator grounded. no em dashes, no en dashes. sentences end on the thought.
-a timestamp on every page that shows data. say testnet and unaudited while it is true.
+a timestamp on every page that shows data. say testnet while it is true. never say
+audited: the contracts have a published self review and no third-party audit, and the
+wording says both, because naming the review without naming its limit overclaims and
+the bare word unaudited throws the review away.
 
 ## layout
 flat nav: overview, console, how it works. footer: methodology, changelog, disclaimer, status, github, x, built by silk nodes.
