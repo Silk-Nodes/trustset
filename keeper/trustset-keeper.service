@@ -1,22 +1,27 @@
-# /etc/systemd/system/trustset-keeper.service
+# a template. copy to /etc/systemd/system/trustset-keeper.service and fill in
+# the three paths and the user for the machine it runs on. no host, no account
+# name and no directory layout belongs in a repository: it is an inventory of
+# where to log in, handed to whoever reads it.
 [Unit]
 Description=trustset refund keeper (posts refunds anyone could post)
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/zoltan/trustset/keeper
+WorkingDirectory=%h/trustset/keeper
 Environment=NODE_ENV=production
-Environment=TRUSTSET_ROOT=/home/zoltan/trustset
-Environment=KEEPER_STATE=/home/zoltan/trustset-state/.keeper-state.json
+Environment=TRUSTSET_ROOT=%h/trustset
+Environment=KEEPER_STATE=%h/trustset-state/.keeper-state.json
 # reading is free, so it looks every minute. it only sends when a window has
 # actually closed, so an idle rail costs nothing at all.
 Environment=SWEEP_SECONDS=60
-EnvironmentFile=/home/zoltan/trustset-state/keeper.env
+# holds KEEPER_KEY. generate it on the machine, mode 600, never in the repo.
+EnvironmentFile=%h/trustset-state/keeper.env
 ExecStart=/usr/bin/node index.mjs
 Restart=always
 RestartSec=30
-User=zoltan
+# systemd expands %h to this user's home, so the unit carries no account name.
+User=REPLACE_WITH_SERVICE_USER
 
 [Install]
 WantedBy=multi-user.target
