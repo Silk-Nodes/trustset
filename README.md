@@ -5,7 +5,7 @@
 
 # trustset
 
-**an on-chain off switch for ai agents, on monad.**
+**the off switch in the agent stack.** an on-chain kill switch for ai agents, on monad.
 
 an agent with a key can trade, pay and sign for as long as it runs. trustset gives the person who
 owns it one place to say stop, and gives every app the agent talks to one call to check before it

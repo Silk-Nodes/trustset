@@ -116,19 +116,26 @@ const fav = svg(tileBody(P.light.text, P.light.ground, P.light.orange));
 out("favicon-dark-tile.svg", fav);
 for (const size of [16, 32, 180, 512]) out(`favicon-${size}.png`, png(fav, size));
 /* the social card. 1280x640, the ratio github and x both show uncropped.
-   a strip of beats runs the width of the card and breaks at one orange spike,
-   with the word the switch returned above it and the reason below. the
-   top-left quarter carries nothing on purpose: the hackathon platform stamps
-   the project logo there, and a card that also carries the logo doubles it.
-   orange is used exactly once, on the tripped state, which is the brand rule. */
+   hierarchy for a reader who has never heard of this: the name, then what
+   it is in six words, then proof. the proof is the one thing a logo card
+   cannot do, a strip of beats that breaks at one orange spike, with the
+   word the switch returned underneath. orange is used exactly once.
+   the top-left quarter carries nothing on purpose: the hackathon platform
+   stamps the project logo there, and a card that also carries it doubles
+   it. nothing sits in the bottom-left either, so the strip is the only
+   thing on the left and reads as the datum it is. */
 console.log("social card");
 {
-  const p = P.dark, W = 1280, H = 640;
+  const p = P.dark, W = 1280, H = 640, X = 430;
   const mono = (x, y, size, text, w = 400, extra = "", fill = p.text) =>
     `<text x="${x}" y="${y}" font-family="DM Mono" font-weight="${w}" font-size="${size}" fill="${fill}" ${extra}>${text}</text>`;
-  const X = 430, y = 344, pitch = 22, bw = 10, bh = 26, x0 = 84;
+  /* the lockup at 52px, same arithmetic as the wordmark */
+  const fs = 52, capH = fs * 0.635, sc = capH / 30, markW = 48 * sc, gap = fs * 0.42;
+  const lock = `<g transform="translate(${X},158)"><g transform="translate(0,${(-(capH + 9 * sc) + 0.67).toFixed(2)}) scale(${sc.toFixed(4)})">${face(p.text, p.orange)}</g>${mono(markW + gap, 0, fs, "trustset", 500, 'letter-spacing="-1"')}</g>`;
+  /* the strip. 22px pitch from x=84, the spike sits under the end of the headline */
+  const y = 392, pitch = 22, bw = 10, bh = 26, x0 = 84;
   const n = Math.floor((1196 - x0) / pitch) + 1;
-  const trip = Math.round((1008 - x0) / pitch);        // under the D
+  const trip = Math.round((1096 - x0) / pitch);
   let beats = "";
   for (let i = 0; i < n; i++) {
     const x = x0 + i * pitch;
@@ -136,19 +143,15 @@ console.log("social card");
     else if (i === trip) beats += `<rect x="${x}" y="${y - 14}" width="${bw}" height="${bh + 42}" fill="${p.orange}"/>`;
     else beats += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="${p.text}" fill-opacity="0.18"/>`;
   }
-  /* the small lockup, same arithmetic as the wordmark above */
-  const fs = 26, capH = fs * 0.635, sc = capH / 30, markW = 48 * sc, gap = fs * 0.42;
-  const lock = `<g transform="translate(1030,590)"><g transform="translate(0,${(-(capH + 9 * sc) + 0.67).toFixed(2)}) scale(${sc.toFixed(4)})">${face(p.text, p.orange)}</g>${mono(markW + gap, 0, fs, "trustset", 500, 'letter-spacing="-0.5"')}</g>`;
   const body =
     `<rect width="${W}" height="${H}" fill="${p.ground}"/>` +
     `<defs><pattern id="g" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="16" cy="16" r="1.2" fill="${p.text}" fill-opacity="0.12"/></pattern></defs><rect width="${W}" height="${H}" fill="url(#g)"/>` +
-    mono(X, 158, 28, "agent 7  ·  monad testnet", 400, 'fill-opacity="0.62"') +
-    mono(X, 296, 150, "REFUSED", 500, 'letter-spacing="-6"', p.orange) +
+    lock +
+    mono(X, 262, 72, "the off switch", 500, 'letter-spacing="-2.5"') +
+    mono(X, 342, 72, "in the agent stack", 500, 'letter-spacing="-2.5"') +
     beats +
-    mono(X, 438, 32, "why  paused by its owner,", 400, 'fill-opacity="0.82"') +
-    mono(X, 478, 32, "     and may come back", 400, 'fill-opacity="0.82"') +
-    mono(84, 590, 22, "npx @trustset/check 7", 400, 'fill-opacity="0.45"') +
-    lock;
+    `<text x="${X}" y="488" font-family="DM Mono" font-weight="400" font-size="26" fill="${p.text}" fill-opacity="0.62">agent 7 on monad testnet  ·  <tspan fill="${p.orange}" fill-opacity="1" font-weight="500">REFUSED</tspan></text>` +
+    mono(X, 524, 26, "paused by its owner, and may come back", 400, 'fill-opacity="0.62"');
   out("social.svg", svg(body, W, H));
   out("social.png", png(svg(body, W, H), W));
 }
