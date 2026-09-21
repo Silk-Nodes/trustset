@@ -2,7 +2,10 @@
 
 ## the short version
 
-this is **testnet software, and it is unaudited**. do not put money behind it
+this is **testnet software, and it has had no third-party audit**. the contracts
+have been read line by line and the findings are published in
+[`AUDIT.md`](AUDIT.md), each fix with its test named beside it, but a self review
+by the author is not a substitute for an outside one. do not put money behind it
 that you would miss. there is no bug bounty, and this file does not pretend
 there is one.
 

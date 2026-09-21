@@ -94,7 +94,10 @@ with no network needed at all.
 
 ## what is honestly not true yet
 
-- **testnet, and unaudited.** do not put real money behind it.
+- **testnet, and no third-party audit.** every contract was read line by line
+  and the findings are in [`AUDIT.md`](AUDIT.md), each fix with its test named
+  beside it. that is a self review by the author, not a substitute for an
+  outside one. do not put real money behind it.
 - **a switch only binds an agent that checks it, or a venue that checks it for
   them.** an agent that never asks is not stopped by anything here. this is the
   real limit and [`AUDIT.md`](AUDIT.md) leads with it rather than burying it.

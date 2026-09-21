@@ -355,7 +355,9 @@ other limits it records:
   stored, so moving the end date changes the answer about the past
 - the heartbeat is not part of the historical answer at all: liveness is a fact about now, and no
   record of past beats is kept
-- this is testnet, and unaudited
+- this is testnet, and it has had no third-party audit. every contract was read line by line and
+  the findings are in [`AUDIT.md`](AUDIT.md), each fix with its test named beside it. that is a self
+  review by the author, and it is not a substitute for an outside one
 
 ## project layout
 
