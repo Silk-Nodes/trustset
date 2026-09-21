@@ -23,6 +23,7 @@ built for monad metropolis, track 04: trust, identity and ai infrastructure.
 - **trying it as a judge or a reviewer: [`JUDGES.md`](JUDGES.md)**
 - who would adopt this and why: [`ADOPTION.md`](ADOPTION.md)
 - what it does not protect against: [`AUDIT.md`](AUDIT.md)
+- reporting a vulnerability: [`SECURITY.md`](SECURITY.md)
 - built by [silk nodes](https://silknodes.io) · mit licensed
 
 ---
