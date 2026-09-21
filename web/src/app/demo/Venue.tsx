@@ -187,6 +187,23 @@ export default function Venue() {
   const stage = (a: Act): Stage => seen.has(a) ? (open.has(a) ? "reopened" : "done") : a === current ? "current" : "ahead";
   const toggle = (a: Act) => setOpen(p => { const n = new Set(p); if (n.has(a)) n.delete(a); else n.add(a); return n; });
 
+  /* run it again.
+   *
+   * the walkthrough remembers how far you got, which is what you want when a
+   * step sends you to another page and back. it is not what you want when you
+   * have finished, or when you are halfway through and would rather start
+   * over: there was no way back to step one short of a new tab, because the
+   * progress outlives a reload.
+   *
+   * it only forgets. the chain keeps whatever the last run left, and step one
+   * already says so and offers the way back, so there is nothing to undo here
+   * and no transaction to send. */
+  const restart = () => {
+    setSeen(new Set()); setOpen(new Set()); setLog([]); setRefusedAt(null); setNote(null);
+    try { if (progressKey) sessionStorage.removeItem(progressKey); } catch { /* nothing kept, nothing to clear */ }
+    window.scrollTo({ top: 0, behavior: m.reduced ? "auto" : "smooth" });
+  };
+
   const agent = <AgentCard s={s} off={off} refusedAt={refusedAt} reduced={m.reduced} />;
   const rail = (
     <>
@@ -342,6 +359,17 @@ export default function Venue() {
           why="Every line above happened on Monad and none of it can be edited afterwards, by us or by you. Anyone deciding whether to deal with this agent can read the same history.">
           <a href={`/explorer/${s?.agentId ?? ""}`} target="_blank" rel="noreferrer" className="drawn-btn btn-orange" style={{ padding: "9px 16px", fontSize: "0.85rem" }} onClick={() => done("record")}>See this agent&apos;s history</a>
         </Step>
+
+        {/* offered as soon as anything is done, not only at the end: somebody
+            stuck in the middle wants it more than somebody who finished. */}
+        {seen.size > 0 && (
+          <div className="flex flex-wrap items-center gap-3 px-1 pt-1">
+            <Do label="Run it again" tone="quiet" onClick={restart} />
+            <span className="text-[12.5px]" style={{ color: "var(--text-medium)" }}>
+              Puts the steps back to the top. Nothing on chain is undone, and the record stays.
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="hidden lg:grid gap-4 lg:sticky lg:top-20">{agent}{rail}</div>

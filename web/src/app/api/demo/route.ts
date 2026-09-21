@@ -183,11 +183,28 @@ const SELECTORS: Record<string, string> = {
   "0x0f299a58": "This agent has no heartbeat to keep.",
 };
 
+/* the rpc turning us away, said as what it is.
+ *
+ * the public testnet rpc answers a fixed number of requests a second and
+ * rejects the rest. ethers does not carry that through: a rejected read
+ * arrives as "missing revert data" or "could not coalesce error", which name
+ * a decoding problem that did not happen and read, on the card, as the demo
+ * being broken. a reader who waits a moment gets a working page, so the line
+ * says that instead. */
+function throttled(e: unknown) {
+  const o = e as { code?: unknown; error?: { code?: unknown }; info?: { error?: { code?: unknown; message?: unknown } }; shortMessage?: string; message?: string };
+  const codes = [o?.code, o?.error?.code, o?.info?.error?.code];
+  if (codes.includes(-32011) || codes.includes(429)) return true;
+  const text = `${o?.shortMessage ?? ""} ${o?.message ?? ""} ${String(o?.info?.error?.message ?? "")}`.toLowerCase();
+  return /missing revert data|could not coalesce|too many requests|rate ?limit|requests limited/.test(text);
+}
+
 function reason(e: unknown) {
   const o = e as { data?: unknown; info?: { error?: { data?: unknown } }; shortMessage?: string; message?: string };
   const data = typeof o?.data === "string" ? o.data : typeof o?.info?.error?.data === "string" ? o.info.error.data : "";
   const named = SELECTORS[data.slice(0, 10)];
   if (named) return named;
+  if (throttled(e)) return "The Monad testnet RPC is turning requests away right now. Nothing here is broken. Give it a few seconds and press again.";
   const m = o?.shortMessage || (e instanceof Error ? e.message : String(e));
   /* whatever it is, it is one line on a card, not a transaction dump */
   return m.length > 160 ? m.slice(0, 160) + "…" : m;
