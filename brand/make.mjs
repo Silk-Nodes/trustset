@@ -10,8 +10,11 @@ import { writeFileSync, mkdirSync } from "node:fs";
 
 /* the locked palette. BRAND.md is the source, this is the copy that renders. */
 const P = {
-  light: { ground: "#f4f3ee", text: "#111210", orange: "#e8552b" },
-  dark:  { ground: "#0b0c0a", text: "#f2f1ec", orange: "#ff6a3d" },
+  /* orange and orangeText are two tokens on purpose. orange fills bars and the
+     eyes; as words on the cream ground it measures 3.28, which fails body text.
+     orangeText is the per-theme type token, 5.02 on light. see BRAND.md. */
+  light: { ground: "#f4f3ee", text: "#111210", orange: "#e8552b", orangeText: "#b83f1b" },
+  dark:  { ground: "#0b0c0a", text: "#f2f1ec", orange: "#ff6a3d", orangeText: "#ff6a3d" },
 };
 const INK_ON_ORANGE = "#160a06";
 const FONTS = ["fonts/DMMono-Regular.ttf", "fonts/DMMono-Medium.ttf"];
@@ -94,7 +97,7 @@ for (const t of ["light", "dark"]) {
     `<rect width="1280" height="640" fill="${p.ground}"/>` +
     `<g transform="translate(90,150) scale(3.125)">${tileBody(p.text, p.ground, p.orange)}</g>` +
     `<text x="90" y="420" font-family="DM Mono" font-weight="500" font-size="92" letter-spacing="-2" fill="${p.text}">trustset</text>` +
-    `<text x="90" y="478" font-family="DM Mono" font-weight="400" font-size="31" fill="${p.text}" opacity="0.62">an off switch for ai agents on monad</text>` +
+    `<text x="90" y="478" font-family="DM Mono" font-weight="400" font-size="31" fill="${p.text}" opacity="0.62">the trust stack for ai agents on monad</text>` +
     `<rect x="90" y="524" width="150" height="5" fill="${p.orange}"/>`;
   out(`banner-${t}.svg`, svg(body, 1280, 640));
   out(`banner-${t}.png`, png(svg(body, 1280, 640), 1280));
@@ -125,8 +128,8 @@ for (const size of [16, 32, 180, 512]) out(`favicon-${size}.png`, png(fav, size)
    it. nothing sits in the bottom-left either, so the strip is the only
    thing on the left and reads as the datum it is. */
 console.log("social card");
-{
-  const p = P.dark, W = 1280, H = 640, X = 430;
+for (const theme of ["dark", "light"]) {
+  const p = P[theme], W = 1280, H = 640, X = 430;
   const mono = (x, y, size, text, w = 400, extra = "", fill = p.text) =>
     `<text x="${x}" y="${y}" font-family="DM Mono" font-weight="${w}" font-size="${size}" fill="${fill}" ${extra}>${text}</text>`;
   /* the lockup at 52px, same arithmetic as the wordmark */
@@ -145,14 +148,17 @@ console.log("social card");
   }
   const body =
     `<rect width="${W}" height="${H}" fill="${p.ground}"/>` +
-    `<defs><pattern id="g" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="16" cy="16" r="1.2" fill="${p.text}" fill-opacity="0.12"/></pattern></defs><rect width="${W}" height="${H}" fill="url(#g)"/>` +
+    `<defs><pattern id="g-${theme}" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="16" cy="16" r="1.2" fill="${p.text}" fill-opacity="0.12"/></pattern></defs><rect width="${W}" height="${H}" fill="url(#g-${theme})"/>` +
     lock +
     mono(X, 262, 72, "the trust stack", 500, 'letter-spacing="-2.5"') +
     mono(X, 342, 72, "for ai agents", 500, 'letter-spacing="-2.5"') +
     beats +
-    `<text x="${X}" y="488" font-family="DM Mono" font-weight="400" font-size="26" fill="${p.text}" fill-opacity="0.62">agent 7 on monad testnet  ·  <tspan fill="${p.orange}" fill-opacity="1" font-weight="500">REFUSED</tspan></text>` +
+    `<text x="${X}" y="488" font-family="DM Mono" font-weight="400" font-size="26" fill="${p.text}" fill-opacity="0.62">agent 7 on monad testnet  ·  <tspan fill="${p.orangeText}" fill-opacity="1" font-weight="500">REFUSED</tspan></text>` +
     mono(X, 524, 26, "paused by its owner, and may come back", 400, 'fill-opacity="0.62"');
-  out("social.svg", svg(body, W, H));
-  out("social.png", png(svg(body, W, H), W));
+  /* the dark one keeps the bare name, because it is the file that ships as
+     the site's og image and as github's social preview. */
+  const stem = theme === "dark" ? "social" : "social-light";
+  out(`${stem}.svg`, svg(body, W, H));
+  out(`${stem}.png`, png(svg(body, W, H), W));
 }
 console.log("done");

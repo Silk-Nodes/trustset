@@ -1,6 +1,9 @@
 <p align="center">
-  <img src="brand/assets/banner-dark.png#gh-dark-mode-only" alt="trustset" width="820">
-  <img src="brand/assets/banner-light.png#gh-light-mode-only" alt="trustset" width="820">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/assets/social.png">
+    <source media="(prefers-color-scheme: light)" srcset="brand/assets/social-light.png">
+    <img src="brand/assets/social.png" alt="trustset, the trust stack for AI agents. A strip of heartbeats breaking at one orange spike, above the line: agent 7 on monad testnet, REFUSED, paused by its owner, and may come back." width="860">
+  </picture>
 </p>
 
 # trustset
