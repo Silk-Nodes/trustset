@@ -14,7 +14,11 @@ export const dynamic = "force-dynamic";
  * which is an agent choosing to obey. it is also, honestly, the agent's own
  * claim about itself, and the page says so.
  */
-const STATE = process.env.AGENT_STATE || "/home/zoltan/trustset-state/.agent-state.json";
+/* no fallback on purpose. a guessed path would read as "the agent is quiet"
+   when the truth is that nobody configured this, and a dead dependency must
+   never look like healthy data. */
+const STATE = process.env.AGENT_STATE;
+if (!STATE) console.error("AGENT_STATE is not set, so the live agent panel has nothing to read");
 const KS = [
   "function setStatus(uint256,uint8,bytes32)",
   "function liveness(uint256) view returns (bool trusted, bool expired, bool lapsed, uint64 expiresAt, uint64 nextBeatBy)",
@@ -23,6 +27,7 @@ const KS = [
 
 async function saidByTheAgent() {
   try {
+    if (!STATE) return null;
     const s = JSON.parse(await readFile(STATE, "utf8"));
     return { agentId: String(s.agentId), key: s.key, why: s.why as string, at: s.at as string, balance: s.balance as string };
   } catch { return null; }

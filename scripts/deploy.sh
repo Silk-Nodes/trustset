@@ -23,7 +23,11 @@ if [ -z "${DEPLOY_HOST:-}" ]; then
 fi
 HOST=$DEPLOY_HOST
 SITE=${DEPLOY_SITE:-https://trustset.silknodes.io}
-REMOTE=${DEPLOY_PATH:-/home/zoltan/trustset}
+if [ -z "${DEPLOY_PATH:-}" ]; then
+  echo "DEPLOY_PATH is not set. Put it in $ROOT/.env as DEPLOY_PATH=/path/on/the/host" >&2
+  exit 1
+fi
+REMOTE=$DEPLOY_PATH
 
 echo "==> sending web/src"
 # anchored, so it excludes the top level demo/ and never web/src/app/demo
