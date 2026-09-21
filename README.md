@@ -17,6 +17,8 @@ built for monad metropolis, track 04: trust, identity and ai infrastructure.
 - chain: monad testnet, chain id **10143**
 - switch: [`0x54D8211233Cc65b62C594cBAb900930dd37ED3b8`](https://testnet.monadexplorer.com/address/0x54D8211233Cc65b62C594cBAb900930dd37ED3b8)
 - package: [`@trustset/check`](https://www.npmjs.com/package/@trustset/check)
+- who would adopt this and why: [`ADOPTION.md`](ADOPTION.md)
+- what it does not protect against: [`AUDIT.md`](AUDIT.md)
 - built by [silk nodes](https://silknodes.io) · mit licensed
 
 ---
@@ -305,6 +307,26 @@ each of those was checked by deleting the guard it depends on from `KillSwitch.s
 the suite goes red. three of them did not, at first, and the suite was wrong rather than the
 contract: it proved who may move a thing and never that they waited. `AUDIT.md` records what the
 invariants still do not reach.
+
+## who would adopt this
+
+a kill switch is worth nothing on its own. it is worth something when the places
+an agent spends money check it, which makes adoption the product risk rather than
+a go-to-market afterthought.
+
+[`ADOPTION.md`](ADOPTION.md) names the specific segments, in the order they
+actually carry the risk: agent launchpads including monad's own Agent Hub, the
+orderbook venues already taking agent flow, anything charging agents per call,
+agent frameworks, and teams running their own treasury agents. for each one it
+says what the integration is and why building it in-house is worse.
+
+the short version of why not roll your own: a switch you control is a switch your
+users have to trust you with, and a platform cannot certify neutrality about
+itself. everything else, the p256 verification, the cancellable guardian delay,
+the history by timestamp, is just work you would rather not do twice.
+
+it also names who will **not** adopt, and what is true today, which is that
+there are no external integrations yet.
 
 ## honest limits
 
