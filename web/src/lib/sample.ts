@@ -18,6 +18,9 @@ import type { Extra, PulseEvent } from "@/lib/layers";
  * one. */
 const addr = (seed: string) => ethers.getAddress("0x" + ethers.id("trustset:sample:" + seed).slice(26));
 const MIN = 60, HOUR = 3600, DAY = 86400;
+/* read off the deployed KillSwitch: guardianEscalationDelay is 600 seconds.
+   it is immutable, so this is true until a new switch is deployed. */
+const ESCALATION_DELAY = 600;
 
 /* the guardian set most of these share, so the sample reads as one operator */
 const GUARDIANS = [addr("guardian:ops"), addr("guardian:risk"), addr("guardian:founder")];
@@ -162,8 +165,6 @@ export function samplePulses(now: number): Record<string, { events: PulseEvent[]
 type GSpec = {
   n: number; name: string; status: Agent["status"]; since: number;
   votes: number; voted: boolean;
-  /* seconds from now. negative means the wait is already over. */
-  escalateIn?: number;
   expiresAt?: number; heartbeatWindow?: number; lastBeat?: number;
 };
 const GUARDED: GSpec[] = [
@@ -172,9 +173,12 @@ const GUARDED: GSpec[] = [
   { n: 3, name: "liquidator", status: "active", since: -21 * DAY, votes: 1, voted: true },
   { n: 4, name: "oracle-poster", status: "active", since: -30 * DAY, votes: 0, voted: false, expiresAt: -6 * HOUR },
   { n: 5, name: "bridge-watcher", status: "active", since: -16 * DAY, votes: 1, voted: false, heartbeatWindow: HOUR, lastBeat: -9 * HOUR },
-  { n: 6, name: "vault-keeper", status: "paused", since: -3 * DAY, votes: 2, voted: true, escalateIn: -HOUR },
-  { n: 7, name: "yield-router", status: "paused", since: -4 * HOUR, votes: 2, voted: true, escalateIn: 20 * HOUR },
-  { n: 8, name: "collateral-bot", status: "paused", since: -26 * HOUR, votes: 2, voted: false, escalateIn: 22 * HOUR },
+  /* the wait is not a field: the contract computes it as statusSince plus the
+     escalation delay, so these are paused at times that put one past the
+     delay and two still inside it. */
+  { n: 6, name: "vault-keeper", status: "paused", since: -3 * DAY, votes: 2, voted: true },
+  { n: 7, name: "yield-router", status: "paused", since: -4 * MIN, votes: 2, voted: true },
+  { n: 8, name: "collateral-bot", status: "paused", since: -90, votes: 2, voted: false },
   { n: 9, name: "airdrop-claimer", status: "revoked", since: -2 * DAY, votes: 2, voted: true },
   { n: 10, name: "legacy-mm", status: "rotated", since: -8 * DAY, votes: 0, voted: false },
 ];
@@ -192,7 +196,8 @@ export function sampleGuarded(now: number): Guarded[] {
     heartbeatWindow: g.heartbeatWindow ?? 0,
     lastBeat: g.lastBeat === undefined ? 0 : now + g.lastBeat,
     votes: g.votes, voted: g.voted,
-    escalateAt: g.escalateIn === undefined ? 0 : now + g.escalateIn,
-    delay: 2 * DAY,
+    /* exactly as the chain derives it: statusSince + guardianEscalationDelay */
+    escalateAt: g.status === "paused" ? now + g.since + ESCALATION_DELAY : 0,
+    delay: ESCALATION_DELAY,
   }));
 }
