@@ -52,7 +52,22 @@
   --font-mono: var(--font-dm-mono), "SF Mono", "Fira Code", ui-monospace, monospace;
 }
 
-[data-theme="dark"] {
+/* dark mode, two ways in, one set of values.
+ *
+ * the tokens live in a custom property block that BOTH selectors below pull
+ * from, so the two paths can never drift apart.
+ *
+ * the second path is the fix for a real bug: dark mode used to exist only as
+ * [data-theme="dark"], an attribute nothing sets until javascript has run. the
+ * head script that sets it is hoisted by react below nineteen async chunk tags
+ * and the whole metadata block, while the stylesheet is the first thing in the
+ * head. so on a reload the browser had the css, painted light, and only then
+ * reached the script. a reader whose system is dark saw the page turn white
+ * and back. answering from the media query means the first paint is already
+ * right with no javascript at all, and the attribute is only needed to
+ * override the system, never to agree with it. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
   --bg-base: #100E0B;
   --bg-gradient: #100E0B;
   --text-dark: #EDEEEC;
@@ -76,6 +91,36 @@
   --pill-accent-bg: #EDEEEC;
   --pill-accent-text: #101214;
 }
+}
+:root[data-theme="dark"] {
+  --bg-base: #100E0B;
+  --bg-gradient: #100E0B;
+  --text-dark: #EDEEEC;
+  --text-medium: #B9BDC2;
+  --text-light: rgba(255, 255, 255, 0.58);
+  --eyebrow-color: rgba(255, 255, 255, 0.58);
+  --dim: rgba(237, 238, 236, 0.45);
+  /* on the dark card #1A1C1F: orange 6.9:1 as text, no separate token needed */
+  --orange: #FF6A3D;
+  --orange-text: #FF6A3D;
+  --sage: #57C98A;
+  --sage-text: #57C98A;
+  --terra: #E8A25C;
+  --danger: #E4695B;
+  --surface: #1A1C1F;
+  --glass-bg: rgba(26, 28, 31, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  --hairline: rgba(237, 238, 236, 0.12);
+  --strip-bg: rgba(16, 17, 19, 0.92);
+  --pill-accent-bg: #EDEEEC;
+  --pill-accent-text: #101214;
+}
+
+/* form controls, scrollbars and the ua's own surfaces follow the theme too */
+:root:not([data-theme="dark"]) { color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
+:root[data-theme="dark"] { color-scheme: dark; }
 
 html { background: var(--bg-base); }
 body { background: var(--bg-gradient) fixed; color: var(--text-dark); font-family: var(--font-main); overflow-x: clip; -webkit-font-smoothing: antialiased; }
