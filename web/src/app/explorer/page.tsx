@@ -19,14 +19,22 @@ async function explorerUrl() {
 export default async function Page() {
   return (
     <>
-      <main className="w-full max-w-6xl mx-auto px-3 sm:px-4 pt-10 sm:pt-14 pb-16 min-w-0">
-        <h1 className="text-[38px] sm:text-[54px] font-semibold tracking-[-0.035em] leading-[1.02] max-w-3xl">
-          Every agent<br /><span style={{ color: "var(--dim)" }}>and every time trust changed.</span>
-        </h1>
-        <p className="text-lg sm:text-xl mt-5 mb-8 max-w-[54ch]" style={{ color: "var(--text-medium)" }}>
-          Read from the chain and kept here, because Monad answers a hundred blocks of logs at a time and a browser cannot walk a day of them.
-        </p>
-        <div className="mb-8"><LiveAgent /></div>
+      {/* wide, like the console. the directory is a table of every agent on the
+          switch and a centred 1152px column was spending a third of a desktop
+          on margins while the marks column ran out of room.
+
+          no headline and no paragraph. this is a tool, and the page opened with
+          a marketing hero and an explanation of the indexer's block window,
+          which is a thing a reader looking up an agent has no use for. the live
+          agent below introduces the page by running, which is better than prose
+          saying that it does. */}
+      <main className="w-full px-4 sm:px-5 pt-6 sm:pt-8 pb-16 min-w-0">
+        {/* one line, not a card. it is the toolbar's top row now.
+            the rule and the spacing belong to the component, not to this
+            wrapper: a deployment with no live agent renders nothing, and a
+            wrapper that still paints a border leaves a hairline floating over
+            an empty page. */}
+        <LiveAgent compact />
         <Explorer explorer={await explorerUrl()} />
       </main>
       <Footer />
