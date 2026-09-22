@@ -36,23 +36,11 @@ export type Demo = {
 };
 type Row = { id: string; priv: string; cold: string; guardian?: string };
 
-export async function cfg(): Promise<ChainCfg> {
-  const r = await chain();
-  if (!r.ok) throw new Error("no chain");
-  return r.json();
-}
-
-export function provider(c: ChainCfg) {
-  /* the public testnet rpc answers fifteen requests a second and rejects the
-     rest with a 429. ethers reports that as "missing revert data", which names
-     neither the limit nor the cause, so the retry belongs here: a few attempts
-     with backoff turns a burst of readers into a slower answer rather than a
-     failed one. the cache in the demo route is what keeps the burst small; this
-     is what survives the one that gets through anyway. */
-  const req = new ethers.FetchRequest(c.rpc);
-  req.setThrottleParams({ slotInterval: 250, maxAttempts: 5 });
-  return new ethers.JsonRpcProvider(req, undefined, { staticNetwork: true, batchMaxCount: 4 });
-}
+/* both now live in rpc.server, so a read-only route can have a provider
+   without dragging this file's filesystem access into its bundle. imported as
+   well as re-exported, because this file calls them itself. */
+import { cfg, provider } from "@/lib/rpc.server";
+export { cfg, provider };
 
 /* who pays for the demo, and who is the cold key for visitors who have not
    connected a wallet.

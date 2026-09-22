@@ -106,7 +106,7 @@ export default function Refunds() {
 
   return (
     <>
-      <Shell title="Refunds" note="Your wallet plays the agent">
+      <Shell wide title="Refunds" note="Your wallet plays the agent">
         {note && <div className="sheet px-4 py-3 mb-3 text-xs flex items-start gap-3"><span className="break-words text-ink/80">{note}</span><button type="button" onClick={() => setNote(null)} className="ml-auto text-ink/70" aria-label="Dismiss">×</button></div>}
         {conn === null && <div className="sheet p-6 text-sm text-ink/70">No chain configured.</div>}
         {conn && !conn.cfg.refunds && <div className="sheet p-6 text-sm text-ink/70">This chain has no refund rail deployed.</div>}

@@ -104,7 +104,7 @@ export default function Header() {
         backdropFilter: "blur(18px) saturate(160%)", WebkitBackdropFilter: "blur(18px) saturate(160%)",
         maskImage: "linear-gradient(to bottom, #000 45%, transparent)", WebkitMaskImage: "linear-gradient(to bottom, #000 45%, transparent)",
       }} />
-      <header className="relative max-w-6xl mx-auto flex items-center gap-5 px-4 sm:px-5 h-16">
+      <header className={`relative ${inConsole ? "w-full" : "max-w-6xl mx-auto"} flex items-center gap-5 px-4 sm:px-5 h-16`}>
         <Link href="/" className="flex items-center gap-2.5 shrink-0"><Mark size={24} /><span className="mono font-medium text-[16px] tracking-tight text-ink">trustset</span></Link>
         {/* the strip is the full count on the landing page, where it is part of
             the argument, and the block number alone once you are inside, where
