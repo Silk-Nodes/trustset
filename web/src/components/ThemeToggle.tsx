@@ -1,14 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
 
-/* Reads the value the head script already put on <html>, so the toggle and
- * the page can never disagree on first paint. Renders nothing until mounted:
- * the server does not know the theme, and guessing paints the wrong icon. */
+/* Reads the theme the page is actually painted in, so the toggle and the page
+ * can never disagree. That is the attribute when the reader has chosen one and
+ * the system preference otherwise, because dark is answered in css from
+ * prefers-color-scheme and the attribute only exists to override it. Reading
+ * the attribute alone reported light to a system-dark reader and made the
+ * first press do nothing. Renders nothing until mounted: the server does not
+ * know the theme, and guessing paints the wrong icon. */
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<string | null>(null);
 
   useEffect(() => {
-    setTheme(document.documentElement.dataset.theme || "light");
+    const chosen = document.documentElement.dataset.theme;
+    if (chosen === "dark" || chosen === "light") { setTheme(chosen); return; }
+    setTheme(matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   }, []);
 
   if (!theme) return <span className="w-9 h-9" aria-hidden />;

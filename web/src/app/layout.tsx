@@ -24,14 +24,21 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`h-full antialiased ${dmMono.variable}`} suppressHydrationWarning>
       <head>
-        {/* theme resolved before first paint, same script as argus */}
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t}catch(e){}})();` }} />
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
       </head>
       <body className="min-h-full flex flex-col">
+        {/* the reader's own choice, applied before the body paints.
+            this sits at the top of the body rather than in the head because
+            react hoists an inline head script below every async chunk tag and
+            the whole metadata block, which put it after the stylesheet and
+            gave a dark reader a white flash on every reload. here document
+            order decides, so nothing below has been painted yet. the system's
+            own preference is already handled in css, so this only has to
+            carry an explicit choice that disagrees with it. */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||t==="light"){document.documentElement.dataset.theme=t}}catch(e){}})();` }} />
         <WalletProvider>
         <SiteBackdrop />
         {/* everything paints above the fixed backdrop, on every page, not only
