@@ -68,7 +68,7 @@ done
 
 echo "==> checking every asset the pages reference"
 fail=0
-for path in / /demo /explorer /agents /passkey /panic /how; do
+for path in / /demo /explorer /agents /agents/guarding /agents/refunds /passkey /panic /how; do
   code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$SITE$path" || echo 000)
   printf '%-10s %s\n' "$path" "$code"
   [ "$code" = "200" ] || fail=1
@@ -77,6 +77,19 @@ for path in / /demo /explorer /agents /passkey /panic /how; do
     if [ "$a" != "200" ]; then echo "   $a  $u"; fail=1; fi
   done
 done
+# the read-only routes the console and anything integrating trustset depend on.
+# kept out of the loop above on purpose: that one's failure message says the
+# build moved under the server, and a 502 here means the rpc or the index is
+# away, which is a different problem with a different fix. agent 1 is a safe
+# subject because the registry only ever grows.
+echo
+echo "==> checking the read-only api"
+for path in "/api/chain" "/api/verify?agent=1" "/api/fleet?ids=1,2"; do
+  code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$SITE$path" || echo 000)
+  printf '%-24s %s\n' "$path" "$code"
+  [ "$code" = "200" ] || { echo "   not the build: the chain or the index is not answering"; fail=1; }
+done
+echo
 for f in og.png icon.svg favicon-32.png apple-touch-icon.png; do
   a=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$SITE/$f" || echo 000)
   printf '%-10s %s\n' "/$f" "$a"
