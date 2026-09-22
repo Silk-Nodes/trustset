@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default function Page() {
   if (process.env.NODE_ENV === "production") notFound();
   return (
-    <main className="w-full max-w-6xl mx-auto px-3 sm:px-4 pt-8 pb-16 min-w-0">
+    <main className="w-full max-w-6xl mx-auto px-4 sm:px-5 pt-8 pb-16 min-w-0">
       <Suspense fallback={null}><Preview /></Suspense>
     </main>
   );

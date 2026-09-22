@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Try it" };
 export default function Page() {
   return (
     <>
-      <main className="w-full max-w-6xl mx-auto px-3 sm:px-4 pt-10 sm:pt-14 pb-16 min-w-0">
+      <main className="w-full max-w-6xl mx-auto px-4 sm:px-5 pt-10 sm:pt-14 pb-16 min-w-0">
         <h1 className="text-[38px] sm:text-[54px] font-semibold tracking-[-0.035em] leading-[1.02] max-w-3xl">
           You built the agent.<br /><span style={{ color: "var(--dim)" }}>Here is everything around it.</span>
         </h1>

@@ -22,7 +22,7 @@ export default function Home() {
 
   return (
     <div className="relative">
-    <main className="w-full max-w-6xl mx-auto px-3 sm:px-4 pt-10 sm:pt-16 pb-16 min-w-0 relative" style={{ zIndex: 1 }}>
+    <main className="w-full max-w-6xl mx-auto px-4 sm:px-5 pt-10 sm:pt-16 pb-16 min-w-0 relative" style={{ zIndex: 1 }}>
       <div>
       <div className="max-w-4xl mb-10 sm:mb-14">
         <motion.h1 initial={m.reduced ? { opacity: 0 } : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={m.reduced ? { duration: 0.2 } : { duration: 0.7, ease: [0.23, 1, 0.32, 1] }}
