@@ -1,0 +1,70 @@
+# trustset
+
+> An off switch for AI agents, on chain. An agent has a key it signs with;
+> trustset gives its owner a separate cold key that can stop it, and gives
+> every app the agent talks to one call to check before acting.
+
+Built by Silk Nodes for Monad Metropolis, track 04. Live at
+https://trustset.silknodes.io
+
+## What it is
+
+Eight primitives, each its own immutable contract with no admin and no owner:
+the switch, a passkey panic button, guardians, time limits, past signatures,
+identity, human proof, and refunds. An app picks what it needs. There is no
+platform to join, no account, no allowlist and no fee beyond gas.
+
+One transaction from a cold key writes a new status, and from the next block
+`isTrusted(agentId)` returns false to everyone who asks. Pausing is
+reversible. Stopping for good is not.
+
+## Checking an agent
+
+```
+npx @trustset/check 7
+npx @trustset/check --erc8004 41
+```
+
+In an app: `npm i @trustset/check`, or call `isTrusted(uint256)` directly on
+the switch. Reading is a view call and costs the caller nothing.
+
+## Deployed, Monad testnet only (chain id 10143)
+
+- KillSwitch          0x54D8211233Cc65b62C594cBAb900930dd37ED3b8
+- AgentLabels         0x1fc5CF0a5bD938cc36EcE4ca34F2279e0e5b5f0f
+- HumanTouch          0x059563eb1dC1BBd7a8261309E92063A3f41AAda0
+- RefundRail          0xf8E44F08263fFB04660483Af44b70E1b25347748
+- ERC-8004 identity   0x8004A818BFB912233c491871b3d84c89A494BD9e  (not ours)
+
+Immutable values, fixed at deployment: cold key change 24 hours, guardian
+escalation 10 minutes, guardian recovery 10 minutes.
+
+## What is true, and what is not
+
+- Nobody can change the contracts, including their authors. No owner address
+  exists in the source, and there is no proxy, initialize, delegatecall or
+  selfdestruct. A fix means a new contract deployed beside the old one.
+- The KillSwitch holds no funds. A bug there produces a wrong status, never a
+  lost coin. Only the refund rail holds money, and it only ever returns it to
+  the payer named in storage.
+- No server of ours sits in any path.
+- An agent key can only be registered by whoever holds it: registration needs
+  that key's signature naming the exact cold key.
+- A stop does NOT protect against an agent that has been taken over and
+  rewritten. A compromised agent holding a valid key passes every check.
+- A stop does nothing at a venue that never checks.
+- It is NOT audited by a third party. 141 tests and eleven invariants across
+  128,000 fuzzed calls per run, self reviewed, written up in AUDIT.md.
+- Testnet only. Never deployed to mainnet. No real money is at stake.
+
+## Pages
+
+- https://trustset.silknodes.io/       what it is, and a replay of a stop
+- https://trustset.silknodes.io/faq    the questions, including the awkward ones
+- https://trustset.silknodes.io/how    addresses, integration, the four states
+- https://trustset.silknodes.io/demo   a real stop on testnet, in your browser
+- https://trustset.silknodes.io/explorer  every agent and every event
+
+## Source
+
+https://github.com/Silk-Nodes/trustset
