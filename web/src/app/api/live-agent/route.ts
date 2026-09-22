@@ -65,7 +65,14 @@ async function fromChain(id: string): Promise<Record<string, unknown>> {
 export async function GET() {
   const said = await saidByTheAgent();
   try {
-    const id0 = said?.agentId ?? process.env.LIVE_AGENT_ID ?? "14";
+    /* no hardcoded id. this used to fall back to "14" when neither the agent's
+       own state file nor LIVE_AGENT_ID said otherwise, which was harmless only
+       for as long as agent 14 did not exist. the moment it did, the card
+       described a registered agent with no process behind it and called it "a
+       real agent, running now", which is the one claim on this card that has
+       to be true. an unconfigured deployment says so instead. */
+    const id0 = said?.agentId ?? process.env.LIVE_AGENT_ID;
+    if (!id0) return NextResponse.json({ configured: false }, { headers: { "cache-control": "no-store" } });
     return NextResponse.json({ ...(await fromChain(id0)), said }, { headers: { "cache-control": "no-store" } });
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);
@@ -136,7 +143,8 @@ export async function POST(req: Request) {
     const c = await cfg();
     const p = provider(c);
     const ks = new ethers.Contract(c.killSwitch, KS, await payer(c, p));
-    const id = (await saidByTheAgent())?.agentId ?? process.env.LIVE_AGENT_ID ?? "14";
+    const id = (await saidByTheAgent())?.agentId ?? process.env.LIVE_AGENT_ID;
+    if (!id) return NextResponse.json({ error: "no live agent is configured on this deployment" }, { status: 400 });
     const to = action === "pause" ? 2 : 1;
     const tx = await ks.setStatus(id, to, ethers.id(action === "pause" ? "paused from the site" : "resumed from the site"), { gasLimit: 200000 });
     const rc = await p.waitForTransaction(tx.hash);

@@ -3,6 +3,18 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import { useMotionPrefs } from "@/lib/motion";
+import Term from "@/components/Term";
+
+/* every word that explained this box rather than being it.
+ *
+ * the box was 555px and 123 words at the top of the explorer, which is 69% of
+ * a laptop viewport before a visitor saw a single agent, and 104 of those
+ * words were explanation wrapped around 14 words of actual demonstration. the
+ * demonstration stays on the page; the explanation moved in here. it is a Term
+ * rather than a title attribute or a hover card because Term opens on tap and
+ * on focus too, and hiding the best argument on the site somewhere a phone
+ * cannot reach it would be a poor trade for the pixels. */
+const WHAT_IS_THIS = "A process on our server with its own key. It asks the switch every minute and trades on the demo venue every hour while the answer is yes, so a stopped agent costs nothing. The left value is the agent's own account of itself, read from a file it writes, not from the chain: an agent that had been taken over could say anything there. The right value is the chain, which it cannot.";
 
 /* the live agent, saying what it is doing.
  *
@@ -19,6 +31,10 @@ type State = {
   coldKey: string; holdsColdKey: boolean; handoverAt: number; erc8004: number | null;
   chain: { trusted: boolean; expired: boolean; lapsed: boolean; status: number };
   error?: string;
+  /* false when this deployment names no live agent. the card draws nothing
+     rather than picking one, because "a real agent, running now" is a claim
+     and there is no id to make it about. */
+  configured?: boolean;
 };
 const SAYS: Record<string, string> = {
   trusted: "Trusted. Working.",
@@ -28,7 +44,11 @@ const SAYS: Record<string, string> = {
   silent: "Not acting: it went quiet and lapsed.",
 };
 
-export default function LiveAgent() {
+/* compact: no card of its own, one line, and the custody note folded into the
+   explanation. the explorer is a tool and this is a demonstration sitting on
+   top of it, so on that page it earns a line in the toolbar rather than a box
+   above it. the landing page keeps the card, where it IS the argument. */
+export default function LiveAgent({ compact = false }: { compact?: boolean } = {}) {
   const m = useMotionPrefs();
   const [s, setS] = useState<State | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,11 +56,13 @@ export default function LiveAgent() {
   const [note, setNote] = useState<string | null>(null);
   const [token, setToken] = useState("");
   const [asking, setAsking] = useState(false);
+  const [unconfigured, setUnconfigured] = useState(false);
 
   const pull = useCallback(async () => {
     try {
       const r = await fetch("/api/live-agent", { cache: "no-store" });
       const j = (await r.json()) as State;
+      if (j.configured === false) { setUnconfigured(true); return; }
       if (!j.error) setS(j);
     } catch { /* the card simply does not update */ }
   }, []);
@@ -69,6 +91,9 @@ export default function LiveAgent() {
     finally { setBusy(false); }
   }
 
+  /* nothing to show, and nothing invented to fill the space with. */
+  if (unconfigured) return null;
+
   /* paused is the only not-trusted state a resume fixes. */
   const off = !!s && !s.chain.trusted;
   const paused = s?.chain.status === 2;
@@ -76,55 +101,59 @@ export default function LiveAgent() {
   const heard = s?.said ? Math.max(0, Math.round((Date.now() - new Date(s.said.at).getTime()) / 1000)) : null;
 
   return (
-    <div className="sheet p-5 sm:p-7">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="relative inline-flex w-2.5 h-2.5">
+    <div className={compact ? "min-w-0 mb-3 pb-3" : "sheet px-4 py-3.5 sm:px-5 sm:py-4"}
+      style={compact ? { borderBottom: "1px solid var(--hairline)" } : undefined}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
+        <span className="relative inline-flex w-2.5 h-2.5 shrink-0">
           {!off && !m.reduced && <motion.span className="absolute inset-0 rounded-full" style={{ background: "var(--sage)" }}
             animate={{ scale: [1, 2.2], opacity: [0.5, 0] }} transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut" }} />}
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: off ? "var(--orange)" : "var(--sage)" }} />
         </span>
-        <h2 className="text-lg font-semibold">A real agent, running now</h2>
-        <span className="ml-auto flex items-center gap-2">
-          {s?.erc8004 ? (
-            <span className="rounded-full px-2.5 py-1 mono text-[10.5px] whitespace-nowrap" title="This agent also has an ERC-8004 identity, and its owner published a pointer from that registry to this switch."
-              style={{ background: "color-mix(in srgb, var(--text-dark) 6%, transparent)", color: "var(--text-medium)" }}>ERC-8004 · {s.erc8004}</span>
-          ) : null}
-          {s && <Link href={`/explorer/${s.agentId}`} className="text-[12px] underline" style={{ color: "var(--text-medium)" }}>agent {s.agentId}</Link>}
-        </span>
-      </div>
+        <h2 className={`${compact ? "text-[13px]" : "text-[15px]"} font-semibold whitespace-nowrap`}>A real agent, running now</h2>
+        <span className="text-[12px]"><Term tip={compact && s && !s.holdsColdKey ? `${WHAT_IS_THIS} This server does not hold the cold key and cannot switch off the agent it runs, which is the point of a cold key.` : WHAT_IS_THIS}>what is this?</Term></span>
 
-      <p className="text-sm mt-2 max-w-[62ch]" style={{ color: "var(--text-medium)" }}>
-        A process on our server with its own key. It asks the switch every minute, and trades on the demo venue
-        every hour while the answer is yes. Checking costs nothing, so a stopped agent costs nothing.
-      </p>
+        <span className="hidden lg:block w-px h-4 shrink-0" style={{ background: "var(--hairline)" }} />
 
-      {/* what the agent says about itself, next to what the chain says */}
-      <div className="grid sm:grid-cols-2 gap-3 mt-5">
-        <div className="rounded-xl px-4 py-3.5" style={{ border: "1px solid var(--hairline)" }}>
-          <div className="text-[10.5px] mono uppercase tracking-[0.12em]" style={{ color: "var(--text-medium)" }}>The agent says</div>
+        {/* the demonstration, and the only part that was ever the point: what
+            the agent claims, beside what the chain answers. */}
+        <span className="text-[13px] min-w-0 truncate" style={{ color: "var(--text-medium)" }}>
+          it says{" "}
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={says} initial={m.reduced ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={{ duration: 0.25 }}
-              className="text-sm font-semibold mt-1" style={{ color: off ? "var(--orange-text)" : "var(--text-dark)" }}>{says}</motion.div>
+            <motion.b key={says} initial={m.reduced ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.25 }}
+              className="font-semibold" style={{ color: off ? "var(--orange-text)" : "var(--text-dark)" }}>{says}</motion.b>
           </AnimatePresence>
-          <div className="text-[11.5px] mt-1" style={{ color: "var(--text-medium)" }}>
-            {heard === null ? "no word yet" : `heard ${heard}s ago`}{s?.said ? ` · ${Number(s.said.balance).toFixed(2)} MON left` : ""}
-          </div>
-        </div>
-        <div className="rounded-xl px-4 py-3.5" style={{ border: "1px solid var(--hairline)" }}>
-          <div className="text-[10.5px] mono uppercase tracking-[0.12em]" style={{ color: "var(--text-medium)" }}>The chain says</div>
-          <div className="text-sm font-semibold mt-1" style={{ color: off ? "var(--orange-text)" : "var(--text-dark)" }}>
+          {heard !== null && <span className="mono text-[11px]"> {heard}s ago</span>}
+        </span>
+        <span className="hidden sm:inline text-[13px]" style={{ color: "var(--text-light)" }}>·</span>
+        <span className="text-[13px] min-w-0 truncate" style={{ color: "var(--text-medium)" }}>
+          the chain says{" "}
+          <b className="mono font-semibold" style={{ color: off ? "var(--orange-text)" : "var(--sage-text)" }}>
             {!s ? "…" : s.chain.trusted ? "isTrusted → true" : "isTrusted → false"}
-          </div>
-          <div className="text-[11.5px] mt-1" style={{ color: "var(--text-medium)" }}>
-            {!s ? "" : s.chain.expired ? "its end date passed" : s.chain.lapsed ? "it missed its heartbeat" : s.chain.status === 2 ? "paused by its cold key" : s.chain.status === 3 ? "stopped for good" : "active, inside its dates, keeping its heartbeat"}
-          </div>
-        </div>
+          </b>
+          {s && <span>, {s.chain.status === 0 ? "no agent with that id on this switch"
+            : s.chain.status === 3 ? "stopped for good by its cold key"
+            : s.chain.status === 4 ? "retired in favour of a successor"
+            : s.chain.status === 2 ? `paused by its cold key${s.chain.lapsed ? " and gone quiet" : ""}`
+            : s.chain.expired ? "its end date passed"
+            : s.chain.lapsed ? "it missed its heartbeat"
+            : "active, inside its dates, keeping its heartbeat"}</span>}
+        </span>
+
+        <span className="ml-auto flex items-center gap-2 shrink-0">
+          {s?.erc8004 ? (
+            <span className="rounded-full px-2 py-0.5 mono text-[10.5px] whitespace-nowrap" title="This agent also has an ERC-8004 identity, and its owner published a pointer from that registry to this switch."
+              style={{ background: "color-mix(in srgb, var(--text-dark) 6%, transparent)", color: "var(--text-medium)" }}>8004 · {s.erc8004}</span>
+          ) : null}
+          {/* a bare "agent 14" at the far right of a sentence reads as a
+              stray label rather than a way in. it says what it opens. */}
+          {s && <Link href={`/explorer/${s.agentId}`} className="text-[12px] hover:underline whitespace-nowrap" style={{ color: "var(--text-medium)" }}>open agent {s.agentId} ↗</Link>}
+        </span>
       </div>
 
       {/* the control exists only when this server can actually sign. a button
           that explains why it does nothing is worse than no button. */}
       {s?.holdsColdKey ? (
-        <div className="flex flex-wrap items-center gap-2 mt-4">
+        <div className="flex flex-wrap items-center gap-2 mt-3">
           {/* off covers three reasons and a resume only answers one of them.
               an expired or lapsed agent is still Active in the contract, so
               setStatus(Active) on it would cost a transaction and change
@@ -146,7 +175,7 @@ export default function LiveAgent() {
           )}
         </div>
       ) : s ? (
-        <div className="rounded-xl px-4 py-3 mt-4 text-[12.5px]" style={{ border: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
+        <div className="mt-2.5 text-[12px]" style={{ color: "var(--text-medium)", display: compact ? "none" : undefined }}>
           <span className="font-semibold" style={{ color: "var(--text-dark)" }}>This server cannot switch off the agent it runs.</span>{" "}
           It does not hold the cold key, which is the point of a cold key.
           {s.handoverAt ? <> The key is being handed to it under the contract&apos;s one day delay, and lands {new Date(s.handoverAt * 1000).toLocaleString()}, after which a control appears here.</> : null}
@@ -160,10 +189,9 @@ export default function LiveAgent() {
       )}
       {note && <div className="text-[12px] mt-3" style={{ color: "var(--orange-text)" }}>{note}</div>}
 
-      <p className="text-[11.5px] mt-4" style={{ color: "var(--text-medium)" }}>
-        The left box is the agent&apos;s own account of itself, read from the file it writes each minute, not from the chain.
-        An agent that had been taken over could say anything there. The right box is the chain, which it cannot.
-      </p>
+      {/* the footnote that used to live here is inside WHAT_IS_THIS now. it
+          also said "the left box" and "the right box", which stopped being
+          true the moment the two boxes became two values on one line. */}
     </div>
   );
 }
