@@ -98,6 +98,12 @@ export default function LiveAgent({ compact = false }: { compact?: boolean } = {
   const off = !!s && !s.chain.trusted;
   const paused = s?.chain.status === 2;
   const says = s?.said ? (SAYS[s.said.why] ?? s.said.why) : "Reading the agent…";
+  /* the headline is a claim about the chain, so it follows the chain. it said
+     "running now" over an agent its own line called paused and gone quiet. */
+  const headline = !s || s.chain.trusted ? "A real agent, running now"
+    : s.chain.status === 2 ? "A real agent, switched off"
+    : s.chain.status === 3 || s.chain.status === 4 ? "A real agent, stopped"
+    : "A real agent, not trusted right now";
   const heard = s?.said ? Math.max(0, Math.round((Date.now() - new Date(s.said.at).getTime()) / 1000)) : null;
 
   return (
@@ -109,7 +115,7 @@ export default function LiveAgent({ compact = false }: { compact?: boolean } = {
             animate={{ scale: [1, 2.2], opacity: [0.5, 0] }} transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut" }} />}
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: off ? "var(--orange)" : "var(--sage)" }} />
         </span>
-        <h2 className={`${compact ? "text-[13px]" : "text-[15px]"} font-semibold whitespace-nowrap`}>A real agent, running now</h2>
+        <h2 className={`${compact ? "text-[13px]" : "text-[15px]"} font-semibold whitespace-nowrap`}>{headline}</h2>
         <span className="text-[12px]"><Term tip={compact && s && !s.holdsColdKey ? `${WHAT_IS_THIS} This server does not hold the cold key and cannot switch off the agent it runs, which is the point of a cold key.` : WHAT_IS_THIS}>what is this?</Term></span>
 
         <span className="hidden lg:block w-px h-4 shrink-0" style={{ background: "var(--hairline)" }} />

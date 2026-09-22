@@ -45,7 +45,8 @@ const VIEWS: { key: string; label: string; states: State[]; missing: Missing[] }
 const same = <T,>(a: T[], b: T[]) => a.length === b.length && a.every(x => b.includes(x));
 
 const WORD: Record<State, string> = { trusted: "trusted", expired: "expired", quiet: "gone quiet", paused: "paused", stopped: "stopped" };
-const SORT_WORD: Record<Sort, string> = { recent: "most recent", busy: "busiest today", expiry: "expiry soonest", id: "newest first" };
+/* one word each, so states, views and sort share a single row at 1400 */
+const SORT_WORD: Record<Sort, string> = { recent: "recent", busy: "busiest", expiry: "expiring", id: "newest" };
 const STATES: State[] = ["trusted", "expired", "quiet", "paused", "stopped"];
 const PERS = [25, 50, 100];
 const n = (v: string | number) => typeof v === "number" ? v : Number(v || 0);
