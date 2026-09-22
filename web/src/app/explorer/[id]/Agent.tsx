@@ -22,11 +22,19 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
   const [a, setA] = useState<Row | null>(null);
   const [events, setEvents] = useState<Ev[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "none" | "missing">("loading");
+  /* development only, same as the explorer: a laptop has no copy of the index,
+     so ?index=https://… reads another deployment's. absent in production. */
+  const [indexAt, setIndexAt] = useState("");
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    try { const i = new URLSearchParams(location.search).get("index"); if (i && /^https:\/\/[a-z0-9.-]+$/i.test(i)) setIndexAt(i); }
+    catch { /* no window */ }
+  }, []);
 
   useEffect(() => {
     let alive = true;
     const pull = async () => {
-      const r = await fetch(`/api/explorer/agent?id=${id}`, { cache: "no-store" });
+      const r = await fetch(`${indexAt}/api/explorer/agent?id=${id}`, { cache: "no-store" });
       const j = await r.json();
       if (!alive) return;
       if (!j.indexed) return setState("none");
@@ -36,7 +44,7 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
     pull().catch(() => setState("none"));
     const t = setInterval(() => pull().catch(() => {}), 12_000);
     return () => { alive = false; clearInterval(t); };
-  }, [id]);
+  }, [id, indexAt]);
 
   if (state === "loading") return <p className="text-sm" style={{ color: "var(--text-medium)" }}>Reading the index…</p>;
   if (state === "none") return <p className="text-sm" style={{ color: "var(--text-medium)" }}>This machine has no index. The explorer runs beside the site on the server.</p>;
@@ -50,16 +58,61 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
   const lapsed = hb > 0 && now > lb + hb;
   const live = a.status === "active" && !expired && !lapsed;
 
+  /* the verdict, in the words the contract would use. a stranger opening this
+     page is deciding whether to deal with this agent, and the old page made
+     them assemble that from an eleven pixel eyebrow and six fields. */
+  /* one order for the word and the sentence, and it is the order livenessWord
+     uses everywhere else in the product: the status enum decides first, and
+     expiry or silence only describe an agent the contract still calls active.
+     drawn the other way round this page called a paused agent "gone quiet" in
+     the headline while the line under it said "paused", which is the same
+     contradiction the console shipped once already. */
+  const word = a.status === "revoked" ? "Stopped"
+    : a.status === "rotated" ? "Rotated"
+    : a.status === "paused" ? "Paused"
+    : expired ? "Expired"
+    : lapsed ? "Gone quiet"
+    : live ? "Trusted" : "Not trusted";
+  const why = live ? "Active, inside its dates, and keeping its heartbeat."
+    : a.status === "revoked" ? "Stopped for good by its cold key. This is terminal and cannot be undone."
+    : a.status === "rotated" ? `Retired in favour of agent ${a.successor_id ?? "a successor"}. Terminal for this id.`
+    : a.status === "paused" ? "Paused. Its cold key can bring it back at any time."
+    : expired ? "Its end date has passed. Nobody had to send anything for this to happen."
+    : lapsed ? "It stopped reporting inside its heartbeat window. Nobody had to send anything for this to happen."
+    : "Not trusted.";
+
   return (
+    <>
+      {/* the answer first, then what justifies it */}
+      <div className="sheet px-5 py-5 sm:px-7 sm:py-6 mb-4 flex flex-wrap items-center gap-x-6 gap-y-4"
+        style={{ borderColor: live ? "color-mix(in srgb, var(--sage) 45%, transparent)" : "color-mix(in srgb, var(--orange) 40%, transparent)" }}>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2.5">
+            <span className="w-3 h-3 rounded-full shrink-0" style={{ background: live ? "var(--sage)" : a.status === "active" ? "var(--terra)" : "var(--orange)" }} />
+            <span className="text-[26px] sm:text-[30px] font-semibold tracking-[-0.025em] leading-none"
+              style={{ color: live ? "var(--sage-text)" : "var(--orange-text)" }}>
+              {word}
+            </span>
+            <span className="text-[13px] truncate" style={{ color: "var(--text-medium)" }}>right now, on Monad testnet</span>
+          </div>
+          <p className="text-[14px] mt-2.5 max-w-[62ch]" style={{ color: "var(--text-medium)" }}>{why}</p>
+        </div>
+        {/* the same answer, for a machine. the endpoints exist; showing them
+            beside the human sentence is the whole difference between an
+            explorer you read and one you can build against. */}
+        <div className="flex flex-col gap-1.5 shrink-0">
+          <span className="eyebrow">Check it yourself</span>
+          <code className="mono text-[12.5px] rounded-lg px-3 py-2 whitespace-nowrap"
+            style={{ background: "var(--bg-base)", border: "1px solid var(--hairline)", color: "var(--text-dark)" }}>npx @trustset/check {a.id}</code>
+          <a href={`/api/verify?agent=${a.id}`} target="_blank" rel="noreferrer" className="mono text-[11.5px] hover:underline" style={{ color: "var(--text-medium)" }}>
+            or read it as JSON ↗
+          </a>
+        </div>
+      </div>
+
     <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-4 items-stretch">
       <div className="sheet p-5 sm:p-7">
-        <div className="flex items-center gap-2">
-          <span className="w-[9px] h-[9px] rounded-full" style={{ background: live ? "var(--sage)" : a.status === "active" ? "var(--terra)" : "var(--orange)" }} />
-          <span className="text-[11px] mono uppercase tracking-[0.12em]" style={{ color: "var(--text-medium)" }}>
-            {live ? "Trusted" : expired ? "Expired" : lapsed ? "Gone quiet" : a.status}
-          </span>
-        </div>
-        <h2 className="text-2xl font-semibold mt-2">{a.name || `Agent ${a.id}`}</h2>
+        <h2 className="text-2xl font-semibold">{a.name || `Agent ${a.id}`}</h2>
         {a.purpose && <p className="text-sm mt-1" style={{ color: "var(--text-medium)" }}>{a.purpose}</p>}
 
         <dl className="mt-5 grid gap-3.5 text-sm">
@@ -81,6 +134,7 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
 
       <History events={events} explorer={explorer} />
     </div>
+    </>
   );
 }
 

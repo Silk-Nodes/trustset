@@ -161,6 +161,10 @@ h1, h2, h3, h4 { font-family: var(--font-main); font-weight: 600; letter-spacing
    icons under a labelled header; this is the label coming to the pointer. */
 [data-tip] { position: relative; }
 [data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; background: var(--text-dark); color: var(--bg-base); font: 500 11px/1 var(--font-main); padding: 6px 8px; border-radius: 8px; z-index: 30; pointer-events: none; }
+/* the last marks in a row sit against the right edge of the page, where a
+   centred tooltip runs off it. these anchor their right edge to the mark
+   instead, so the text grows leftwards into the table it belongs to. */
+[data-tip][data-tip-end]:hover::after, [data-tip][data-tip-end]:focus-visible::after { left: auto; right: 0; transform: none; }
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .pin-th thead th { position: sticky; top: 64px; z-index: 3; background: color-mix(in srgb, var(--surface) 94%, var(--text-dark)); box-shadow: 0 2px 0 var(--hairline), 0 -1px 0 var(--hairline); padding-top: 10px; padding-bottom: 10px; }
