@@ -112,6 +112,10 @@ h1, h2, h3, h4 { font-family: var(--font-main); font-weight: 600; letter-spacing
 .code-window { background: #101214; color: #C9CFD6; font-family: var(--font-mono); font-size: 0.82em; border-radius: var(--radius-md); padding: 1.25rem 1.4rem; border: 1px solid rgba(237, 238, 236, 0.14); overflow-x: auto; line-height: 1.6; }
 .code-window .c { color: rgba(201, 207, 214, 0.5); }
 .code-window .o { color: #FF6A3D; }
+/* a word on hover, drawn below the mark. the eight marks in the fleet are
+   icons under a labelled header; this is the label coming to the pointer. */
+[data-tip] { position: relative; }
+[data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; background: var(--text-dark); color: var(--bg-base); font: 500 11px/1 var(--font-main); padding: 6px 8px; border-radius: 8px; z-index: 30; pointer-events: none; }
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .pin-th thead th { position: sticky; top: 64px; z-index: 3; background: color-mix(in srgb, var(--surface) 94%, var(--text-dark)); box-shadow: 0 2px 0 var(--hairline), 0 -1px 0 var(--hairline); padding-top: 10px; padding-bottom: 10px; }

@@ -3,15 +3,25 @@ import { useEffect, useState } from "react";
 
 /* the refunds page, replayed on a loop, for a reader with no wallet.
  *
- * three sample payments. one is delivered on a receipt, one waits and is
- * sent home when its window closes, one is still held with a countdown. the
- * countdown and the state changes are the only motion; nothing is invented
- * beyond the rows themselves, and the badge says they are a sample. */
+ * ten sample payments, the newest still held with its window counting down.
+ * one row of history said what the rail does; ten says what it does over a
+ * day, which is the only way the mix of delivered and refunded reads as a
+ * rail and not as a demo. the countdown and the state changes are the only
+ * motion; nothing is invented beyond the rows themselves, and the badge says
+ * they are a sample. */
 type S = "held" | "delivered" | "refunded";
+const KEEP = 10;
 const START: { id: number; amount: string; s: S; left: number }[] = [
-  { id: 14, amount: "0.004", s: "held", left: 30 },
-  { id: 13, amount: "0.004", s: "refunded", left: 0 },
-  { id: 12, amount: "0.012", s: "delivered", left: 0 },
+  { id: 148, amount: "0.004", s: "held", left: 30 },
+  { id: 147, amount: "0.250", s: "delivered", left: 0 },
+  { id: 146, amount: "0.004", s: "refunded", left: 0 },
+  { id: 145, amount: "1.500", s: "delivered", left: 0 },
+  { id: 144, amount: "0.012", s: "delivered", left: 0 },
+  { id: 143, amount: "0.004", s: "refunded", left: 0 },
+  { id: 142, amount: "0.080", s: "delivered", left: 0 },
+  { id: 141, amount: "0.004", s: "delivered", left: 0 },
+  { id: 140, amount: "0.500", s: "refunded", left: 0 },
+  { id: 139, amount: "0.012", s: "delivered", left: 0 },
 ];
 export default function RefundReplay({ sample = false }: { sample?: boolean }) {
   const [rows, setRows] = useState(START);
@@ -20,7 +30,7 @@ export default function RefundReplay({ sample = false }: { sample?: boolean }) {
   useEffect(() => {
     setRows(r => r.map(row => row.s !== "held" ? row : row.left > 1 ? { ...row, left: row.left - 1 } : { ...row, s: "refunded", left: 0 }));
     /* a fresh payment starts the loop again a few seconds after the last one closed */
-    if (tick > 0 && tick % 38 === 0) setRows(r => [{ id: r[0].id + 1, amount: "0.004", s: "held", left: 30 }, ...r.slice(0, 2)]);
+    if (tick > 0 && tick % 38 === 0) setRows(r => [{ id: r[0].id + 1, amount: "0.004", s: "held", left: 30 }, ...r.slice(0, KEEP - 1)]);
   }, [tick]);
   return (
     <div className="drawn-box overflow-clip flex flex-col h-full" aria-label="the refunds page, replayed">
