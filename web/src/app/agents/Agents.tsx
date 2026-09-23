@@ -32,7 +32,9 @@ const span = (sec: number) => sec >= 172800 ? `${Math.round(sec / 86400)} days` 
  * is the one exception, and it carries anvil's published default key so the
  * thing can be run with no wallet installed at all. */
 export default function Agents() {
-  const { conn, who, connectNow } = useWallet();
+  const { conn, who, askSignIn, ask } = useWallet();
+  /* set when register was pressed signed out, so the dialog opens once signed in */
+  const wantRegister = useRef(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [guarded, setGuarded] = useState<Guarded[]>([]);
   const [delayDays, setDelayDays] = useState(1);
@@ -387,6 +389,12 @@ export default function Agents() {
   };
   useEffect(() => { if (routeId !== null && !isSample(routeId)) histPage(routeId.toString(), 0); }, [routeId, act, indexAt]); // eslint-disable-line react-hooks/exhaustive-deps
   const signedIn = !!(conn && ownerAddr(conn));
+  /* register was pressed while signed out: open the dialog the moment somebody
+     signs in. a panel closed without signing in drops the request. */
+  useEffect(() => {
+    if (signedIn && wantRegister.current) { wantRegister.current = false; setRegOpen(true); }
+    else if (!signedIn && !ask) wantRegister.current = false;
+  }, [signedIn, ask]);
   /* a sample agent is on no chain, so it gets no explorer links */
   const explorer = sampleOn ? undefined : conn?.cfg.explorer;
   const canSign = !!(conn && ownerSigner(conn));
@@ -458,7 +466,14 @@ export default function Agents() {
      connected, which drew the main action of the console in grey. now it asks
      for the wallet first and opens the dialog once there is one. */
   const register = <button type="button" className="drawn-btn btn-orange" style={{ padding: "6px 14px", fontSize: "0.78rem" }} title="Tell the switch about an agent you already run. Nothing is created."
-    onClick={() => { if (signedIn) setRegOpen(true); else connectNow().then(() => setRegOpen(true)).catch(() => {}); }}>Register agent</button>;
+    onClick={() => {
+      if (signedIn) { setRegOpen(true); return; }
+      /* not signed in: open the sign-in panel with the reason on it, and open
+         the dialog on its own once somebody is. this used to call the browser
+         wallet directly, which with no extension installed did nothing at all. */
+      wantRegister.current = true;
+      askSignIn("Sign in to register an agent. The wallet you sign in with becomes its cold key: the one key that can stop it.");
+    }}>Register agent</button>;
 
   return (
     <>
