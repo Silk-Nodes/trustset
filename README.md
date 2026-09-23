@@ -54,16 +54,16 @@ platform an app joins.
 ## check an agent
 
 ```bash
-npx @trustset/check 7
+npx @trustset/check 24
 ```
 
 ```
 switch 0x54D8211233Cc65b62C594cBAb900930dd37ED3b8 on https://testnet-rpc.monad.xyz
 
-agent 7  TRUSTED
+agent 24  TRUSTED
   why        trusted, may act
   ends       none
-  next beat  2026-09-21 08:02 utc
+  next beat  2026-09-23 13:48 utc
 ```
 
 in an app:
@@ -103,8 +103,48 @@ if (!killSwitch.isTrusted(agentId)) revert AgentNotTrusted(agentId);
 - **erc-8004 both directions**, so an app that knows an agent only by its identity token can still
   ask whether it has been switched off
 - **refund rail** for x402 style payments, with a permissionless refund anybody can trigger
-- **an explorer** derived from logs rather than from anything we assert
-- **141 tests**, including 128,000 fuzzed calls per run asserting eleven invariants
+- **an explorer** derived from logs rather than from anything we assert, built as a lookup:
+  there is no ranked list of the least protected agents to hand an attacker
+- **sign in with an email**, through a Dynamic embedded wallet that becomes the cold key
+- **a live agent whose key no one machine holds**, signing through a Dynamic MPC server wallet
+- **a sealed runbook** per agent, encrypted with a key the owner's passkey derives through Mera
+- **147 tests**, including 128,000 fuzzed calls per run asserting eleven invariants
+
+## sponsor integrations
+
+### Dynamic: server wallets and embedded wallets
+
+two Dynamic primitives, on either side of the switch.
+
+**the agent side, a server wallet.** the live agent (agent 24) holds no private key. it signs
+every trade and heartbeat through a Dynamic 2-of-2 MPC server wallet: the key is split between
+Dynamic and our server, our share is backed up to Dynamic under a password only the box knows, and
+neither half signs alone. it registered itself with its own consent signature, produced by Dynamic
+and checked against the contract's digest before anything was sent. the agent still asks the
+switch before every action, so a Dynamic-held key stops the moment a cold key it never touches
+says so.
+code: [`agent/dynamic.mjs`](agent/dynamic.mjs), [`agent/dynamic-setup.mjs`](agent/dynamic-setup.mjs).
+
+**the owner side, an embedded wallet.** an operator without a browser wallet signs in with an
+email. Dynamic sends a code, makes an embedded wallet on first sign-in, and that wallet becomes the
+cold key that registers, pauses and stops agents. the console sees one ethers signer either way. a
+new email wallet gets one signed, capped drip of testnet gas so its first registration does not
+dead-end. the SDK loads only when email sign-in is used.
+code: [`web/src/lib/dynamic.ts`](web/src/lib/dynamic.ts), [`web/src/app/api/gas/route.ts`](web/src/app/api/gas/route.ts).
+
+**check it yourself.** agent 24 on the explorer: every trade is sent from its Dynamic wallet.
+agent 25: registered and named by an email wallet. on `/demo`, anybody can switch agent 24 off and
+watch it stop; it comes back on its own after two minutes.
+
+### Mera: one passkey, many keys
+
+the panic button already uses the owner's passkey for a signature the contract verifies. Mera asks
+the same passkey for its WebAuthn PRF output, which becomes an AES-256-GCM key in the browser and
+nowhere else. that key seals an agent's runbook and the reasons it was stopped, each note under a
+fresh 32-byte salt. only ciphertext goes on chain, in `SealedNotes`; any device the passkey syncs
+to recreates the key and opens the note, with no wallet and nothing stored.
+code: [`src/SealedNotes.sol`](src/SealedNotes.sol), [`web/src/lib/sealed.ts`](web/src/lib/sealed.ts).
+check it: agent 13 on the explorer carries a sealed runbook; its page offers "open with passkey".
 
 ## architecture
 
@@ -214,6 +254,7 @@ reverse binding, and `AUDIT.md` says so plainly.
 | --- | --- | --- |
 | `KillSwitch` | no | the whole product. per agent: hot key, cold key with a change delay, guardians, expiry, heartbeat, passkey, status with history. `isTrustedAt(id, at)` for judging old signatures |
 | `AgentLabels` | no | a human name for an agent id, set by its cold key |
+| `SealedNotes` | no | an agent's runbook and stop reasons as ciphertext, written by its cold key, readable only with the owner's passkey |
 | `HumanTouch` | no | webauthn assertions as general proof a person was present, beyond the panic button |
 | `RefundRail` | escrow | authorise and capture for x402 style payments, so a stopped agent's in-flight money can come back |
 | `OperatorRegistry` | operator bonds | validators opting in as trust operators, bls aggregate statements, slashing on a contradiction. the original direction, kept because it works and the bls library is tested against monad's own precompiles |
@@ -255,7 +296,7 @@ KEEPER_KEY=0x... node keeper/index.mjs
 
 ```bash
 forge build
-forge test                  # 141 passing, 1 skipped, across 10 suites
+forge test                  # 147 passing, 1 skipped, across 12 suites
 ```
 
 forge-std is vendored under `lib/`, so a clone builds with no submodule step.
@@ -364,11 +405,12 @@ other limits it records:
 ```
 src/            the contracts
   libraries/    WebAuthn over the p256 precompile, BLS over monad's pairing precompiles
-test/           141 unit tests plus the invariant suite and its handler
+test/           147 unit tests plus the invariant suite and its handler
 script/         forge deployment scripts
 deployments/    the deployed addresses, per chain
 sdk/            @trustset/check, the npm package apps integrate
-agent/          a real agent on testnet: checks the switch, trades, stops when told
+agent/          a real agent on testnet: checks the switch, trades, stops when told.
+                signs through a Dynamic server wallet (dynamic.mjs)
 keeper/         the refund keeper, plus its systemd unit
 indexer/        walks logs into postgres around monad's 100 block cap
 web/            next.js site: landing, explorer, /demo, /panic, /passkey
@@ -381,6 +423,8 @@ scripts/        demo.sh, deploy.sh, site-audit.js
 - **contracts**: solidity 0.8.28, foundry, via-ir, evm version osaka
 - **sdk**: node 18+, ethers v6, zero config
 - **web**: next.js 16, react, tailwind 4, motion
+- **wallets**: Dynamic server wallets for the agent, Dynamic embedded wallets for email sign-in
+- **passkeys**: webauthn over the p256 precompile, and Mera for PRF-derived encryption keys
 - **indexer**: node, postgres
 - **chain**: monad testnet, p256 and bls precompiles, erc-8004
 
@@ -406,3 +450,5 @@ mit. see [`LICENSE`](LICENSE).
 - the monad team for the p256 precompile, without which the panic button would need a server
 - the erc-8004 trustless agents registries, live on monad testnet
 - foundry, for the invariant fuzzer that found three places this was wrong
+- Dynamic, for the MPC server wallet the live agent signs with and the embedded wallets behind email sign-in
+- Category Labs, for Mera and its PRF key derivation
