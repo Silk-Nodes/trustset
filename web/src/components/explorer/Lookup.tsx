@@ -54,7 +54,10 @@ export default function Lookup({ base }: { base?: string }) {
       </p>
 
       <div className="relative mt-4 max-w-[640px]">
-        <span aria-hidden className="absolute left-4 top-1/2 -translate-y-1/2 mono text-[14px]" style={{ color: "var(--text-light)" }}>⌕</span>
+        {/* drawn, not typed: the ⌕ character is missing from most system fonts
+            and left an empty gap at the start of the field on a phone */}
+        <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+          className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "var(--text-medium)" }}><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
         <input ref={input} value={q} onChange={e => setQ(e.target.value)} onKeyDown={onKey} spellCheck={false} autoComplete="off"
           placeholder="13, 0x4d37…, or a name" aria-label="Agent id, agent key or name"
           className="w-full h-12 rounded-xl pl-10 pr-4 text-[15px] outline-none focus-visible:ring-2"
