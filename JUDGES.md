@@ -1,7 +1,8 @@
 # for judges
 
 everything below works with **no wallet, no testnet MON and no sign-up**. there
-are no test credentials to hand out because nothing here asks you to log in.
+are no test credentials to hand out because nothing here requires a login.
+signing in with an email is there if you want your own agents, and optional.
 
 live: **https://trustset.silknodes.io**
 chain: monad testnet, chain id 10143
@@ -9,10 +10,11 @@ chain: monad testnet, chain id 10143
 ## the sixty second version
 
 ```bash
-npx @trustset/check 7
+npx @trustset/check 24
 ```
 
-that reads the switch on monad testnet and prints whether agent 7 may act. no
+that reads the switch on monad testnet and prints whether agent 24, the live
+agent, may act. no
 keys, no accounts, no config. it is the whole integration, and it is the same
 call an app makes.
 
@@ -40,6 +42,25 @@ needs a little testnet MON for gas, from
 [Alchemy's](https://www.alchemy.com/faucets/monad-testnet). it is the same
 walkthrough either way, so skip it unless you want to sign.
 
+## switch off a real agent yourself
+
+the card at the top of **/demo** is agent 24, a process on our server that
+trades on testnet and asks the switch before every action. press **switch it
+off**: it notices within a minute and stops spending, and it comes back on its
+own after two minutes so the next person finds it running. one visitor pause
+per five minutes, and anybody can end a visitor's pause early.
+
+its key is not on our server. it signs through a **Dynamic** 2-of-2 MPC server
+wallet, so the thing you just stopped is a Dynamic-held key obeying a cold key
+it never touches. every trade on its explorer page is sent from that wallet.
+
+## sign in with an email, no wallet needed
+
+on **/agents**, press **sign in**, then **continue with email**. Dynamic sends
+a code and makes an embedded wallet on first sign-in, and that wallet becomes
+the cold key for your agents. it gets a small, one-time drip of testnet gas so
+registering an agent does not dead-end. agent 25 was registered this way.
+
 ## the panic button, if you have a phone
 
 **https://trustset.silknodes.io/passkey** nominates a passkey as an agent's
@@ -48,6 +69,12 @@ device; what goes on chain is the public p256 point and the hash of the site
 it is bound to. pausing from the phone needs no wallet, no seed phrase and no
 gas, because a relayer carries the assertion and the contract verifies it
 through monad's p256 precompile at `0x0100`.
+
+the same passkey can seal notes about an agent: its runbook, and why it was
+stopped. through **Mera**, it derives an encryption key in the browser; only
+ciphertext goes on chain, and any device the passkey syncs to opens it with no
+wallet. **/explorer/13** shows a sealed runbook and an "open with passkey"
+button, which only its owner can use.
 
 already proved on testnet, if you would rather read it than do it:
 [`0x391f1ad4…237f34b6`](https://testnet.monadexplorer.com/tx/0x391f1ad46bece914fd739e6e06fc4c1ce17a3f9bddd7f26906b26761237f34b6)
@@ -80,7 +107,7 @@ git clone https://github.com/Silk-Nodes/trustset && cd trustset
 forge test
 ```
 
-141 passing, 1 skipped. forge-std is vendored, so there is no submodule step.
+147 passing, 1 skipped. forge-std is vendored, so there is no submodule step.
 `test/Invariants.t.sol` is the one worth looking at: 128,000 fuzzed calls per
 run asserting eleven properties, and each was checked by deleting the guard it
 depends on and confirming the suite goes red.
@@ -109,6 +136,6 @@ with no network needed at all.
 ## if something is broken while you are looking
 
 the live agent keeps a heartbeat, and a watchdog restarts it and alerts us if
-it stops. if `npx @trustset/check 7` ever says `NOT TRUSTED` with the reason
+it stops. if `npx @trustset/check 24` ever says `NOT TRUSTED` with the reason
 `lapsed`, that is our process being down rather than the product misbehaving,
 and the demo above is unaffected because it uses its own agent.

@@ -18,10 +18,19 @@ One transaction from a cold key writes a new status, and from the next block
 `isTrusted(agentId)` returns false to everyone who asks. Pausing is
 reversible. Stopping for good is not.
 
+## Wallets and passkeys
+
+- The live agent (agent 24) signs through a Dynamic 2-of-2 MPC server wallet;
+  no single machine holds its key.
+- Operators can sign in with an email: a Dynamic embedded wallet becomes the
+  cold key that registers and stops agents. No wallet extension needed.
+- An agent's runbook and stop reasons can be sealed with the owner's passkey,
+  through Mera's PRF key derivation, and stored on chain as ciphertext.
+
 ## Checking an agent
 
 ```
-npx @trustset/check 7
+npx @trustset/check 24
 npx @trustset/check --erc8004 41
 ```
 
@@ -53,7 +62,7 @@ escalation 10 minutes, guardian recovery 10 minutes.
 - A stop does NOT protect against an agent that has been taken over and
   rewritten. A compromised agent holding a valid key passes every check.
 - A stop does nothing at a venue that never checks.
-- It is NOT audited by a third party. 141 tests and eleven invariants across
+- It is NOT audited by a third party. 147 tests and eleven invariants across
   128,000 fuzzed calls per run, self reviewed, written up in AUDIT.md.
 - Testnet only. Never deployed to mainnet. No real money is at stake.
 

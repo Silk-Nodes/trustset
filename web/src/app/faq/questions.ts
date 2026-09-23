@@ -57,6 +57,11 @@ export const GROUPS: Group[] = [
         a: "No. There is no sign-up, no allowlist, no tiers and no fee beyond gas. trustset has no user table; your wallet is your identity. Anyone can register an agent and gets all eight layers immediately.",
       },
       {
+        id: "no-wallet",
+        q: "Do I need a crypto wallet?",
+        a: "No. On the console you can sign in with an email instead. Dynamic sends you a code and makes an embedded wallet for you on your first sign-in, and that wallet becomes the cold key for your agents: it registers them, pauses them and stops them, exactly as a browser wallet would. A new email wallet gets a small, one-time amount of testnet gas so your first registration goes through.",
+      },
+      {
         id: "register-my-agent",
         q: "Could someone register my agent without me?",
         a: "No. Registration requires the agent key's own consent: either it sends the transaction, or it signs a message naming the exact cold key. Without that signature the contract reverts with BadAgentSignature. That signature names which cold key, so it cannot be replayed to put your agent under somebody else's wallet.",
@@ -75,6 +80,11 @@ export const GROUPS: Group[] = [
         id: "lost-cold-key",
         q: "What if I lose my cold key?",
         a: "If you named guardians, they can vote to pause the agent, and if you do nothing for the escalation delay they can stop it for good. They can also replace the cold key after a delay you are able to cancel. If you registered with no guardians, nobody can stop that agent, which is why the register dialog calls that choice permanent.",
+      },
+      {
+        id: "sealed-runbook",
+        q: "What is a sealed runbook?",
+        a: "Notes about an agent that only its owner can read: where it runs, how to restart it, why it was stopped. Your passkey derives an encryption key in your browser through Mera, using the WebAuthn PRF extension, with a fresh salt for every note. Only the ciphertext is stored on chain. Any device your passkey syncs to can recreate the key and open the note, with no wallet and nothing stored anywhere. Nobody else can, including us.",
       },
       {
         id: "registered-elsewhere",
@@ -103,6 +113,11 @@ export const GROUPS: Group[] = [
         a: "We deploy a new contract beside the old one. Existing agents keep working in the old one and stay stoppable; new agents register in the new one; apps move when they choose by changing one address. The cost is honest: agents do not carry over, and anyone who linked an ERC-8004 identity republishes their pointer. That is the price of nobody being able to change the rules under you.",
       },
       {
+        id: "live-agent-key",
+        q: "Who holds the live agent's key?",
+        a: "Not our server alone. The agent on /demo signs every trade through a Dynamic 2-of-2 MPC server wallet: the key is split between Dynamic and us, and neither half can sign by itself. Our half is backed up to Dynamic encrypted under a password only our server knows. It still asks the switch before every action, so it stops the moment its cold key, which it never touches, says so.",
+      },
+      {
         id: "custody",
         q: "Do you hold my money, or sit in the path?",
         a: "No server of ours is in any path. Only the refund rail holds funds, it is an escrow, and it only ever moves money back to the payer named in storage. The KillSwitch holds no funds at all, so a bug there produces a wrong status, never a lost coin.",
@@ -126,7 +141,7 @@ export const GROUPS: Group[] = [
       {
         id: "audited",
         q: "Is it audited?",
-        a: "Not by a third party. It has 141 tests and eleven invariants asserted across 128,000 fuzzed calls per run, and every invariant was verified by deleting the guard it depends on and confirming the suite goes red. That is real work and it is not the same thing as an audit.",
+        a: "Not by a third party. It has 147 tests and eleven invariants asserted across 128,000 fuzzed calls per run, and every invariant was verified by deleting the guard it depends on and confirming the suite goes red. That is real work and it is not the same thing as an audit.",
       },
       {
         id: "mainnet",
@@ -143,7 +158,7 @@ export const GROUPS: Group[] = [
         id: "how-to-check",
         q: "How does my app check an agent?",
         a: "One call to isTrusted(agentId) against the switch at 0x54D8211233Cc65b62C594cBAb900930dd37ED3b8, or the SDK with npm i @trustset/check. There is nothing to register with us and no key to obtain.",
-        code: "npx @trustset/check 7",
+        code: "npx @trustset/check 24",
       },
       {
         id: "erc8004",

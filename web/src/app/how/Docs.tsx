@@ -50,6 +50,7 @@ const LAYERS: [string, string, string][] = [
 const CONTRACTS: [string, string, string?][] = [
   ["Kill switch", "0x54D8211233Cc65b62C594cBAb900930dd37ED3b8", "The one an app reads."],
   ["Agent labels", "0x1fc5CF0a5bD938cc36EcE4ca34F2279e0e5b5f0f", "An owner's words about an agent. Nothing that decides trust reads them."],
+  ["Sealed notes", "0xaB0E5F2A9B737dBEA6633a89851b8d6551Ac83dc", "An agent's runbook and stop reasons as ciphertext, opened only with the owner's passkey through Mera."],
   ["Human touch", "0x059563eb1dC1BBd7a8261309E92063A3f41AAda0", "Passkey assertions as proof a person was present."],
   ["Refund rail", "0xf8E44F08263fFB04660483Af44b70E1b25347748", "Escrow for agent payments."],
   ["Example venue", "0x532cC6c80B4a55249131d3790dF8B79D896Ba145", "The counterparty the walkthrough trades against."],
@@ -69,7 +70,7 @@ const TONE: Record<string, string> = { live: "var(--sage)", off: "var(--orange)"
 const SOLIDITY = `if (!killSwitch.isTrusted(agentId)) revert AgentNotTrusted(agentId);`;
 const PAST = `// judge a signature by the moment it was signed, never by now
 bool wasOk = killSwitch.isTrustedAt(agentId, signedAt);`;
-const NPX = `npx @trustset/check 7`;
+const NPX = `npx @trustset/check 24`;
 
 function Copy({ text }: { text: string }) {
   const [done, setDone] = useState(false);
@@ -249,7 +250,7 @@ export default function Docs() {
 
         <Section id="status" title="What is true today">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 sm:gap-6 not-prose">
-            <Fact n="141" k="tests passing" />
+            <Fact n="147" k="tests passing" />
             <Fact n="11" k="invariants" />
             <Fact n="128,000" k="fuzzed calls a run" />
             <Fact n="0" k="audits" />
