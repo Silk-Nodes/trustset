@@ -122,9 +122,13 @@ export default function Header() {
           the mask never touches the text. */}
       <div aria-hidden className="absolute inset-0 pointer-events-none" style={{
         opacity: scrolled ? 1 : 0, transition: "opacity .3s",
-        background: "linear-gradient(to bottom, color-mix(in srgb, var(--bg-base) 82%, transparent), transparent)",
+        /* solid enough across the bar's own height that text scrolling under
+           the logo cannot be read through it, and only the last few pixels
+           fade. at 82% fading from the top, a step heading showed straight
+           through the wordmark on a phone. */
+        background: "linear-gradient(to bottom, color-mix(in srgb, var(--bg-base) 94%, transparent) 0%, color-mix(in srgb, var(--bg-base) 88%, transparent) 75%, transparent)",
         backdropFilter: "blur(18px) saturate(160%)", WebkitBackdropFilter: "blur(18px) saturate(160%)",
-        maskImage: "linear-gradient(to bottom, #000 45%, transparent)", WebkitMaskImage: "linear-gradient(to bottom, #000 45%, transparent)",
+        maskImage: "linear-gradient(to bottom, #000 78%, transparent)", WebkitMaskImage: "linear-gradient(to bottom, #000 78%, transparent)",
       }} />
       <header className={`relative ${wide ? "w-full" : "max-w-6xl mx-auto"} flex items-center gap-5 px-4 sm:px-5 h-16`}>
         <Link href="/" className="flex items-center gap-2.5 shrink-0"><Mark size={24} /><span className="mono font-medium text-[16px] tracking-tight text-ink">trustset</span></Link>

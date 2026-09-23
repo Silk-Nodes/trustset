@@ -122,7 +122,7 @@ export default function LiveAgent({ compact = false }: { compact?: boolean } = {
 
         {/* the demonstration, and the only part that was ever the point: what
             the agent claims, beside what the chain answers. */}
-        <span className="text-[13px] min-w-0 truncate" style={{ color: "var(--text-medium)" }}>
+        <span className={`text-[13px] min-w-0 ${compact ? "truncate" : ""}`} style={{ color: "var(--text-medium)" }}>
           it says{" "}
           <AnimatePresence mode="wait" initial={false}>
             <motion.b key={says} initial={m.reduced ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.25 }}
@@ -131,7 +131,7 @@ export default function LiveAgent({ compact = false }: { compact?: boolean } = {
           {heard !== null && <span className="mono text-[11px]"> {heard}s ago</span>}
         </span>
         <span className="hidden sm:inline text-[13px]" style={{ color: "var(--text-light)" }}>·</span>
-        <span className="text-[13px] min-w-0 truncate" style={{ color: "var(--text-medium)" }}>
+        <span className={`text-[13px] min-w-0 ${compact ? "truncate" : ""}`} style={{ color: "var(--text-medium)" }}>
           the chain says{" "}
           <b className="mono font-semibold" style={{ color: off ? "var(--orange-text)" : "var(--sage-text)" }}>
             {!s ? "…" : s.chain.trusted ? "isTrusted → true" : "isTrusted → false"}
