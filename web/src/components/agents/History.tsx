@@ -52,11 +52,11 @@ export default function History({ agent, events, indexed, now, explorer, total, 
         {tab("all", "all")}{tab("status", "status")}{tab("trades", "trades")}{tab("beats", "heartbeats")}
         <span className="ml-auto mono text-[11px] tabular" style={quiet}>{kind === "all" && total !== undefined ? total : list.length}{indexed === false ? " · index away" : ""}</span>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto relative">
+      <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto relative">
         {list.length === 0 && <p className="text-[12.5px] py-6 text-center" style={quiet}>{indexed === null ? "reading…" : "nothing yet"}</p>}
         {days.map(d => (
           <div key={d.label}>
-            <div className="sticky top-0 z-[1] eyebrow py-1.5" style={{ background: "var(--surface)", borderBottom: "1px solid var(--hairline)" }}>{d.label}</div>
+            <div className="sticky top-16 lg:top-0 z-[1] eyebrow py-1.5" style={{ background: "var(--surface)", borderBottom: "1px solid var(--hairline)" }}>{d.label}</div>
             <ol>
               {d.rows.map((e, i) => {
                 const tx = typeof (e.data as { tx?: string })?.tx === "string" ? (e.data as { tx: string }).tx : null;
