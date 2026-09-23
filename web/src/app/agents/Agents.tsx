@@ -461,12 +461,10 @@ export default function Agents() {
 
   return (
     <>
-      {/* the fleet and an agent are a canvas: one window tall, scrolling
-          inside themselves, because the table windows its own rows and a
-          second scrollbar behind it would fight the first. guarding is an
-          ordinary list, so it scrolls the page and ends in the footer like
-          refunds does. */}
-      <Shell frame={!guardingRoute} wide={guardingRoute} title={cur ? labelFor(cur).name : guardingRoute ? "Guarding" : "Your agents"} note={conn ? <>{conn.cfg.chain}{asOf && signedIn ? ` · as of ${asOf}` : ""}</> : undefined}
+      {/* one agent is a canvas: one window tall, its history and settings
+          scrolling inside themselves. the fleet and guarding are ordinary
+          pages; the fleet's table caps its own height and windows its rows. */}
+      <Shell frame={!guardingRoute && routeId !== null} wide={guardingRoute || routeId === null} title={cur ? labelFor(cur).name : guardingRoute ? "Guarding" : "Your agents"} note={conn ? <>{conn.cfg.chain}{asOf && signedIn ? ` · as of ${asOf}` : ""}</> : undefined}
         actions={register} badges={waiting ? { "/agents/guarding": waiting } : undefined}>
 
         {/* a notice is a toast at the corner, never a bar that moves the table */}
@@ -532,7 +530,10 @@ export default function Agents() {
             checkKey={async k => { const id = await agentIdForKey(conn, k); return id === 0n ? null : id; }} />
         )}
       </Shell>
-      {(!conn || guardingRoute) && <Footer />}
+      {/* every page ends in the footer. the list is an ordinary page now that
+          its table ends at its last row; the agent page keeps its one window
+          canvas and the footer sits one scroll below it. */}
+      <Footer />
     </>
   );
 }
