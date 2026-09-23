@@ -22,8 +22,12 @@ export default function Shell({ title, note, actions, frame, wide, badges, child
 }) {
   const p = usePathname();
   const w = useWallet();
+  /* the frame holds one window only where there is room for two columns to
+     scroll side by side. on a phone it squeezed an agent's history into a box
+     three rows tall inside a page that also scrolled, so below lg the page
+     simply flows. */
   return (
-    <main className={frame ? "w-full px-4 sm:px-5 pt-4 pb-3 min-w-0 flex flex-col" : wide ? "w-full px-4 sm:px-5 pt-4 pb-16 min-w-0" : "w-full max-w-6xl mx-auto px-3 sm:px-4 pt-6 sm:pt-10 pb-16 min-w-0"} style={frame ? { height: "calc(100dvh - 64px)" } : undefined}>
+    <main className={frame ? "w-full px-4 sm:px-5 pt-4 pb-10 lg:pb-3 min-w-0 flex flex-col lg:h-[calc(100dvh-64px)]" : wide ? "w-full px-4 sm:px-5 pt-4 pb-16 min-w-0" : "w-full max-w-6xl mx-auto px-3 sm:px-4 pt-6 sm:pt-10 pb-16 min-w-0"}>
       <div className={`flex flex-wrap items-center gap-x-4 gap-y-3 ${frame || wide ? "mb-3 shrink-0" : "mb-5"}`}>
         <nav className="flex gap-1 rounded-full p-1" style={{ background: "color-mix(in srgb, var(--text-dark) 5%, transparent)" }} aria-label="Agent pages">
           {TABS.map(t => { const on = p === t.href; return (
