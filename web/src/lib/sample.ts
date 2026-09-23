@@ -39,31 +39,31 @@ type Spec = {
 
 const SPECS: Spec[] = [
   {
-    n: 1, name: "usd-market-maker", purpose: "Quotes both sides of the USDC book", group: "trading",
+    n: 1, name: "quote-engine", purpose: "Quotes both sides of the USDC book", group: "trading",
     status: "active", since: -18 * DAY, expiresAt: 6 * DAY, heartbeatWindow: HOUR, lastBeat: -4 * MIN,
     guardians: GUARDIANS, threshold: 2, trades: 3,
     extra: { stopKey: true, humanCount: 2, refunds: 14, erc8004: 412 },
   },
   {
-    n: 2, name: "eth-basis", purpose: "Carries the perp basis on ETH", group: "trading",
+    n: 2, name: "perp-carry", purpose: "Carries the perp basis on ETH", group: "trading",
     status: "active", since: -11 * DAY, heartbeatWindow: 6 * HOUR, lastBeat: -41 * MIN,
     guardians: GUARDIANS, threshold: 2, trades: 2,
     extra: { stopKey: false, humanCount: 2, refunds: 0, erc8004: null },
   },
   {
-    n: 3, name: "arb-scout", purpose: "Watches two venues for a spread worth taking", group: "trading",
+    n: 3, name: "spread-scout", purpose: "Watches two venues for a spread worth taking", group: "trading",
     status: "active", since: -26 * DAY, expiresAt: -2 * HOUR, trades: 1,
     guardians: GUARDIANS, threshold: 2,
     extra: { stopKey: true, humanCount: 2, refunds: 0, erc8004: null },
   },
   {
-    n: 4, name: "index-rebalancer", purpose: "Holds the index to its weights once a day", group: "trading",
+    n: 4, name: "weights-keeper", purpose: "Holds the index to its weights once a day", group: "trading",
     status: "active", since: -34 * DAY, heartbeatWindow: HOUR, lastBeat: -5 * HOUR,
     guardians: GUARDIANS, threshold: 2,
     extra: { stopKey: true, humanCount: 2, refunds: 3, erc8004: null },
   },
   {
-    n: 5, name: "treasury-ops", purpose: "Moves the treasury between vaults on a schedule", group: "ops",
+    n: 5, name: "vault-mover", purpose: "Moves the treasury between vaults on a schedule", group: "ops",
     status: "paused", since: -3 * HOUR, expiresAt: 21 * DAY, heartbeatWindow: 6 * HOUR, lastBeat: -3 * HOUR,
     guardians: GUARDIANS, threshold: 2,
     extra: { stopKey: true, humanCount: 2, refunds: 0, erc8004: 88 },
@@ -71,18 +71,18 @@ const SPECS: Spec[] = [
     history: [{ at: -3 * HOUR, status: "paused" }],
   },
   {
-    n: 6, name: "payments-relay", purpose: "Pays per call through the refund rail", group: "ops",
+    n: 6, name: "per-call-payer", purpose: "Pays per call through the refund rail", group: "ops",
     status: "active", since: -7 * DAY, expiresAt: 58 * DAY, heartbeatWindow: DAY, lastBeat: -2 * HOUR,
     guardians: GUARDIANS, threshold: 2, beats: true,
     extra: { stopKey: true, humanCount: 2, refunds: 221, erc8004: 175 },
   },
   {
-    n: 7, name: "research-crawler", purpose: "Reads filings and writes a summary", group: "research",
+    n: 7, name: "filings-reader", purpose: "Reads filings and writes a summary", group: "research",
     status: "active", since: -2 * DAY,
     extra: { stopKey: false, humanCount: 2, refunds: 0, erc8004: null },
   },
   {
-    n: 8, name: "nft-sweeper", purpose: "Swept floors until it was stopped", group: "research",
+    n: 8, name: "floor-sweeper", purpose: "Swept floors until it was stopped", group: "research",
     status: "revoked", since: -9 * DAY, expiresAt: -4 * DAY,
     guardians: GUARDIANS, threshold: 2,
     extra: { stopKey: true, humanCount: 2, refunds: 0, erc8004: null },
