@@ -13,6 +13,19 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
+# deploy what is committed, never what happens to be on disk. rsync copies the
+# working tree, so a deploy run while an edit was half done shipped an
+# Explorer.tsx importing a component that did not exist yet: the build failed,
+# the restart had nothing to start, and the site answered 503 everywhere.
+# DEPLOY_DIRTY=1 overrides this for a deliberate local experiment.
+dirty=$(git -C "$ROOT" status --porcelain -- web deployments)
+if [ -n "$dirty" ] && [ "${DEPLOY_DIRTY:-}" != "1" ]; then
+  echo "uncommitted changes under web/ or deployments/, refusing to deploy:" >&2
+  echo "$dirty" >&2
+  echo "commit them, or stash them to deploy the last commit: git stash push -u" >&2
+  exit 1
+fi
+
 # the box is not in this file. an address in a repo is a hostname and an open
 # port handed to whoever reads it, and an address that moves should be one line
 # edited on the machine rather than a commit and a redeploy.
@@ -57,7 +70,14 @@ rsync -az "$ROOT/deployments/" "$HOST:$REMOTE/deployments/"
 ssh "$HOST" 'cd '"$REMOTE"'/web && h=$(sha256sum package-lock.json | cut -d" " -f1); if [ "$h" != "$(cat node_modules/.lock-sha 2>/dev/null)" ]; then echo "    installing"; npm ci --no-audit --no-fund 2>&1 | tail -2 && echo "$h" > node_modules/.lock-sha; else echo "    dependencies unchanged"; fi'
 
 echo "==> building on the vm"
-ssh "$HOST" "cd $REMOTE/web && npm run build 2>&1 | grep -E 'Compiled|Failed|error' || true"
+# a failed build must stop the deploy, loudly. the filter used to swallow the
+# exit code, so a broken build went on to the restart and took the site down.
+if ! ssh "$HOST" "cd $REMOTE/web && npm run build > /tmp/trustset-build.log 2>&1"; then
+  echo "BUILD FAILED on the vm. the running server was not restarted. the end of the log:" >&2
+  ssh "$HOST" "tail -30 /tmp/trustset-build.log" >&2
+  exit 1
+fi
+ssh "$HOST" "grep -E 'Compiled|✓' /tmp/trustset-build.log | tail -3"
 
 echo
 # restart without a keypress when the box allows it. the one time this was
