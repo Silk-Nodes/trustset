@@ -104,7 +104,9 @@ export type Status = (typeof STATUS)[number];
 export type Cfg = {
   source: "monad-testnet" | "anvil";
   chain: string; rpc: string; chainIdHex: string; explorer: string;
-  killSwitch: string; humanTouch: string; venue: string; labels?: string; notes?: string; refunds?: string; mockUsd?: string;
+  killSwitch: string; humanTouch: string; venue: string; labels?: string; notes?: string; refunds?: string;
+  /* the Dynamic environment, for signing in with an email. absent: no email sign-in */
+  dynamicEnvironmentId?: string; mockUsd?: string;
   ownerKey?: string; agentPrivKey?: string;
 };
 
@@ -145,7 +147,8 @@ export function statusWord(a: Agent, now = Date.now() / 1000): string {
 
 /* who signs owner transactions: a connected wallet, or the demo key on the
    local chain. the page never sees a private key from a wallet. */
-export type Signer = { address: string; signer: ethers.Signer; kind: "demo" | "wallet" };
+/* email: a Dynamic embedded wallet, signed in with a code sent to an address */
+export type Signer = { address: string; signer: ethers.Signer; kind: "demo" | "wallet" | "email"; email?: string | null };
 export type Conn = { cfg: Cfg; p: ethers.JsonRpcProvider; owner: ethers.Wallet | null; ks: ethers.Contract; venue: ethers.Contract; touch: ethers.Contract | null; labels: ethers.Contract | null };
 
 declare global { interface Window { ethereum?: ethers.Eip1193Provider & { on?: (e: string, f: (...a: unknown[]) => void) => void } } }
