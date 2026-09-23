@@ -200,29 +200,37 @@ export default function Explorer({ explorer }: { explorer: string }) {
 
   if (state === "none") return <NoIndex />;
 
+  /* the tabs open the same row as whichever filters belong to them, so the
+     page has one line of controls above the table instead of two. the agents
+     count is the whole fleet, never the filtered total: the tab names the
+     thing, the pager counts the view. */
+  const fleet = Object.values(dir.counts).reduce((a, b) => a + (b ?? 0), 0);
+  const tabs = (
+    <div className="flex gap-1 rounded-full p-1" style={{ background: "color-mix(in srgb, var(--text-dark) 5%, transparent)" }}>
+      {([["agents", "Agents", fleet], ["activity", "Activity", total]] as const).map(([k, label, count]) => (
+        <button key={k} type="button" onClick={() => setTab(k)} aria-current={tab === k ? "page" : undefined}
+          className="rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors whitespace-nowrap inline-flex items-center gap-1.5"
+          style={{ background: tab === k ? "var(--pill-accent-bg)" : "transparent", color: tab === k ? "var(--pill-accent-text)" : "var(--text-medium)" }}>
+          {label}<span className="mono text-[11px] tabular" style={{ opacity: 0.65 }}>{count || ""}</span>
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <div className="flex gap-1 rounded-full p-1" style={{ background: "color-mix(in srgb, var(--text-dark) 5%, transparent)" }}>
-          {([["agents", `Agents`, dir.total], ["activity", "Activity", total]] as const).map(([k, label, count]) => (
-            <button key={k} type="button" onClick={() => setTab(k)} aria-current={tab === k ? "page" : undefined}
-              className="rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors whitespace-nowrap inline-flex items-center gap-1.5"
-              style={{ background: tab === k ? "var(--pill-accent-bg)" : "transparent", color: tab === k ? "var(--pill-accent-text)" : "var(--text-medium)" }}>
-              {label}<span className="mono text-[11px] tabular" style={{ opacity: 0.65 }}>{count || ""}</span>
-            </button>
+      {tab === "activity" && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {tabs}
+          <span className="hidden sm:block w-px h-4 mx-1" style={{ background: "var(--hairline)" }} />
+          {FILTERS.map(([k, label]) => (
+            <button key={k} type="button" onClick={() => setFilter(k)} className={chipCls} style={chip(filter === k)}>{label}</button>
           ))}
         </div>
-        {tab === "activity" && (
-          <div className="flex flex-wrap items-center gap-2">
-            {FILTERS.map(([k, label]) => (
-              <button key={k} type="button" onClick={() => setFilter(k)} className={chipCls} style={chip(filter === k)}>{label}</button>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       {tab === "agents" && <Directory rows={agents} total={dir.total} counts={dir.counts} coverage={dir.coverage}
-          query={dq} onQuery={next => setDq(d => ({ ...d, ...next }))} loading={dirLoading && agents.length === 0} base={indexAt} />}
+          query={dq} onQuery={next => setDq(d => ({ ...d, ...next }))} loading={dirLoading && agents.length === 0} base={indexAt} lead={tabs} />}
 
       {/* the feed stays mounted so switching tabs does not refetch a page the
           reader already has, and is simply not drawn while the directory is up. */}

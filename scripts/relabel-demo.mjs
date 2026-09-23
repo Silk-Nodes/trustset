@@ -48,7 +48,7 @@ const labels = new ethers.Contract(dep.labels, [
 
 console.log("labelling from", w.address);
 for (const [id, [name, what]] of Object.entries(LABELS)) {
-  const purpose = `${WHO} ${what}`;
+  const purpose = `${what} ${WHO}`; // what differs first, so a truncated list still says it
   const now = await labels.labelOf(id).catch(() => null);
   await wait(400);
   if (now && now.name === name && now.purpose === purpose) { console.log(`  ${id.padStart(2)} already "${name}"`); continue; }
