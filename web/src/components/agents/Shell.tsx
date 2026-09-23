@@ -38,7 +38,8 @@ export default function Shell({ title, note, actions, frame, wide, badges, child
         <div className="ml-auto flex items-center gap-2">
           {actions}
           <WalletButton address={w.who?.address ?? null} kind={w.who?.kind ?? null} available={w.walletOk} explorer={w.conn?.cfg.explorer} resuming={w.resuming}
-            onConnect={() => w.connectNow().catch(() => {})} onDisconnect={w.disconnect} />
+            onConnect={() => w.connectNow().catch(() => {})} onDisconnect={w.disconnect}
+            email={w.email} signedInAs={w.who?.email ?? null} />
         </div>
       </div>
       {frame || wide

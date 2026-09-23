@@ -17,6 +17,9 @@ export type ChainCfg = {
   labels?: string;
   /* sealed notes, the passkey encrypted runbook. absent before it was deployed. */
   notes?: string;
+  /* Dynamic's environment id. public by design; it is read here, from env, so
+     changing environments is not a rebuild. unset means no email sign-in. */
+  dynamicEnvironmentId?: string;
   /* the refund rail and the mock dollar it was seeded with on testnet. */
   refunds?: string;
   mockUsd?: string;
@@ -48,7 +51,7 @@ async function testnet(): Promise<ChainCfg | null> {
   try {
     const d = JSON.parse(await readFile(join(root(), "deployments", "monad-testnet.json"), "utf8"));
     return { source: "monad-testnet", chain: "Monad testnet", rpc: "https://testnet-rpc.monad.xyz", chainIdHex: "0x279f",
-      explorer: "https://testnet.monadexplorer.com", killSwitch: d.killSwitch, humanTouch: d.humanTouch, venue: d.venue, labels: d.labels, notes: d.notes, refunds: d.refunds, mockUsd: d.mockUsd };
+      explorer: "https://testnet.monadexplorer.com", killSwitch: d.killSwitch, humanTouch: d.humanTouch, venue: d.venue, labels: d.labels, notes: d.notes, refunds: d.refunds, dynamicEnvironmentId: process.env.DYNAMIC_ENVIRONMENT_ID || undefined, mockUsd: d.mockUsd };
   } catch { return null; }
 }
 

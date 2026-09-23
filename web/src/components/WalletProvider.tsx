@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { connect, connectWallet, explain, onWalletChange, type Conn, type Signer } from "@/lib/chain";
 import { useWalletPresence } from "@/hooks/useWalletPresence";
 
@@ -20,15 +20,22 @@ type Ctx = {
   resuming: boolean;
   connectNow: () => Promise<void>;
   disconnect: () => void;
+  /* email sign-in through Dynamic. null when this deployment has none. */
+  email: null | {
+    send: (address: string) => Promise<void>;
+    verify: (code: string) => Promise<void>;
+  };
 };
 const WalletCtx = createContext<Ctx | null>(null);
 const REMEMBER = "trustset:wallet:connected";
+/* "1" is the browser wallet, as it always was; "email" is a Dynamic session */
+const EMAIL = "email";
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [conn, setConn] = useState<Conn | null | undefined>(undefined);
   const [who, setWho] = useState<Signer | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [resuming, setResuming] = useState(() => { try { return localStorage.getItem(REMEMBER) === "1"; } catch { return false; } });
+  const [resuming, setResuming] = useState(() => { try { return !!localStorage.getItem(REMEMBER); } catch { return false; } });
   const walletOk = useWalletPresence();
 
   useEffect(() => { connect().then(setConn).catch(() => setConn(null)); }, []);
@@ -43,9 +50,43 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [conn]);
 
   const disconnect = useCallback(() => {
+    if (who?.kind === "email" && conn?.cfg.dynamicEnvironmentId) {
+      import("@/lib/dynamic").then(d => d.signOutEmail(conn.cfg.dynamicEnvironmentId!)).catch(() => {});
+    }
     setWho(null);
     try { localStorage.removeItem(REMEMBER); } catch { /* fine */ }
-  }, []);
+  }, [who, conn]);
+
+  /* the code sent to an address, kept between the two steps. a ref, not state:
+     nothing renders from it, and the SDK's object is not meant to be copied. */
+  const pending = useRef<unknown>(null);
+  const env = conn?.cfg.dynamicEnvironmentId;
+  const email = useMemo(() => !conn || !env ? null : {
+    send: async (address: string) => {
+      setError(null);
+      const d = await import("@/lib/dynamic");
+      pending.current = await d.sendCode(env, address);
+    },
+    verify: async (code: string) => {
+      setError(null);
+      const d = await import("@/lib/dynamic");
+      if (!pending.current) throw new Error("Ask for a code first");
+      await d.verifyCode(env, pending.current as Parameters<typeof d.verifyCode>[1], code);
+      pending.current = null;
+      const s = await d.emailSigner(env, conn.p);
+      if (!s) throw new Error("Signed in, but Dynamic returned no wallet");
+      setWho({ address: s.address, signer: s.signer, kind: "email", email: s.email });
+      try { localStorage.setItem(REMEMBER, EMAIL); } catch { /* fine */ }
+      /* a new email wallet is empty, and registering an agent costs gas. ask
+         for a first drip, signed so it only goes to the wallet at the
+         keyboard. quietly: a wallet that already has gas is simply skipped. */
+      try {
+        const { gasMessage, gasDay } = await import("@/lib/gas");
+        const signature = await s.signer.signMessage(gasMessage(s.address, gasDay()));
+        await fetch("/api/gas", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: s.address, signature }) });
+      } catch (e) { console.warn("trustset: gas drip failed", e); }
+    },
+  }, [conn, env]);
 
   /* silent return: only when this browser chose to connect before, and only
      with what the wallet already approved. never a prompt on page load.
@@ -55,6 +96,25 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     if (!conn || who) return;
     let remembered = false;
     try { remembered = localStorage.getItem(REMEMBER) === "1"; } catch { /* fine */ }
+
+    let how: string | null = null;
+    try { how = localStorage.getItem(REMEMBER); } catch { /* fine */ }
+    /* an email session: Dynamic keeps it in this browser and restores it on
+       init. no prompt, no code, unless it has expired. */
+    if (how === EMAIL) {
+      let alive = true;
+      (async () => {
+        try {
+          if (!conn.cfg.dynamicEnvironmentId) return;
+          const d = await import("@/lib/dynamic");
+          const s = await d.emailSigner(conn.cfg.dynamicEnvironmentId, conn.p);
+          if (s && alive) setWho({ address: s.address, signer: s.signer, kind: "email", email: s.email });
+          else if (!s) { try { localStorage.removeItem(REMEMBER); } catch { /* fine */ } }
+        } catch (e) { console.warn("trustset: email session did not resume", e); }
+        finally { if (alive) setResuming(false); }
+      })();
+      return () => { alive = false; };
+    }
     if (!remembered) { setResuming(false); return; }
     let alive = true;
     (async () => {
@@ -74,13 +134,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return () => { alive = false; };
   }, [conn, who]);
 
-  /* the extension is its own UI. switching account or network there lands here. */
+  /* the extension is its own UI. switching account or network there lands here.
+     an email wallet has no extension to switch in. */
   useEffect(() => {
-    if (!who) return;
+    if (!who || who.kind === "email") return;
     return onWalletChange(() => { connectNow().catch(e => { setWho(null); setError(explain(e)); }); });
   }, [who, connectNow]);
 
-  return <WalletCtx.Provider value={{ conn, who, walletOk, error, resuming: resuming && !who, connectNow, disconnect }}>{children}</WalletCtx.Provider>;
+  return <WalletCtx.Provider value={{ conn, who, walletOk, error, resuming: resuming && !who, connectNow, disconnect, email }}>{children}</WalletCtx.Provider>;
 }
 
 export function useWallet() {
