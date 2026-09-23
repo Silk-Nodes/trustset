@@ -26,21 +26,11 @@ const FILTERS = [
   ["limits", "Limits"], ["work", "Work"], ["guardians", "Guardians"], ["keys", "Keys"], ["labels", "Names"],
 ] as const;
 
-const PAGE = 5;
-
-/* which page buttons to draw: always the first and the last, always the ones
-   either side of where you are, and an ellipsis for the rest. fourteen pages of
-   five must not become fourteen buttons on a phone. */
-function pageWindow(current: number, last: number): (number | "gap")[] {
-  if (last <= 7) return Array.from({ length: last }, (_, i) => i + 1);
-  const keep = new Set([1, last, current, current - 1, current + 1]);
-  if (current <= 3) [2, 3, 4].forEach(n => keep.add(n));
-  if (current >= last - 2) [last - 3, last - 2, last - 1].forEach(n => keep.add(n));
-  const shown = [...keep].filter(n => n >= 1 && n <= last).sort((a, b) => a - b);
-  const out: (number | "gap")[] = [];
-  shown.forEach((n, i) => { if (i && n - shown[i - 1] > 1) out.push("gap"); out.push(n); });
-  return out;
-}
+/* fifteen: enough to read a morning's activity at a glance, few enough that
+   the pager is still the way through rather than the scroll bar. */
+const PAGE = 15;
+const chip = (on: boolean) => ({ background: on ? "var(--pill-accent-bg)" : "transparent", color: on ? "var(--pill-accent-text)" : "var(--text-medium)", border: `1px solid ${on ? "var(--pill-accent-bg)" : "var(--hairline)"}` });
+const chipCls = "rounded-full px-2.5 h-7 inline-flex items-center text-[12px] font-medium whitespace-nowrap outline-none focus-visible:ring-2 transition-colors";
 
 const TONE: Record<Tone, string> = { live: "var(--sage)", off: "var(--orange)", quiet: "var(--terra)", plain: "var(--text-light)" };
 
@@ -190,15 +180,23 @@ export default function Explorer({ explorer }: { explorer: string }) {
      the chips are also the filter. two readings of one number, one of which
      did nothing when pressed, is a band of the page spent on nothing. */
 
+  /* one row per transaction. a guardian vote that pauses an agent logs the
+     vote and the pause, a rotation logs the retirement and the move, and two
+     rows saying one thing made the feed read twice as busy as it was. */
   const groups = useMemo(() => {
-    const out: { day: string; rows: Ev[] }[] = [];
+    const out: { day: string; rows: Ev[][] }[] = [];
     for (const e of rows) {
       const d = dayOf(e.at);
       if (out.at(-1)?.day !== d) out.push({ day: d, rows: [] });
-      out.at(-1)!.rows.push(e);
+      const g = out.at(-1)!;
+      const prev = g.rows.at(-1);
+      if (prev && prev[0].tx_hash === e.tx_hash && prev[0].agent_id === e.agent_id) prev.push(e);
+      else g.rows.push([e]);
     }
     return out;
   }, [rows]);
+  const from = total === 0 ? 0 : (page - 1) * PAGE + 1;
+  const to = Math.min(page * PAGE, total);
 
   if (state === "none") return <NoIndex />;
 
@@ -215,13 +213,9 @@ export default function Explorer({ explorer }: { explorer: string }) {
           ))}
         </div>
         {tab === "activity" && (
-          <div className="flex flex-wrap gap-1 rounded-full p-1" style={{ background: "color-mix(in srgb, var(--text-dark) 5%, transparent)" }}>
+          <div className="flex flex-wrap items-center gap-2">
             {FILTERS.map(([k, label]) => (
-              <button key={k} type="button" onClick={() => setFilter(k)}
-                className="rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors whitespace-nowrap"
-                style={{ background: filter === k ? "var(--pill-accent-bg)" : "transparent", color: filter === k ? "var(--pill-accent-text)" : "var(--text-medium)" }}>
-                {label}
-              </button>
+              <button key={k} type="button" onClick={() => setFilter(k)} className={chipCls} style={chip(filter === k)}>{label}</button>
             ))}
           </div>
         )}
@@ -239,69 +233,81 @@ export default function Explorer({ explorer }: { explorer: string }) {
         )}
         {groups.map(g => (
           <div key={g.day}>
-            <div className="px-4 sm:px-5 py-2 text-[11px] mono uppercase tracking-[0.12em]"
-              style={{ color: "var(--text-medium)", background: "color-mix(in srgb, var(--text-dark) 3%, transparent)", borderBottom: "1px solid var(--hairline)" }}>{g.day}</div>
+            <div className="px-3 h-8 flex items-center eyebrow"
+              style={{ background: "color-mix(in srgb, var(--surface) 94%, var(--text-dark))", borderBottom: "1px solid var(--hairline)" }}>{g.day}</div>
             {/* no AnimatePresence here. a page change replaces ten rows with ten
                 others, and cross-fading them means the old ten only leave when
                 their exit animation finishes, which in a backgrounded tab it
                 never does: the feed ends up holding twenty. rows still animate
                 in, which is the half that carries meaning. */}
-            {g.rows.map(e => <Row key={e.id} e={e} explorer={explorer} reduced={m.reduced} />)}
+            {g.rows.map(es => <Row key={es[0].id} es={es} explorer={explorer} reduced={m.reduced} />)}
           </div>
         ))}
-        {last > 1 && tab === "activity" && (
-          <div className="px-4 sm:px-5 py-3 flex flex-wrap items-center gap-1.5">
-            <button type="button" aria-label="Newer" className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold transition-colors"
-              disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}
-              style={{ color: page === 1 ? "var(--text-light)" : "var(--text-medium)", opacity: page === 1 ? 0.5 : 1 }}>←</button>
-            {pageWindow(page, last).map((n, i) => n === "gap"
-              ? <span key={`gap${i}`} className="px-1 text-[13px]" style={{ color: "var(--text-light)" }}>…</span>
-              : (
-                <button key={n} type="button" onClick={() => setPage(n)} aria-current={n === page ? "page" : undefined}
-                  className="rounded-lg min-w-[32px] px-2 py-1.5 text-[13px] font-semibold tabular transition-colors"
-                  style={{ background: n === page ? "var(--pill-accent-bg)" : "transparent", color: n === page ? "var(--pill-accent-text)" : "var(--text-medium)" }}>{n}</button>
-              ))}
-            <button type="button" aria-label="Older" className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold transition-colors"
-              disabled={page === last} onClick={() => setPage(p => Math.min(last, p + 1))}
-              style={{ color: page === last ? "var(--text-light)" : "var(--text-medium)", opacity: page === last ? 0.5 : 1 }}>→</button>
-            <span className="ml-auto mono text-[11px] tabular" style={{ color: "var(--text-medium)" }}>{total} event{total === 1 ? "" : "s"}</span>
+        {total > 0 && (
+          <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
+            <span className="mono text-[11.5px] tabular" style={{ color: "var(--text-medium)" }}>{from} to {to} of {total} events</span>
+            <span className="flex-1" />
+            <div className="flex items-center gap-1">
+              <PageBtn onClick={() => setPage(1)} disabled={page === 1} label="newest page">«</PageBtn>
+              <PageBtn onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} label="newer">‹</PageBtn>
+              <span className="mono text-[11.5px] tabular px-2" style={{ color: "var(--text-medium)" }}>{page} / {last}</span>
+              <PageBtn onClick={() => setPage(p => Math.min(last, p + 1))} disabled={page >= last} label="older">›</PageBtn>
+              <PageBtn onClick={() => setPage(last)} disabled={page >= last} label="oldest page">»</PageBtn>
+            </div>
           </div>
         )}
       </div>
 
       {tab === "activity" && (
-        <p className="mt-4 text-xs max-w-[70ch]" style={{ color: "var(--text-medium)" }}>
-          Every line here came from a log on Monad testnet, indexed to block {stats?.head ?? "…"}. A refused trade is a transaction
-          that reverted, which emits no logs, so refusals cannot appear here and are not counted.
+        <p className="mt-3 mono text-[11px]" style={{ color: "var(--text-medium)" }}>
+          indexed to block {stats?.head ?? "…"} · <span data-tip="A refused trade is a transaction that reverted. It emits no logs, so an index built from logs cannot see it.">refusals are not logged</span>
         </p>
       )}
     </>
   );
 }
 
-function Row({ e, explorer, reduced }: { e: Ev; explorer: string; reduced: boolean }) {
-  const { text, tone } = say(e);
+function Row({ es, explorer, reduced }: { es: Ev[]; explorer: string; reduced: boolean }) {
+  const e = es[0];
+  /* the most telling line of the transaction leads, the rest follow it */
+  /* a registration, a guardian vote that carries, and a rotation each log a
+     status change as well. that change is the consequence of the other event,
+     so it is dropped rather than printed as a second thing that happened. */
+  const causes = es.some(x => x.kind === "AgentRegistered" || x.kind === "Rotated"
+    || (x.kind === "GuardianVoted" && Number(x.data?.votes ?? 0) >= Number(x.data?.threshold ?? 1)));
+  const said = (causes && es.length > 1 ? es.filter(x => x.kind !== "StatusChanged") : es).map(say);
+  const lead = said.find(x => x.tone === "off") ?? said[0];
+  const rest = said.filter(x => x !== lead).map(x => x.text.toLowerCase());
   const name = e.name || (e.agent_id ? `Agent ${e.agent_id}` : "Unknown");
   return (
-    <motion.div initial={reduced ? { opacity: 0 } : { opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-      className="grid grid-cols-[10px_1fr_auto] sm:grid-cols-[10px_220px_1fr_92px_auto] items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3"
+    <motion.div initial={reduced ? { opacity: 0 } : { opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+      className="grid grid-cols-[8px_minmax(0,1fr)_auto] sm:grid-cols-[8px_minmax(0,220px)_minmax(0,1fr)_72px_96px] items-center gap-x-3 gap-y-0.5 px-3 min-h-[44px] py-2 sm:py-0"
       style={{ borderBottom: "1px solid var(--hairline)" }}>
-      <span className="w-[7px] h-[7px] rounded-full" style={{ background: TONE[tone] }} />
-      <div className="min-w-0">
+      <span className="w-2 h-2 rounded-full" style={{ background: TONE[lead.tone] }} />
+      <div className="min-w-0 flex items-baseline gap-2">
         {e.agent_id != null
-          ? <Link href={`/explorer/${e.agent_id}`} className="text-sm font-semibold truncate hover:underline block">{name}</Link>
-          : <span className="text-sm font-semibold truncate block">{name}</span>}
-        <span className="mono text-[11px] block truncate" style={{ color: "var(--text-medium)" }}>{short(e.agent_key)}</span>
+          ? <Link href={`/explorer/${e.agent_id}`} className="text-[13px] font-semibold truncate hover:underline">{name}</Link>
+          : <span className="text-[13px] font-semibold truncate">{name}</span>}
+        {e.agent_id != null && <span className="mono text-[10.5px] shrink-0" style={{ color: "var(--text-medium)" }}>#{e.agent_id}</span>}
       </div>
-      <div className="hidden sm:block text-sm truncate">{text}</div>
-      <div className="hidden sm:block mono text-[11px] tabular text-right" style={{ color: "var(--text-medium)" }}>{ago(e.at)}</div>
+      <div className="col-start-2 sm:col-start-auto row-start-2 sm:row-start-auto min-w-0 text-[13px] truncate">
+        {lead.text}{rest.length > 0 && <span style={{ color: "var(--text-medium)" }}>, {rest.join(", ")}</span>}
+      </div>
+      <div className="mono text-[11px] tabular text-right" style={{ color: "var(--text-medium)" }}>{ago(e.at)}</div>
       <a href={`${explorer}/tx/${e.tx_hash}`} target="_blank" rel="noreferrer"
-        className="mono text-[11px] tabular hover:underline whitespace-nowrap" style={{ color: "var(--text-medium)" }}>{e.block}</a>
+        className="hidden sm:block mono text-[11px] tabular text-right hover:underline whitespace-nowrap" style={{ color: "var(--text-medium)" }}>{e.block} ↗</a>
     </motion.div>
   );
 }
 
+function PageBtn({ onClick, disabled, label, children }: { onClick: () => void; disabled: boolean; label: string; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} aria-label={label}
+      className="w-7 h-7 rounded-lg inline-flex items-center justify-center mono text-[12px] outline-none focus-visible:ring-2 disabled:opacity-30 transition-colors"
+      style={{ border: "1px solid var(--hairline)", color: "var(--text-medium)" }}>{children}</button>
+  );
+}
 
 function NoIndex() {
   return (
