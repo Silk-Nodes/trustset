@@ -27,7 +27,10 @@ export function dynamicConfigured() {
 /* a signed-in Dynamic client and the metadata of one wallet on it */
 export async function dynamicClient() {
   const { DynamicEvmWalletClient } = await import("@dynamic-labs-wallet/node-evm");
-  const client = new DynamicEvmWalletClient({ environmentId: process.env.DYNAMIC_ENVIRONMENT_ID });
+  /* enableMPCAccelerator off: it uses AWS Nitro Enclave attestation, and
+     Dynamic's quickstart warns that anywhere else wallet creation dies with
+     "Attestation verification failed". our box is not a Nitro enclave. */
+  const client = new DynamicEvmWalletClient({ environmentId: process.env.DYNAMIC_ENVIRONMENT_ID, enableMPCAccelerator: false });
   await client.authenticateApiToken(process.env.DYNAMIC_API_TOKEN);
   return client;
 }
