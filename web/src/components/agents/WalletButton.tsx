@@ -7,13 +7,21 @@ import { short } from "@/lib/chain";
  * connected, it is a chip with the short address. the chip opens a card with
  * the whole address, a copy button and disconnect, because a shortened
  * address you cannot copy is a decoration, not information. */
-export default function WalletButton({ address, kind, onConnect, onDisconnect, available, explorer, resuming = false, email = null, signedInAs = null }: {
+export default function WalletButton({ address, kind, onConnect, onDisconnect, available, explorer, resuming = false, email = null, signedInAs = null, ask = null, onAskDone }: {
   address: string | null; kind: "demo" | "wallet" | "email" | null; onConnect: () => void; onDisconnect: () => void; available: boolean; explorer?: string; resuming?: boolean;
   /* email sign-in, when this deployment has Dynamic configured */
   email?: { send: (a: string) => Promise<void>; verify: (c: string) => Promise<void> } | null;
   signedInAs?: string | null;
+  /* why the panel was opened for the reader, when a button asked for it */
+  ask?: string | null;
+  onAskDone?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  /* another button asked for a sign-in: open the panel, and say why */
+  useEffect(() => { if (ask) setOpen(true); }, [ask]);
+  /* closing the panel without signing in drops the request, so a later sign-in
+     does not open a dialog the reader has forgotten asking for */
+  useEffect(() => { if (!open && ask) onAskDone?.(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const [copied, setCopied] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -58,14 +66,21 @@ export default function WalletButton({ address, kind, onConnect, onDisconnect, a
   const walletLink = !available
     ? <a href="https://metamask.io/download/" target="_blank" rel="noreferrer" className="drawn-btn btn-gold" style={{ padding: "8px 14px", fontSize: "0.8rem" }} title="No wallet found in this browser">Get a wallet</a>
     : <button type="button" onClick={() => { setOpen(false); onConnect(); }} className="drawn-btn" style={{ padding: "8px 14px", fontSize: "0.8rem" }} title="Connect wallet">Connect wallet</button>;
-  if (!email) return walletLink;
+  if (!email && !ask) return walletLink;
   return (
     <div ref={ref} className="relative">
-      <button type="button" onClick={() => setOpen(v => !v)} aria-expanded={open} className="drawn-btn" style={{ padding: "8px 14px", fontSize: "0.8rem" }}>Sign in</button>
+      {email
+        ? <button type="button" onClick={() => setOpen(v => !v)} aria-expanded={open} className="drawn-btn" style={{ padding: "8px 14px", fontSize: "0.8rem" }}>Sign in</button>
+        : walletLink}
       {open && (
         <div role="dialog" aria-label="Sign in" className="absolute right-0 mt-2 z-50 sheet p-4 w-[min(340px,calc(100vw-2rem))]" style={{ boxShadow: "var(--glass-shadow)" }}>
-          <EmailSignIn email={email} onDone={() => setOpen(false)} />
-          <div className="flex items-center gap-2 my-3.5"><span className="flex-1 h-px" style={{ background: "var(--hairline)" }} /><span className="eyebrow">or</span><span className="flex-1 h-px" style={{ background: "var(--hairline)" }} /></div>
+          {ask && (
+            <div className="mb-3.5 pb-3 text-[12.5px]" style={{ borderBottom: "1px solid var(--hairline)", color: "var(--text-dark)" }}>{ask}</div>
+          )}
+          {email && <>
+            <EmailSignIn email={email} onDone={() => setOpen(false)} />
+            <div className="flex items-center gap-2 my-3.5"><span className="flex-1 h-px" style={{ background: "var(--hairline)" }} /><span className="eyebrow">or</span><span className="flex-1 h-px" style={{ background: "var(--hairline)" }} /></div>
+          </>}
           <div className="flex items-center gap-2">
             {walletLink}
             <span className="text-[11.5px]" style={{ color: "var(--text-medium)" }}>{available ? "MetaMask or any browser wallet" : "no wallet in this browser"}</span>

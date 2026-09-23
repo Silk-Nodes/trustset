@@ -20,6 +20,11 @@ type Ctx = {
   resuming: boolean;
   connectNow: () => Promise<void>;
   disconnect: () => void;
+  /* a button that needs a signer asks for one: the sign-in panel opens with
+     the reason on it, and the button carries on once somebody is signed in. */
+  ask: string | null;
+  askSignIn: (reason: string) => void;
+  clearAsk: () => void;
   /* email sign-in through Dynamic. null when this deployment has none. */
   email: null | {
     send: (address: string) => Promise<void>;
@@ -35,6 +40,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [conn, setConn] = useState<Conn | null | undefined>(undefined);
   const [who, setWho] = useState<Signer | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ask, setAsk] = useState<string | null>(null);
+  const askSignIn = useCallback((reason: string) => setAsk(reason), []);
+  const clearAsk = useCallback(() => setAsk(null), []);
+  /* signed in: whatever asked has its answer */
+  useEffect(() => { if (who) setAsk(null); }, [who]);
   const [resuming, setResuming] = useState(() => { try { return !!localStorage.getItem(REMEMBER); } catch { return false; } });
   const walletOk = useWalletPresence();
 
@@ -141,7 +151,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return onWalletChange(() => { connectNow().catch(e => { setWho(null); setError(explain(e)); }); });
   }, [who, connectNow]);
 
-  return <WalletCtx.Provider value={{ conn, who, walletOk, error, resuming: resuming && !who, connectNow, disconnect, email }}>{children}</WalletCtx.Provider>;
+  return <WalletCtx.Provider value={{ conn, who, walletOk, error, resuming: resuming && !who, connectNow, disconnect, email, ask, askSignIn, clearAsk }}>{children}</WalletCtx.Provider>;
 }
 
 export function useWallet() {

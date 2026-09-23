@@ -39,7 +39,7 @@ export default function Shell({ title, note, actions, frame, wide, badges, child
           {actions}
           <WalletButton address={w.who?.address ?? null} kind={w.who?.kind ?? null} available={w.walletOk} explorer={w.conn?.cfg.explorer} resuming={w.resuming}
             onConnect={() => w.connectNow().catch(() => {})} onDisconnect={w.disconnect}
-            email={w.email} signedInAs={w.who?.email ?? null} />
+            email={w.email} signedInAs={w.who?.email ?? null} ask={w.ask} onAskDone={w.clearAsk} />
         </div>
       </div>
       {frame || wide
