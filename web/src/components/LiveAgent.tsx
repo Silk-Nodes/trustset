@@ -30,6 +30,9 @@ type State = {
   said: { why: string; at: string; balance: string } | null;
   coldKey: string; holdsColdKey: boolean; handoverAt: number; erc8004: number | null;
   chain: { trusted: boolean; expired: boolean; lapsed: boolean; status: number };
+  /* the public switch: who paused it last, when a visitor's pause ends on its
+     own, and when the next visitor may press */
+  visitor?: { pausedBy: "visitor" | "operator" | null; resumeAt: number | null; nextVisitorPauseAt: number };
   error?: string;
   /* false when this deployment names no live agent. the card draws nothing
      rather than picking one, because "a real agent, running now" is a claim
@@ -71,19 +74,19 @@ export default function LiveAgent({ compact = false }: { compact?: boolean } = {
      and the point is to watch it notice. */
   useEffect(() => { pull(); const t = setInterval(pull, 15_000); return () => clearInterval(t); }, [pull]);
 
-  /* the control is the operator's, not the reader's. the token lives in this
-     browser only and rides as a header; the server compares it and refuses
-     when it is missing, so a stranger who loads the page sees the state and
-     cannot change it. */
+  /* anybody may switch it off. the server gives a visitor's pause a two minute
+     timer and a site-wide cooldown, and only the operator token can undo the
+     operator's own pause, so the token field appears only when the server
+     answers that it is needed. an operator who has used the token once keeps
+     it in this browser and always sends it. */
   async function flip(action: "pause" | "resume") {
     const tok = token || (typeof localStorage !== "undefined" ? localStorage.getItem("trustset.operator") || "" : "");
-    if (!tok) { setAsking(true); return; }
     setBusy(true); setNote(null);
     try {
-      const r = await fetch("/api/live-agent", { method: "POST", headers: { "content-type": "application/json", "x-trustset-operator": tok }, body: JSON.stringify({ action }) });
+      const r = await fetch("/api/live-agent", { method: "POST", headers: { "content-type": "application/json", ...(tok ? { "x-trustset-operator": tok } : {}) }, body: JSON.stringify({ action }) });
       const j = await r.json();
-      if (j.error) { setNote(j.error); if (r.status === 401) setAsking(true); return; }
-      try { localStorage.setItem("trustset.operator", tok); } catch { /* private window */ }
+      if (j.error) { setNote(j.error); if (r.status === 401 || r.status === 403) setAsking(true); return; }
+      if (tok) { try { localStorage.setItem("trustset.operator", tok); } catch { /* private window */ } }
       setAsking(false);
       setTx({ hash: j.hash, block: j.block });
       await pull();
@@ -91,12 +94,22 @@ export default function LiveAgent({ compact = false }: { compact?: boolean } = {
     finally { setBusy(false); }
   }
 
+  /* one tick a second, only while a countdown is on screen */
+  const [clock, setClock] = useState(() => Date.now());
+  const counting = !!(s?.visitor?.resumeAt || (s?.visitor?.nextVisitorPauseAt ?? 0) > clock);
+  useEffect(() => { if (!counting) return; const t = setInterval(() => setClock(Date.now()), 1000); return () => clearInterval(t); }, [counting]);
+  const mmss = (ms: number) => { const t = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
+
   /* nothing to show, and nothing invented to fill the space with. */
   if (unconfigured) return null;
 
   /* paused is the only not-trusted state a resume fixes. */
   const off = !!s && !s.chain.trusted;
   const paused = s?.chain.status === 2;
+  const byVisitor = paused && s?.visitor?.pausedBy === "visitor" && !!s.visitor.resumeAt;
+  const byOperator = paused && s?.visitor?.pausedBy === "operator";
+  const coolUntil = !paused ? s?.visitor?.nextVisitorPauseAt ?? 0 : 0;
+  const cooling = coolUntil > clock && !token;
   const says = s?.said ? (SAYS[s.said.why] ?? s.said.why) : "Reading the agent…";
   /* the headline is a claim about the chain, so it follows the chain. it said
      "running now" over an agent its own line called paused and gone quiet. */
@@ -164,14 +177,18 @@ export default function LiveAgent({ compact = false }: { compact?: boolean } = {
               an expired or lapsed agent is still Active in the contract, so
               setStatus(Active) on it would cost a transaction and change
               nothing. the button offers a resume only when it was paused. */}
-          <button type="button" className={`drawn-btn ${paused ? "btn-gold" : "btn-orange"}`} style={{ padding: "9px 16px", fontSize: "0.85rem", opacity: busy || (off && !paused) ? 0.6 : 1 }}
-            disabled={busy || (off && !paused)} onClick={() => flip(paused ? "resume" : "pause")}>
+          <button type="button" className={`drawn-btn ${paused ? "btn-gold" : "btn-orange"}`} style={{ padding: "9px 16px", fontSize: "0.85rem", opacity: busy || (off && !paused) || cooling ? 0.6 : 1 }}
+            disabled={busy || (off && !paused) || cooling} onClick={() => flip(paused ? "resume" : "pause")}>
             {busy ? "Signing…" : paused ? "Bring it back" : "Switch it off"}
           </button>
-          <span className="text-[12px]" style={{ color: "var(--text-medium)" }}>
+          <span className="text-[12px] tabular" style={{ color: "var(--text-medium)" }}>
             {off && !paused
               ? "Its trust ran out on a limit, not a switch, so bringing it back means clearing that limit from the console."
-              : paused ? "It will notice within a minute and start again." : "It will notice within a minute and stop spending."}
+              : byVisitor ? <>Switched off by a visitor. It comes back on its own in <b style={{ color: "var(--text-dark)" }}>{mmss(s!.visitor!.resumeAt! - clock)}</b>, or now.</>
+              : byOperator ? "Switched off by the operator. It stays off until they bring it back."
+              : paused ? "It will notice within a minute and start again."
+              : cooling ? <>Somebody switched it off a moment ago. You can again in <b style={{ color: "var(--text-dark)" }}>{mmss(coolUntil - clock)}</b>.</>
+              : "Anybody can press this. It will notice within a minute and stop spending, and comes back on its own after two minutes."}
           </span>
           {asking && (
             <input type="password" autoComplete="off" placeholder="operator token" value={token} onChange={e => setToken(e.target.value)}

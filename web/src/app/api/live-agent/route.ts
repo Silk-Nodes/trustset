@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { readFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
+import { join } from "path";
 import { timingSafeEqual } from "crypto";
 import { ethers } from "ethers";
 import { cfg, provider, payer } from "@/lib/demo.server";
@@ -51,6 +52,60 @@ let inflight: Promise<Record<string, unknown>> | null = null;
 /* a write through this route makes the kept read stale at once. */
 function forget() { snap = null; }
 
+/* the public switch.
+ *
+ * the button used to need the operator token, so a judge on /demo saw a real
+ * agent and a control they could not press, which is the one thing on that
+ * page they came to do. now anybody can switch it off, with three guards:
+ * - it comes back on its own after two minutes, so nobody can leave the
+ *   shared agent dead for the next visitor
+ * - one visitor pause per five minutes across the whole site, so it cannot be
+ *   held down by pressing again
+ * - a visitor may bring back a visitor's pause early, never the operator's.
+ *   a pause made with the token has no timer and only the token undoes it.
+ *
+ * there is no cron on the box, so the resume happens on the first read after
+ * the timer runs out. the card polls every fifteen seconds, so a page that is
+ * open sees it on time, and the first visitor after a quiet spell finds the
+ * agent already back. */
+const VISITOR_MS = 120_000;
+const COOLDOWN_MS = 300_000;
+const ROOT = () => process.env.TRUSTSET_ROOT || join(process.cwd(), "..");
+const PUBLIC = () => process.env.PUBLIC_PAUSE_STORE || join(ROOT(), ".public-pause.json");
+type Pause = { id: string; by: "visitor" | "operator"; at: number; resumeAt: number | null; lastVisitorAt: number };
+async function pauseState(): Promise<Pause | null> {
+  try { return JSON.parse(await readFile(/*turbopackIgnore: true*/ PUBLIC(), "utf8")); } catch { return null; }
+}
+async function savePause(v: Pause) { await writeFile(/*turbopackIgnore: true*/ PUBLIC(), JSON.stringify(v, null, 2)); }
+
+let resuming: Promise<void> | null = null;
+/* bring a visitor's pause back once its time is up. single flight: a crowd of
+   readers arriving together must send one transaction, not one each. */
+async function autoResume(id: string) {
+  const v = await pauseState();
+  if (!v || v.id !== id || v.by !== "visitor" || !v.resumeAt || Date.now() < v.resumeAt) return;
+  if (resuming) return resuming;
+  resuming = (async () => {
+    try {
+      const c = await cfg();
+      const p = provider(c);
+      const ks = new ethers.Contract(c.killSwitch, KS, await payer(c, p));
+      const a = await ks.getAgent(id);
+      /* only undo the pause the visitor made. if the status has changed since
+         (the operator resumed and paused again from the console, say), the
+         pause on chain is somebody else's and the timer no longer applies. */
+      const ours = Number(a.statusSince) <= Math.floor(v.at / 1000) + 90;
+      if (Number(a.status) === 2 && ours) {
+        const tx = await ks.setStatus(id, 1, ethers.id("resumed on its own after a visitor pause"), { gasLimit: 200000 });
+        await p.waitForTransaction(tx.hash);
+      }
+      await savePause({ ...v, resumeAt: null });
+      forget();
+    } catch (e) { console.error("live agent: auto resume failed", e instanceof Error ? e.message : e); }
+  })().finally(() => { resuming = null; });
+  return resuming;
+}
+
 async function fromChain(id: string): Promise<Record<string, unknown>> {
   if (snap && Date.now() - snap.at < TTL) return snap.v;
   if (inflight) return inflight;
@@ -73,7 +128,14 @@ export async function GET() {
        to be true. an unconfigured deployment says so instead. */
     const id0 = said?.agentId ?? process.env.LIVE_AGENT_ID;
     if (!id0) return NextResponse.json({ configured: false }, { headers: { "cache-control": "no-store" } });
-    return NextResponse.json({ ...(await fromChain(id0)), said }, { headers: { "cache-control": "no-store" } });
+    await autoResume(id0);
+    const v = await pauseState();
+    const visitor = v && v.id === id0 ? {
+      pausedBy: v.by,
+      resumeAt: v.by === "visitor" ? v.resumeAt : null,
+      nextVisitorPauseAt: v.lastVisitorAt ? v.lastVisitorAt + COOLDOWN_MS : 0,
+    } : { pausedBy: null, resumeAt: null, nextVisitorPauseAt: 0 };
+    return NextResponse.json({ ...(await fromChain(id0)), said, visitor, publicSwitch: true }, { headers: { "cache-control": "no-store" } });
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);
     /* the rpc turning us away is not a decoding problem, and saying so as one
@@ -136,7 +198,7 @@ function operator(req: Request) {
 }
 
 export async function POST(req: Request) {
-  if (!operator(req)) return NextResponse.json({ error: "That control needs the operator token." }, { status: 401 });
+  const isOperator = operator(req);
   try {
     const { action } = (await req.json()) as { action: "pause" | "resume" };
     if (action !== "pause" && action !== "resume") return NextResponse.json({ error: "unknown action" }, { status: 400 });
@@ -145,9 +207,27 @@ export async function POST(req: Request) {
     const ks = new ethers.Contract(c.killSwitch, KS, await payer(c, p));
     const id = (await saidByTheAgent())?.agentId ?? process.env.LIVE_AGENT_ID;
     if (!id) return NextResponse.json({ error: "no live agent is configured on this deployment" }, { status: 400 });
+
+    const v = await pauseState();
+    const mine = v && v.id === id ? v : null;
+    if (!isOperator) {
+      const now = Date.now();
+      if (action === "pause") {
+        const next = (mine?.lastVisitorAt ?? 0) + COOLDOWN_MS;
+        if (now < next) return NextResponse.json({ error: "Somebody switched it off a moment ago.", retryAt: next }, { status: 429 });
+      } else if (!mine || mine.by !== "visitor" || !mine.resumeAt) {
+        return NextResponse.json({ error: "Only the operator can bring it back from this pause." }, { status: 403 });
+      }
+    }
     const to = action === "pause" ? 2 : 1;
     const tx = await ks.setStatus(id, to, ethers.id(action === "pause" ? "paused from the site" : "resumed from the site"), { gasLimit: 200000 });
     const rc = await p.waitForTransaction(tx.hash);
+    if (rc?.status === 1) {
+      const now = Date.now();
+      await savePause(action === "pause"
+        ? { id, by: isOperator ? "operator" : "visitor", at: now, resumeAt: isOperator ? null : now + VISITOR_MS, lastVisitorAt: isOperator ? (mine?.lastVisitorAt ?? 0) : now }
+        : { id, by: mine?.by ?? "visitor", at: mine?.at ?? now, resumeAt: null, lastVisitorAt: mine?.lastVisitorAt ?? 0 });
+    }
     return NextResponse.json({ ok: rc?.status === 1, hash: tx.hash, block: rc?.blockNumber ?? null, explorer: c.explorer });
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);
