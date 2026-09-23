@@ -135,11 +135,15 @@ export default function Explorer({ explorer }: { explorer: string }) {
     <>
       <Lookup base={indexAt} />
 
-      <div className="flex flex-wrap items-center gap-2 mt-8 mb-3">
-        <h2 className="text-[15px] font-semibold mr-2">Changes of trust</h2>
-        {FILTERS.map(([k, label]) => (
-          <button key={k} type="button" onClick={() => setFilter(k)} className={chipCls} style={chip(filter === k)}>{label}</button>
-        ))}
+      {/* on a phone the eight chips wrapped to three rows. there they are one
+          row that scrolls sideways inside itself, never the page. */}
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mt-8 mb-3">
+        <h2 className="text-[15px] font-semibold mr-2 shrink-0">Changes of trust</h2>
+        <div className="flex gap-2 overflow-x-auto sm:overflow-visible sm:flex-wrap -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {FILTERS.map(([k, label]) => (
+            <button key={k} type="button" onClick={() => setFilter(k)} className={`${chipCls} shrink-0`} style={chip(filter === k)}>{label}</button>
+          ))}
+        </div>
       </div>
 
       <div className="sheet overflow-hidden">
