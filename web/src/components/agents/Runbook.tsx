@@ -16,7 +16,10 @@ const quiet = { color: "var(--text-medium)" } as const;
 const field = { background: "var(--bg-base)", border: "1px solid var(--hairline)", color: "var(--text-dark)" } as const;
 const WORD: Record<Kind, string> = { runbook: "runbook", stop: "stop reason" };
 
-export default function Runbook({ conn, signer, id, sample }: { conn: Conn; signer: ethers.Signer | null; id: bigint; sample: boolean }) {
+/* readOnly is the public explorer's view: the notes and "open with passkey",
+   no composer. opening needs the passkey and nothing else, so a phone with no
+   wallet at all can read what the owner sealed on a laptop. */
+export default function Runbook({ conn, signer, id, sample, readOnly }: { conn: Conn; signer: ethers.Signer | null; id: bigint; sample: boolean; readOnly?: boolean }) {
   const [notes, setNotes] = useState<Sealed[] | null>(null);
   const [opened, setOpened] = useState<Record<number, string>>({});
   const [kind, setKind] = useState<Kind>("runbook");
@@ -30,7 +33,9 @@ export default function Runbook({ conn, signer, id, sample }: { conn: Conn; sign
   }, [conn, id, sample]);
   useEffect(() => { setOpened({}); setNotes(null); load(); }, [load]);
 
-  if (!conn.cfg.notes) return <p className="text-xs" style={quiet}>This chain has no sealed notes contract.</p>;
+  if (!conn.cfg.notes) return readOnly ? null : <p className="text-xs" style={quiet}>This chain has no sealed notes contract.</p>;
+  /* the explorer shows the section only when there is something sealed */
+  if (readOnly && (!notes || notes.length === 0)) return null;
 
   const open = async (n: Sealed) => {
     if (!n.vault) return;
@@ -56,7 +61,9 @@ export default function Runbook({ conn, signer, id, sample }: { conn: Conn; sign
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[11.5px]" style={quiet}>
-        Sealed with your passkey in this browser, stored on chain as ciphertext. Any device your passkey syncs to can open it; nobody else can.
+        {readOnly
+          ? "Stored on chain as ciphertext. Only the owner's passkey opens them, on any device it syncs to, with no wallet."
+          : "Sealed with your passkey in this browser, stored on chain as ciphertext. Any device your passkey syncs to can open it; nobody else can."}
       </p>
 
       {notes === null && <p className="text-xs" style={quiet}>Reading the chain…</p>}
@@ -80,7 +87,7 @@ export default function Runbook({ conn, signer, id, sample }: { conn: Conn; sign
         </ul>
       )}
 
-      {sample ? (
+      {readOnly ? null : sample ? (
         <p className="text-xs" style={quiet}>Sample agents cannot hold notes. Connect the cold key of a real agent to seal one.</p>
       ) : (
         <div className="flex flex-col gap-2">

@@ -21,7 +21,10 @@ import type { Conn } from "@/lib/chain";
  * it used into the vault so opening it asks for that same passkey. */
 export const NOTES_ABI = [
   "function seal(uint256 agentId, uint8 kind, bytes vault)",
-  "function notesOf(uint256 agentId) view returns (tuple(uint8 kind, address by, uint64 at, bytes vault)[])",
+  /* "sealedAt", not "at": ethers hands tuples back as arrays, and every array
+     already has an at() method, so a field called at read back as a function
+     and every note was dated Invalid Date. */
+  "function notesOf(uint256 agentId) view returns (tuple(uint8 kind, address by, uint64 sealedAt, bytes vault)[])",
 ];
 export type Kind = "runbook" | "stop";
 const KIND: Record<Kind, number> = { runbook: 0, stop: 1 };
@@ -35,11 +38,11 @@ const enc = new TextEncoder(), dec = new TextDecoder();
 export async function readNotes(c: Conn, id: bigint): Promise<Sealed[]> {
   if (!c.cfg.notes) return [];
   const n = new ethers.Contract(c.cfg.notes, NOTES_ABI, c.p);
-  const rows = await n.notesOf(id) as { kind: bigint; by: string; at: bigint; vault: string }[];
+  const rows = await n.notesOf(id) as { kind: bigint; by: string; sealedAt: bigint; vault: string }[];
   return rows.map((r, index) => {
     let vault: PasskeySecretVault | null = null;
     try { vault = parseSecretVault(JSON.parse(dec.decode(ethers.getBytes(r.vault)))); } catch { /* unreadable, shown as such */ }
-    return { kind: Number(r.kind) === 1 ? "stop" : "runbook", by: r.by, at: Number(r.at), vault, index };
+    return { kind: Number(r.kind) === 1 ? "stop" : "runbook", by: r.by, at: Number(r.sealedAt), vault, index };
   });
 }
 
