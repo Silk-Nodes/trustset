@@ -86,16 +86,25 @@ async function main() {
 async function act(trustset, wallet, venue, id) {
   const l = await trustset.limits(id);
 
-  const tx = await venue.trade(id, { gasLimit: await limitFor(venue.trade, [id], TRADE_GAS) });
-  /* logged from the receipt, not from the send. a hash is not a trade: this
-     said "traded" for one that reverted, which is the kind of log that sends
-     you looking in the wrong place. */
-  const rc = await wallet.provider.waitForTransaction(tx.hash);
-  log(rc?.status === 1 ? `traded · ${tx.hash}` : `trade REVERTED · ${tx.hash}`);
+  /* the trade and the heartbeat are separate jobs. a trade that failed used to
+     throw before the heartbeat was reached, so one bad trade also cost the
+     beat, and a missed beat is a lapse only the cold key can undo. */
+  try {
+    const tx = await venue.trade(id, { gasLimit: await limitFor(venue.trade, [id], TRADE_GAS) });
+    /* logged from the receipt, not from the send. a hash is not a trade: this
+       said "traded" for one that reverted, which is the kind of log that sends
+       you looking in the wrong place. */
+    const rc = await wallet.provider.waitForTransaction(tx.hash);
+    log(rc?.status === 1 ? `traded · ${tx.hash}` : `trade REVERTED · ${tx.hash}`);
+  } catch (e) { log("trade failed:", e?.shortMessage || e?.message?.split("\n")[0] || e); }
 
   if (l.nextBeatBy > 0 && !l.lapsed) {
     const due = l.nextBeatBy - Math.floor(Date.now() / 1000);
-    if (due < 3600) {
+    /* beat with room to spare: while less than one and a half action
+       intervals remain. "less than an hour" with an hourly action could fall
+       a few seconds either side of the boundary and skip the beat that
+       mattered, and a lapse needs the cold key to undo. */
+    if (due < (ACT_MS / 1000) * 1.5) {
       const b = await trustset.beat(id, wallet, { gasLimit: BEAT_GAS });
       const br = await wallet.provider.waitForTransaction(b.hash);
       log(br?.status === 1 ? `beat · ${b.hash}` : `beat REVERTED · ${b.hash}`);
