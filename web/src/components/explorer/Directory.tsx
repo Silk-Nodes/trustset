@@ -45,8 +45,6 @@ const VIEWS: { key: string; label: string; states: State[]; missing: Missing[] }
 const same = <T,>(a: T[], b: T[]) => a.length === b.length && a.every(x => b.includes(x));
 
 const WORD: Record<State, string> = { trusted: "trusted", expired: "expired", quiet: "gone quiet", paused: "paused", stopped: "stopped" };
-/* one word each, so states, views and sort share a single row at 1400 */
-const SORT_WORD: Record<Sort, string> = { recent: "recent", busy: "busiest", expiry: "expiring", id: "newest" };
 const STATES: State[] = ["trusted", "expired", "quiet", "paused", "stopped"];
 const PERS = [25, 50, 100];
 const n = (v: string | number) => typeof v === "number" ? v : Number(v || 0);
@@ -160,6 +158,15 @@ export default function Directory({ rows, total, counts, coverage, query, onQuer
   const to = Math.min(query.page * query.per, total);
   const h = phone ? 68 : roomy ? 50 : 38;
 
+  const [menu, setMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const out = (e: MouseEvent) => { if (!menuRef.current?.contains(e.target as Node)) setMenu(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setMenu(false); };
+    addEventListener("mousedown", out); addEventListener("keydown", esc);
+    return () => { removeEventListener("mousedown", out); removeEventListener("keydown", esc); };
+  }, [menu]);
   const view = VIEWS.find(v => same(v.states, query.states) && same(v.missing, query.missing));
   const pickView = (v: typeof VIEWS[number]) => onQuery(view?.key === v.key ? { states: [], missing: [], page: 1 } : { states: v.states, missing: v.missing, page: 1 });
   const toggleState = (s: State) => onQuery({ states: query.states.includes(s) ? query.states.filter(v => v !== s) : [...query.states, s], page: 1 });
@@ -208,44 +215,27 @@ export default function Directory({ rows, total, counts, coverage, query, onQuer
         ))}
         {(query.states.length > 0 || query.missing.length > 0) && <button type="button" onClick={() => onQuery({ states: [], missing: [], page: 1 })} className={chipCls} style={{ ...chip(false), border: "1px solid transparent" }}>clear</button>}
 
-        {/* views sit beside the states they are made of, not on a row of their own */}
-        <span className="hidden lg:block w-px h-4 shrink-0" style={{ background: "var(--hairline)" }} />
-        {VIEWS.map(v => (
-          <button key={v.key} type="button" onClick={() => pickView(v)} className={chipCls} style={chip(view?.key === v.key)}>{v.label}</button>
-        ))}
-        {query.missing.length > 0 && !view && (
-          <span className="mono text-[11px]" style={quiet}>missing {query.missing.join(", ")}</span>
-        )}
-
-        <span className="hidden lg:block w-px h-4 shrink-0" style={{ background: "var(--hairline)" }} />
-        <span className="eyebrow hidden lg:inline">sort</span>
-        {(Object.keys(SORT_WORD) as Sort[]).map(s => (
-          <button key={s} type="button" onClick={() => sortBy(s)} className={chipCls} style={chip(query.sort === s)}>
-            {SORT_WORD[s]}{query.sort === s && query.rev ? " ↑" : ""}
+        {/* the named views live behind one control. four more chips beside the
+            five states made the row read as a wall, and a view is something you
+            reach for, not something you need to see every time. */}
+        <div ref={menuRef} className="relative">
+          <button type="button" onClick={() => setMenu(o => !o)} aria-expanded={menu} className={chipCls} style={chip(!!view || query.missing.length > 0)}>
+            {view ? view.label : query.missing.length ? `missing ${query.missing.join(", ")}` : "more filters"}
+            <span aria-hidden className="text-[9px]">▾</span>
           </button>
-        ))}
-
-        <span className="flex-1" />
-
-        {/* coverage across the whole fleet, counted by postgres, not a tally of
-            the rows on screen. the three the indexer cannot see are dashes
-            rather than zeros: a zero would claim no agent has one. */}
-        <span className="hidden xl:flex items-center gap-2.5 shrink-0">
-          <span className="eyebrow" data-tip="The share of every agent that has each layer set. The faint three live in contracts the indexer does not walk, so they are unknown here, never absent." data-tip-end="">coverage</span>
-          {COLS.map((c, i) => {
-            const known = KNOWN.includes(c.k);
-            const pct = known ? coverage[c.k] : null;
-            return (
-              <span key={c.k} data-tip={known ? `${c.name}: ${pct ?? 0}% of all agents` : `${c.name}: not in the index`}
-                {...(i >= COLS.length - 3 ? { "data-tip-end": "" } : {})}
-                className="inline-flex items-center gap-1" style={{ opacity: known ? 1 : 0.4 }}>
-                <span style={{ color: known ? "var(--orange-text)" : "var(--text-light)" }}><LayerIcon k={c.k} size={12} /></span>
-                <span className="mono text-[11px] tabular" style={quiet}>{pct === null || pct === undefined ? "n/a" : `${pct}%`}</span>
-              </span>
-            );
-          })}
-        </span>
-        {!phone && <button type="button" onClick={() => setRoomy(r => !r)} className={chipCls} style={chip(false)}>{roomy ? "comfortable" : "dense"}</button>}
+          {menu && (
+            <div role="menu" className="absolute left-0 top-[calc(100%+6px)] z-[40] w-[220px] rounded-xl p-1"
+              style={{ background: "var(--surface)", border: "1px solid var(--hairline)", boxShadow: "0 12px 32px rgba(0,0,0,0.22)" }}>
+              {VIEWS.map(v => (
+                <button key={v.key} type="button" role="menuitemradio" aria-checked={view?.key === v.key}
+                  onClick={() => { pickView(v); setMenu(false); }}
+                  className="w-full flex items-center gap-2 rounded-lg px-2.5 h-8 text-[12.5px] text-left outline-none hover:bg-[color-mix(in_srgb,var(--text-dark)_6%,transparent)] focus-visible:ring-2">
+                  <span className="w-3 text-[11px]" style={{ color: "var(--orange-text)" }}>{view?.key === v.key ? "✓" : ""}</span>{v.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="sheet">
@@ -255,10 +245,15 @@ export default function Directory({ rows, total, counts, coverage, query, onQuer
           {!phone && <span className="hidden md:block eyebrow">owner</span>}
           <span className="hidden md:block eyebrow">state</span>
           <span className="hidden md:block">{th("expiry", "expires")}</span>
-          <span className="hidden md:block">{th("recent", "last")}</span>
+          <span className="hidden md:flex items-center gap-2">
+            {/* the sparkline sorts by how busy the day was, the time by the last event */}
+            <span className="hidden lg:inline-flex w-[44px]">{th("busy", "24h")}</span>{th("recent", "last")}
+          </span>
           {phone ? <span className="eyebrow">state</span> : (
             <span className="flex items-center gap-1">
-              {COLS.map((c, i) => <span key={c.k} data-tip={c.name} {...(i >= COLS.length - 3 ? { "data-tip-end": "" } : {})}
+              {/* the header marks carry the fleet's coverage, which used to take a
+                  row of its own above the table */}
+              {COLS.map((c, i) => <span key={c.k} data-tip={KNOWN.includes(c.k) ? `${c.name}: set on ${coverage[c.k] ?? 0}% of agents` : `${c.name}: not in the index`} {...(i >= COLS.length - 3 ? { "data-tip-end": "" } : {})}
                 className="inline-flex w-[18px] h-[18px] items-center justify-center" style={quiet}><LayerIcon k={c.k} size={12} /></span>)}
             </span>
           )}
@@ -321,6 +316,8 @@ export default function Directory({ rows, total, counts, coverage, query, onQuer
           <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
             <span className="mono text-[11.5px] tabular" style={quiet}>{from} to {to} of {total}</span>
             {!phone && <span className="hidden lg:inline mono text-[10.5px]" style={faint}>j k move · enter open</span>}
+            {!phone && <span className="hidden lg:block w-px h-3" style={{ background: "var(--hairline)" }} />}
+            {!phone && <button type="button" onClick={() => setRoomy(r => !r)} className="mono text-[11px] hover:underline" style={quiet}>{roomy ? "compact rows" : "roomy rows"}</button>}
             <span className="flex-1" />
             <label className="flex items-center gap-1.5 mono text-[11px]" style={quiet}>
               per page
