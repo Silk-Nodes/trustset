@@ -12,9 +12,16 @@
  * configuration is all or nothing. with none of the four set the agent keeps
  * its file key and says so; with some but not all it refuses to start and
  * names what is missing, rather than quietly signing with the wrong key. */
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { ethers } from "ethers";
 
-const VARS = ["DYNAMIC_ENVIRONMENT_ID", "DYNAMIC_API_TOKEN", "DYNAMIC_AGENT_ADDRESS", "DYNAMIC_WALLET_PASSWORD"];
+/* DYNAMIC_WALLET_FILE holds the wallet's metadata as createWalletAccount
+   returned it. the SDK is stateless and Dynamic has no endpoint that gives the
+   key-share backup pointer back later, so this file is the only way to sign
+   with the wallet again. it is not secret (Dynamic calls it non-sensitive
+   identity and backup-pointer info); the key material stays with Dynamic,
+   encrypted under the password. lose the file and the wallet cannot sign. */
+const VARS = ["DYNAMIC_ENVIRONMENT_ID", "DYNAMIC_API_TOKEN", "DYNAMIC_AGENT_ADDRESS", "DYNAMIC_WALLET_PASSWORD", "DYNAMIC_WALLET_FILE"];
 const MONAD_TESTNET = 10143;
 
 export function dynamicConfigured() {
@@ -35,11 +42,21 @@ export async function dynamicClient() {
   return client;
 }
 
-export async function walletMeta(client, address) {
-  const all = await client.getEvmWallets();
-  const w = all.find(x => x.accountAddress.toLowerCase() === address.toLowerCase());
-  if (!w) throw new Error(`no Dynamic wallet ${address} in environment ${process.env.DYNAMIC_ENVIRONMENT_ID}`);
-  return w;
+/* the saved metadata, checked against the address the env names, so a file
+   copied from another wallet can never sign as this agent */
+export function walletMeta(address) {
+  const f = process.env.DYNAMIC_WALLET_FILE;
+  if (!f || !existsSync(f)) throw new Error(`DYNAMIC_WALLET_FILE ${f || "(unset)"} does not exist. run: node dynamic-setup.mjs create`);
+  const m = JSON.parse(readFileSync(f, "utf8"));
+  if (m.accountAddress?.toLowerCase() !== address.toLowerCase()) throw new Error(`${f} is for ${m.accountAddress}, not ${address}`);
+  if (!m.externalServerKeySharesBackupInfo) throw new Error(`${f} has no key-share backup pointer; this wallet cannot sign`);
+  return m;
+}
+
+export function saveWalletMeta(meta) {
+  const f = process.env.DYNAMIC_WALLET_FILE;
+  if (existsSync(f)) throw new Error(`${f} already exists. refusing to overwrite a wallet that may be in use`);
+  writeFileSync(f, JSON.stringify(meta, null, 2), { mode: 0o600 });
 }
 
 /* an ethers signer whose signatures all come from Dynamic */
@@ -87,7 +104,7 @@ export class DynamicSigner extends ethers.AbstractSigner {
 export async function dynamicSigner(provider, rpcUrl) {
   const client = await dynamicClient();
   const address = process.env.DYNAMIC_AGENT_ADDRESS;
-  const walletMetadata = await walletMeta(client, address);
+  const walletMetadata = walletMeta(address);
   const wc = await client.getWalletClient({ walletMetadata, password: process.env.DYNAMIC_WALLET_PASSWORD, chainId: MONAD_TESTNET, rpcUrl });
   return new DynamicSigner(wc, address, provider);
 }

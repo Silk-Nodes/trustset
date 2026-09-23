@@ -20,7 +20,8 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ethers } from "ethers";
-import { dynamicClient, dynamicSigner, walletMeta } from "./dynamic.mjs";
+import { existsSync } from "node:fs";
+import { dynamicClient, dynamicSigner, saveWalletMeta } from "./dynamic.mjs";
 
 const ROOT = process.env.TRUSTSET_ROOT || join(dirname(fileURLToPath(import.meta.url)), "..");
 const RPC = process.env.MONAD_RPC || "https://testnet-rpc.monad.xyz";
@@ -38,17 +39,21 @@ const KS = [
 ];
 
 async function create() {
-  need("DYNAMIC_ENVIRONMENT_ID", "DYNAMIC_API_TOKEN", "DYNAMIC_WALLET_PASSWORD");
+  need("DYNAMIC_ENVIRONMENT_ID", "DYNAMIC_API_TOKEN", "DYNAMIC_WALLET_PASSWORD", "DYNAMIC_WALLET_FILE");
+  if (existsSync(process.env.DYNAMIC_WALLET_FILE)) throw new Error(`${process.env.DYNAMIC_WALLET_FILE} already exists. a wallet was made already; remove the file only if you mean to abandon it`);
+  step("signing in to Dynamic and creating the wallet");
   const c = await dynamicClient();
   const w = await c.createWalletAccount({ thresholdSignatureScheme: "TWO_OF_TWO", password: process.env.DYNAMIC_WALLET_PASSWORD, backUpToDynamic: true });
   const backed = w.externalKeySharesWithBackupStatus?.every(s => s.backedUpToClientKeyShareService);
+  saveWalletMeta(w.walletMetadata);
   console.log(`created ${w.walletMetadata.accountAddress}`);
+  console.log(`metadata saved to ${process.env.DYNAMIC_WALLET_FILE} (keep it: without it the wallet cannot sign)`);
   console.log(backed ? "our key share is backed up to Dynamic, encrypted under the password" : "WARNING: the key share did not report a backup. do not register this wallet.");
   console.log(`\nadd to .env:\nDYNAMIC_AGENT_ADDRESS=${w.walletMetadata.accountAddress}`);
 }
 
 async function register() {
-  need("DYNAMIC_ENVIRONMENT_ID", "DYNAMIC_API_TOKEN", "DYNAMIC_AGENT_ADDRESS", "DYNAMIC_WALLET_PASSWORD", "DEMO_PAYER_KEY");
+  need("DYNAMIC_ENVIRONMENT_ID", "DYNAMIC_API_TOKEN", "DYNAMIC_AGENT_ADDRESS", "DYNAMIC_WALLET_PASSWORD", "DYNAMIC_WALLET_FILE", "DEMO_PAYER_KEY");
   const d = JSON.parse(readFileSync(join(ROOT, "deployments", "monad-testnet.json"), "utf8"));
   const p = new ethers.JsonRpcProvider(RPC, undefined, { staticNetwork: true });
   const cold = new ethers.Wallet(process.env.DEMO_PAYER_KEY, p);
