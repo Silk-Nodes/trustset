@@ -321,7 +321,9 @@ export default function Venue() {
           measures relative, but its ancestor is pinned: after scrolling 1200px
           it still reported top 0 and bottom 64. so the card sits below that
           rather than at the top of the viewport, and under it in the stack. */}
-      <div className="lg:hidden sticky top-[72px] z-20">{agent}</div>
+      {/* compact while it sticks: at full size it covered a third of a phone
+          screen, above the very buttons it reacts to. */}
+      <div className="lg:hidden sticky top-[72px] z-20"><AgentCard s={s} off={off} refusedAt={refusedAt} reduced={m.reduced} resetting={prep === "resetting"} compact /></div>
 
       {s?.mismatch && (
         <div className="sheet px-5 py-4 lg:col-span-2" style={{ borderColor: "var(--orange)" }}>
@@ -458,11 +460,11 @@ export default function Venue() {
 }
 
 /* the agent, as a thing on the page rather than a row of addresses. */
-function AgentCard({ s, off, refusedAt, reduced, resetting }: { s: State | null; off: boolean; refusedAt: number | null; reduced: boolean; resetting?: boolean }) {
+function AgentCard({ s, off, refusedAt, reduced, resetting, compact = false }: { s: State | null; off: boolean; refusedAt: number | null; reduced: boolean; resetting?: boolean; compact?: boolean }) {
   const word = !s ? "reading the chain" : resetting ? "getting ready" : s.trusted ? "trusted" : s.expired ? "expired" : s.status === 2 ? "switched off" : "not trusted";
   const tone = off ? "var(--orange)" : "var(--sage)";
   return (
-    <div className="sheet p-5 relative overflow-hidden" style={{
+    <div className={`sheet ${compact ? "px-4 py-3" : "p-5"} relative overflow-hidden`} style={{
       background: off ? "color-mix(in srgb, var(--orange) 7%, var(--surface))" : "var(--surface)",
       transition: reduced ? "none" : "background .45s ease",
     }}>
@@ -474,16 +476,17 @@ function AgentCard({ s, off, refusedAt, reduced, resetting }: { s: State | null;
           )}
           <span className="relative w-3 h-3 rounded-full" style={{ background: s ? tone : "var(--hairline)", transition: reduced ? "none" : "background .3s" }} />
         </span>
-        <span className="text-[22px] font-semibold tracking-[-0.02em] leading-none">{word}</span>
+        <span className={`${compact ? "text-[18px]" : "text-[22px]"} font-semibold tracking-[-0.02em] leading-none`}>{word}</span>
+        {compact && s && <span className="mono text-[11px] tabular" style={{ color: "var(--text-medium)" }}>{s.trades} trades</span>}
         <span className="ml-auto mono text-[11px]" style={{ color: "var(--text-medium)" }}>agent {s?.agentId ?? "…"}</span>
       </div>
       {/* what this agent is, in one line, because the page has two: the real
           one at the top and this one, which the steps act on */}
-      <p className="text-[12px] mt-2" style={{ color: "var(--text-medium)" }}>
+      {!compact && <p className="text-[12px] mt-2" style={{ color: "var(--text-medium)" }}>
         {!s ? "\u00a0" : s.owned ? "Your agent. Your wallet is its cold key." : "The practice agent, shared by visitors, so press anything."}
-      </p>
+      </p>}
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      {!compact && <div className="mt-4 grid grid-cols-2 gap-3">
         <div>
           <div className="text-[10.5px] mono uppercase tracking-[0.12em]" style={{ color: "var(--text-medium)" }}>Trades</div>
           <div className="mono tabular text-[26px] leading-none mt-1">{s ? s.trades : "…"}</div>
@@ -494,7 +497,7 @@ function AgentCard({ s, off, refusedAt, reduced, resetting }: { s: State | null;
           </div>
           <div className="mono tabular text-[26px] leading-none mt-1">{s ? s.readAt : "…"}</div>
         </div>
-      </div>
+      </div>}
 
       <AnimatePresence initial={false}>
         {refusedAt !== null && off && (
@@ -505,7 +508,7 @@ function AgentCard({ s, off, refusedAt, reduced, resetting }: { s: State | null;
           </motion.div>
         )}
       </AnimatePresence>
-      {!(refusedAt !== null && off) && (
+      {!compact && !(refusedAt !== null && off) && (
         <p className="mt-4 pt-3 text-[12px]" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
           {!s ? "" : off ? "Every app that checks the switch refuses this key from here on." : "Every app that checks the switch will serve this key. The page re-reads the chain every twelve seconds."}
         </p>
