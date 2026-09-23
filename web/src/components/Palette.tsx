@@ -20,20 +20,18 @@ import { useMotionPrefs } from "@/lib/motion";
  * it reads agents from the index. with no index it still navigates, and an
  * id typed straight in still resolves, because /explorer/12 is a url and not
  * a search result. */
-type Agent = { id: number; name: string | null; agent_key: string; cold_key: string; status: string; trusted: boolean };
+type Agent = { id: number; name: string | null; agent_key: string; state: string };
 type Item = { id: string; group: string; label: string; hint?: string; sub?: string; tone?: "live" | "off" | "plain"; go: () => void };
 
 const PAGES: { label: string; href: string; hint: string }[] = [
   { label: "Your agents", href: "/agents", hint: "the console" },
-  { label: "Explorer", href: "/explorer", hint: "every agent" },
+  { label: "Explorer", href: "/explorer", hint: "look an agent up" },
   { label: "Guarding", href: "/agents/guarding", hint: "agents you guard" },
   { label: "Refunds", href: "/agents/refunds", hint: "the rail" },
   { label: "Try it", href: "/demo", hint: "a real stop on testnet" },
   { label: "Questions", href: "/faq", hint: "the FAQ" },
   { label: "Docs", href: "/how", hint: "addresses and integration" },
 ];
-const isAddress = (s: string) => /^0x[0-9a-fA-F]{40}$/.test(s);
-const isTx = (s: string) => /^0x[0-9a-fA-F]{64}$/.test(s);
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 export default function Palette({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -67,7 +65,7 @@ export default function Palette({ open, onClose }: { open: boolean; onClose: () 
     const t = setTimeout(() => {
       fetch(`/api/explorer/agents?per=10${term ? `&q=${encodeURIComponent(term)}` : ""}`, { cache: "no-store", signal: ctl.signal })
         .then(r => r.json())
-        .then(j => { if (j.indexed) { setAgents(j.agents ?? []); if (!term) setTotal(j.total ?? 0); } })
+        .then(j => { if (j.indexed) { setAgents(j.agents ?? []); if (!term) setTotal(j.fleet ?? 0); } })
         .catch(() => {});
     }, term ? 120 : 0);
     return () => { clearTimeout(t); ctl.abort(); };
@@ -101,25 +99,18 @@ export default function Palette({ open, onClose }: { open: boolean; onClose: () 
     /* an id, an address or a transaction is an answer, not a search. it goes
        first and it works whether or not the index is reachable. */
     if (/^\d+$/.test(needle)) out.push({ id: "jump-id", group: "Go straight there", label: `Agent ${needle}`, hint: "open", sub: "on the explorer", go: go(`/explorer/${needle}`) });
-    if (isTx(q.trim())) out.push({ id: "jump-tx", group: "Go straight there", label: "That transaction", hint: "open", sub: short(q.trim()), go: go(`/explorer?q=${q.trim()}`) });
 
-    const matched = needle.length === 0 ? [] : agents.filter(a =>
-      String(a.id) === needle
-      || (a.name ?? "").toLowerCase().includes(needle)
-      || a.agent_key.toLowerCase().includes(needle)
-      || a.cold_key.toLowerCase().includes(needle),
-    ).slice(0, 6);
+    /* the server already matched these; it matches an agent key and never a
+       cold key, so a pasted owner address finds nothing here by design. */
+    const matched = needle.length === 0 ? [] : agents.slice(0, 6);
     for (const a of matched) {
       out.push({
         id: `a${a.id}`, group: "Agents", label: a.name || `Agent ${a.id}`,
         sub: `agent ${a.id} · ${short(a.agent_key)}`,
-        hint: a.trusted ? "trusted" : a.status === "revoked" || a.status === "rotated" ? "stopped" : "not trusted",
-        tone: a.trusted ? "live" : "off",
+        hint: a.state === "trusted" ? "trusted" : a.state === "stopped" ? "stopped" : "not trusted",
+        tone: a.state === "trusted" ? "live" : "off",
         go: go(`/explorer/${a.id}`),
       });
-    }
-    if (isAddress(q.trim()) && matched.length === 0) {
-      out.push({ id: "owner", group: "Go straight there", label: "Search that address", sub: short(q.trim()), hint: "explorer", go: go(`/explorer?q=${q.trim()}`) });
     }
 
     for (const p of PAGES) {

@@ -18,15 +18,9 @@ async function explorerUrl() {
 export default async function Page() {
   return (
     <>
-      {/* wide, like the console. the directory is a table of every agent on the
-          switch and a centred 1152px column was spending a third of a desktop
-          on margins while the marks column ran out of room.
-
-          no headline and no paragraph. this is a tool, and the page opened with
-          a marketing hero and an explanation of the indexer's block window,
-          which is a thing a reader looking up an agent has no use for. the live
-          agent used to sit on top as a banner, but it is one agent of many and
-          it is a row in the directory like the rest. */}
+      {/* a lookup and a feed, not a directory. there is no headline and no
+          paragraph beyond the question the page answers: this is a tool, and
+          a reader arrives with one agent in mind. */}
       <main className="w-full px-4 sm:px-5 pt-6 sm:pt-8 pb-16 min-w-0">
         <Explorer explorer={await explorerUrl()} />
       </main>

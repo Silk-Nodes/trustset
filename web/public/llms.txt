@@ -63,7 +63,7 @@ escalation 10 minutes, guardian recovery 10 minutes.
 - https://trustset.silknodes.io/faq    the questions, including the awkward ones
 - https://trustset.silknodes.io/how    addresses, integration, the four states
 - https://trustset.silknodes.io/demo   a real stop on testnet, in your browser
-- https://trustset.silknodes.io/explorer  every agent and every event
+- https://trustset.silknodes.io/explorer  look an agent up by id, key or name; recent changes of trust
 
 ## Source
 
