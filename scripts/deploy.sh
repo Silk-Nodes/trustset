@@ -44,6 +44,18 @@ echo "==> sending web/public"
 # og image and the new favicon sat at 404 while every page reported 200.
 rsync -az --delete --exclude '.env*' "$ROOT/web/public/" "$HOST:$REMOTE/web/public/"
 
+echo "==> sending the dependencies and the deployment"
+# a new package in package.json and nothing sent but src is a build that
+# cannot resolve an import. and the api reads contract addresses from
+# deployments/ at request time, so a contract deployed since the last sync is
+# simply absent on the server: sealed notes shipped without either would have
+# built red, and then said "no sealed notes contract" once it built.
+rsync -az "$ROOT/web/package.json" "$ROOT/web/package-lock.json" "$HOST:$REMOTE/web/"
+rsync -az "$ROOT/deployments/" "$HOST:$REMOTE/deployments/"
+# npm ci only when the lockfile changed since the last install on the box, so
+# an ordinary deploy does not pay for a reinstall.
+ssh "$HOST" 'cd '"$REMOTE"'/web && h=$(sha256sum package-lock.json | cut -d" " -f1); if [ "$h" != "$(cat node_modules/.lock-sha 2>/dev/null)" ]; then echo "    installing"; npm ci --no-audit --no-fund 2>&1 | tail -2 && echo "$h" > node_modules/.lock-sha; else echo "    dependencies unchanged"; fi'
+
 echo "==> building on the vm"
 ssh "$HOST" "cd $REMOTE/web && npm run build 2>&1 | grep -E 'Compiled|Failed|error' || true"
 
