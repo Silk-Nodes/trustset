@@ -6,6 +6,7 @@
   "description": "The live agent: asks the switch before it acts.",
   "engines": { "node": ">=18" },
   "dependencies": {
+    "@dynamic-labs-wallet/node-evm": "1.1.16",
     "ethers": "^6.13.0"
   }
 }

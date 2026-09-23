@@ -15,6 +15,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ethers } from "ethers";
 import { client, NotTrusted } from "../sdk/index.mjs";
+import { dynamicConfigured, dynamicSigner } from "./dynamic.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.TRUSTSET_ROOT || join(HERE, "..");
@@ -43,14 +44,21 @@ const VENUE = ["function trade(uint256)"];
 
 async function main() {
   const d = JSON.parse(await readFile(join(ROOT, "deployments", "monad-testnet.json"), "utf8"));
-  const key = process.env.AGENT_KEY || (await readFile(join(ROOT, ".agent.key"), "utf8")).trim();
   const trustset = client({ rpc: process.env.MONAD_RPC, killSwitch: d.killSwitch });
-  const wallet = new ethers.Wallet(key, trustset.provider);
+  /* a Dynamic server wallet when one is configured, otherwise the key file.
+     the log says which, so a box that fell back is never mistaken for one
+     that did not. */
+  const viaDynamic = dynamicConfigured();
+  const wallet = viaDynamic
+    ? await dynamicSigner(trustset.provider, process.env.MONAD_RPC || "https://testnet-rpc.monad.xyz")
+    : new ethers.Wallet(process.env.AGENT_KEY || (await readFile(join(ROOT, ".agent.key"), "utf8")).trim(), trustset.provider);
+  const signerWord = viaDynamic ? "Dynamic server wallet (2-of-2 MPC)" : "key file";
   const venue = new ethers.Contract(d.venue, VENUE, wallet);
 
-  const id = await trustset.idForKey(wallet.address);
-  if (id === 0n) throw new Error(`${wallet.address} is not registered on ${d.killSwitch}`);
-  log(`agent ${id} · key ${wallet.address} · acting every ${ACT_MS / 1000}s while trusted`);
+  const address = await wallet.getAddress();
+  const id = await trustset.idForKey(address);
+  if (id === 0n) throw new Error(`${address} is not registered on ${d.killSwitch}`);
+  log(`agent ${id} · key ${address} · signs with ${signerWord} · acting every ${ACT_MS / 1000}s while trusted`);
 
   let lastAct = 0, lastWhy = "";
   for (;;) {
@@ -64,7 +72,7 @@ async function main() {
         lastAct = Date.now();
         await act(trustset, wallet, venue, id);
       }
-      await note(STATE, { agentId: String(id), key: wallet.address, why, at: new Date().toISOString(), balance: ethers.formatEther(await trustset.provider.getBalance(wallet.address)) });
+      await note(STATE, { agentId: String(id), key: address, signer: viaDynamic ? "dynamic" : "file", why, at: new Date().toISOString(), balance: ethers.formatEther(await trustset.provider.getBalance(address)) });
     } catch (e) {
       log("cycle failed:", e instanceof NotTrusted ? e.message : (e?.shortMessage || e?.message || e));
     }
