@@ -95,10 +95,10 @@ export async function POST(req: Request) {
 
     if (action === "trade") {
       const venue = new ethers.Contract(c.venue, VENUE, w);
-      const tx = await venue.trade(id, { gasLimit: REFUSABLE });
+      const tx = await again(() => venue.trade(id, { gasLimit: REFUSABLE }));
       /* waitForTransaction, not tx.wait: wait() throws on a reverted receipt
          and the hash of the refusal is the thing worth showing. */
-      const rc = await w.provider!.waitForTransaction(tx.hash);
+      const rc = await again(() => w.provider!.waitForTransaction(tx.hash));
       return NextResponse.json({ ok: rc?.status === 1, hash: tx.hash, block: rc?.blockNumber ?? null, ...(await state(id.toString())) });
     }
 
@@ -111,8 +111,8 @@ export async function POST(req: Request) {
       const boss = await payer(c, p);
       const ks = new ethers.Contract(c.killSwitch, KS, boss);
       const until = action === "limits" ? Math.floor(Date.now() / 1000) + 90 : 0;
-      const tx = await ks.setLimits(id, until, 0);
-      const rc = await tx.wait();
+      const tx = await again(() => ks.setLimits(id, until, 0));
+      const rc: ethers.TransactionReceipt | null = await again(() => tx.wait());
       return NextResponse.json({ ok: true, hash: tx.hash, block: rc?.blockNumber ?? null, ...(await state(id.toString())) });
     }
 
@@ -123,8 +123,8 @@ export async function POST(req: Request) {
       const p = provider(c);
       const g = guardianFor(d.coldKey).connect(p);
       const ks = new ethers.Contract(c.killSwitch, KS, g);
-      const tx = await ks.guardianPause(id);
-      const rc = await p.waitForTransaction(tx.hash);
+      const tx = await again(() => ks.guardianPause(id));
+      const rc = await again(() => p.waitForTransaction(tx.hash));
       return NextResponse.json({ ok: rc?.status === 1, hash: tx.hash, block: rc?.blockNumber ?? null, ...(await state(id.toString())) });
     }
 
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
       const p = provider(c);
       const boss = await payer(c, p);
       const ks = new ethers.Contract(c.killSwitch, KS, boss);
-      const a = await ks.getAgent(id);
+      const a = await again(() => ks.getAgent(id));
       const now = Math.floor(Date.now() / 1000);
       const STALE = 180;
       const status = Number(a.status), since = Number(a.statusSince);
@@ -160,10 +160,10 @@ export async function POST(req: Request) {
       if (freshBreak) return NextResponse.json({ reset: false, busy: true, ...(await state(id.toString())) });
       const hashes: string[] = [];
       if (endedStale || lapsedStale || (ends > 0 && ends <= now) || (win > 0 && beat + win < now)) {
-        const tx = await ks.setLimits(id, 0, 0); await tx.wait(); hashes.push(tx.hash);
+        const tx = await again(() => ks.setLimits(id, 0, 0)); await again(() => tx.wait()); hashes.push(tx.hash);
       }
       if (pausedStale) {
-        const tx = await ks.setStatus(id, 1, ethers.id("demo reset for the next visitor")); await tx.wait(); hashes.push(tx.hash);
+        const tx = await again(() => ks.setStatus(id, 1, ethers.id("demo reset for the next visitor"))); await again(() => tx.wait()); hashes.push(tx.hash);
       }
       return NextResponse.json({ reset: hashes.length > 0, hashes, ...(await state(id.toString())) });
     }
@@ -176,8 +176,8 @@ export async function POST(req: Request) {
       const boss = await payer(c, p);
       const ks = new ethers.Contract(c.killSwitch, KS, boss);
       const to = action === "pause" ? 2 : 1;
-      const tx = await ks.setStatus(id, to, ethers.id(action === "pause" ? "demo pause" : "demo resume"));
-      const rc = await tx.wait();
+      const tx = await again(() => ks.setStatus(id, to, ethers.id(action === "pause" ? "demo pause" : "demo resume")));
+      const rc: ethers.TransactionReceipt | null = await again(() => tx.wait());
       return NextResponse.json({ ok: true, hash: tx.hash, block: rc?.blockNumber ?? null, ...(await state(id.toString())) });
     }
     return NextResponse.json({ error: "unknown action" }, { status: 400 });
@@ -194,7 +194,7 @@ async function state(agentId: string) {
   const p = provider(c);
   const ks = new ethers.Contract(c.killSwitch, KS, p);
   const venue = new ethers.Contract(c.venue, VENUE, p);
-  const [a, n, live, block] = await Promise.all([ks.getAgent(agentId), venue.trades(), ks.liveness(agentId), p.getBlockNumber()]);
+  const [a, n, live, block] = await Promise.all([again(() => ks.getAgent(agentId)), again(() => venue.trades()), again(() => ks.liveness(agentId)), again(() => p.getBlockNumber())]);
   /* trusted, not just the status word: an expired agent is still Active in the
      contract and no app will serve it. */
   return {
@@ -239,6 +239,28 @@ const SELECTORS: Record<string, string> = {
  * a decoding problem that did not happen and read, on the card, as the demo
  * being broken. a reader who waits a moment gets a working page, so the line
  * says that instead. */
+/* the public rpc's limit, retried rather than reported.
+ *
+ * the provider already retries an http 429, but monad reports its limit as a
+ * json-rpc error (-32011) inside an ordinary response, so it was never
+ * retried: a guardian vote that landed in a busy second failed at the gas
+ * estimate and told the reader to press again. this retries the throttled
+ * cases with a growing pause and passes anything else straight through.
+ *
+ * used around sends and around reads. a send is safe to retry because a
+ * throttled send failed before anything was broadcast: the error comes from
+ * the estimate or from the rpc refusing the call, never after the network
+ * took the transaction. waiting for a receipt is a read, and safe too. */
+async function again<T>(fn: () => Promise<T>, tries = 6): Promise<T> {
+  for (let i = 0; ; i++) {
+    try { return await fn(); }
+    catch (e) {
+      if (i >= tries - 1 || !throttled(e)) throw e;
+      await new Promise(res => setTimeout(res, 600 * (i + 1)));
+    }
+  }
+}
+
 function throttled(e: unknown) {
   const o = e as { code?: unknown; error?: { code?: unknown }; info?: { error?: { code?: unknown; message?: unknown } }; shortMessage?: string; message?: string };
   const codes = [o?.code, o?.error?.code, o?.info?.error?.code];

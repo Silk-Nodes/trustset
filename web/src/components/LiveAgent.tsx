@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { useMotionPrefs } from "@/lib/motion";
 import Term from "@/components/Term";
 
@@ -141,10 +141,12 @@ export default function LiveAgent({ compact = false, lead = null }: { compact?: 
             the agent claims, beside what the chain answers. */}
         <span className={`text-[13px] min-w-0 ${compact ? "truncate" : ""}`} style={{ color: "var(--text-medium)" }}>
           it says{" "}
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.b key={says} initial={m.reduced ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.25 }}
-              className="font-semibold" style={{ color: off ? "var(--orange-text)" : "var(--text-dark)" }}>{says}</motion.b>
-          </AnimatePresence>
+          {/* the new words replace the old at once and fade in. waiting for the
+              old words to fade out first (mode="wait") left "Reading the
+              agent…" on screen beside a timestamp whenever the tab was not
+              painting, because the exit never finished. */}
+          <motion.b key={says} initial={m.reduced ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
+            className="font-semibold" style={{ color: off ? "var(--orange-text)" : "var(--text-dark)" }}>{says}</motion.b>
           {heard !== null && <span className="mono text-[11px]"> {heard}s ago</span>}
         </span>
         <span className="hidden sm:inline text-[13px]" style={{ color: "var(--text-light)" }}>·</span>
