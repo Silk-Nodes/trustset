@@ -15,6 +15,8 @@ export type ChainCfg = {
   venue: string;
   /* the labels contract. absent on a chain that was deployed before it existed. */
   labels?: string;
+  /* sealed notes, the passkey encrypted runbook. absent before it was deployed. */
+  notes?: string;
   /* the refund rail and the mock dollar it was seeded with on testnet. */
   refunds?: string;
   mockUsd?: string;
@@ -46,7 +48,7 @@ async function testnet(): Promise<ChainCfg | null> {
   try {
     const d = JSON.parse(await readFile(join(root(), "deployments", "monad-testnet.json"), "utf8"));
     return { source: "monad-testnet", chain: "Monad testnet", rpc: "https://testnet-rpc.monad.xyz", chainIdHex: "0x279f",
-      explorer: "https://testnet.monadexplorer.com", killSwitch: d.killSwitch, humanTouch: d.humanTouch, venue: d.venue, labels: d.labels, refunds: d.refunds, mockUsd: d.mockUsd };
+      explorer: "https://testnet.monadexplorer.com", killSwitch: d.killSwitch, humanTouch: d.humanTouch, venue: d.venue, labels: d.labels, notes: d.notes, refunds: d.refunds, mockUsd: d.mockUsd };
   } catch { return null; }
 }
 

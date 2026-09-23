@@ -70,6 +70,10 @@ export async function registerPasskey(accountLabel: string) {
       /* -7 is ES256, the only algorithm the p256 precompile can verify. */
       pubKeyCredParams: [{ type: "public-key", alg: -7 }],
       authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "preferred" },
+      /* ask for PRF at creation, so the same passkey that can stop the agent can
+         also derive the key its sealed runbook is encrypted with. platform
+         passkeys answer PRF anyway; security keys only if it is asked for here. */
+      extensions: { prf: {} } as AuthenticationExtensionsClientInputs,
       timeout: 60000,
     },
   })) as PublicKeyCredential | null;

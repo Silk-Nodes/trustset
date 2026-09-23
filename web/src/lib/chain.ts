@@ -104,7 +104,7 @@ export type Status = (typeof STATUS)[number];
 export type Cfg = {
   source: "monad-testnet" | "anvil";
   chain: string; rpc: string; chainIdHex: string; explorer: string;
-  killSwitch: string; humanTouch: string; venue: string; labels?: string; refunds?: string; mockUsd?: string;
+  killSwitch: string; humanTouch: string; venue: string; labels?: string; notes?: string; refunds?: string; mockUsd?: string;
   ownerKey?: string; agentPrivKey?: string;
 };
 

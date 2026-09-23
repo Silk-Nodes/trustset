@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@category-labs/mera": "0.2.0",
     "ethers": "^6.13.4",
     "lucide-react": "^1.33.0",
     "motion": "^13.1.1",

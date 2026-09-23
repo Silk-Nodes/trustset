@@ -16,6 +16,7 @@ import { adoptParked, fallbackName, getLabel, parkLabel, setLabel, type Label } 
 import { READ, agentIdForKey, cachedAgents, coldKeyDelay, consentMessage, explain, settled, labelOnChain, loadAgents, loadGuarded, loadHistory, ownerTx, registerOnChain, short, statusWord, trusted, type Agent, type Conn, type Guarded } from "@/lib/chain";
 import { type Extra, type PulseEvent, layersOf } from "@/lib/layers";
 import { type Row, fakeAgents, groupFromPurpose, loadTags, purposeWithGroup, rowsOf, saveTags } from "@/lib/fleet";
+import Runbook from "@/components/agents/Runbook";
 import { isSample, sampleAgents, sampleExtras, sampleGroups, sampleGuarded, samplePulses } from "@/lib/sample";
 import type { LayerKey } from "@/lib/layers";
 
@@ -517,6 +518,7 @@ export default function Agents() {
               onRename: (n, pu) => rename(cur, n, pu), onPublishLabel: () => publishLabel(cur), onTag: t => setTag(cur.id, t),
               onLimits: (e, w) => limits(cur, e, w), onSetStopKey: () => setStopKey(cur), onClearStopKey: () => clearStopKey(cur),
               onProposeKey: addr => proposeKey(cur, addr), onApplyKey: () => applyKey(cur), onRotate: id => rotate(cur, id),
+              runbook: <Runbook conn={conn} signer={ownerSigner(conn)} id={cur.id} sample={isSample(cur.id)} />,
               proof: cur.status === "revoked" && ownerSigner(conn) ? (
                 <HumanProof conn={conn} signer={ownerSigner(conn)!} account={ownerAddr(conn)!} txHash={stamps[cur.id.toString()]?.txHash ?? null}
                   onProved={() => setStamps(st => ({ ...st, [cur.id.toString()]: { ...st[cur.id.toString()], human: true } }))} />
