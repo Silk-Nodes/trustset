@@ -31,6 +31,8 @@ export type InspectorProps = {
   onLimits: (expiresAt: number, window: number) => void; onSetStopKey: () => void; onClearStopKey: () => void;
   onProposeKey: (addr: string) => void; onApplyKey: () => void; onRotate: (successor: bigint) => void;
   proof?: React.ReactNode;
+  /* the passkey sealed runbook, built by the page because it needs the connection */
+  runbook?: React.ReactNode;
   /* the row to arrive with open, when the fleet sent the reader here to fix something */
   initialOpen?: LayerKey;
   /* write the group into the on-chain purpose, so other browsers see it */
@@ -39,7 +41,7 @@ export type InspectorProps = {
 
 export default function Inspector(p: InspectorProps) {
   const { agent, now, busy } = p;
-  const [open, setOpen] = useState<LayerKey | "keys" | "owner" | null>(p.initialOpen ?? null);
+  const [open, setOpen] = useState<LayerKey | "keys" | "owner" | "runbook" | null>(p.initialOpen ?? null);
   const [n, setN] = useState(p.name === `Agent ${agent.id}` ? "" : p.name);
   const [pu, setPu] = useState(p.purpose ?? "");
   const [tg, setTg] = useState(p.tag);
@@ -56,9 +58,9 @@ export default function Inspector(p: InspectorProps) {
   const addrOk = ethers.isAddress(addr.trim()) && addr.trim().toLowerCase() !== agent.coldKey.toLowerCase();
   const a = (x: string) => p.explorer ? <a href={`${p.explorer}/address/${x}`} target="_blank" rel="noreferrer" className="hover:underline">{short(x)}</a> : short(x);
   const canOpen = (k: LayerKey) => OPENS.includes(k) && (k !== "human" || !!p.proof || agent.status === "revoked");
-  const toggle = (k: LayerKey | "keys" | "owner") => setOpen(o => o === k ? null : k);
+  const toggle = (k: LayerKey | "keys" | "owner" | "runbook") => setOpen(o => o === k ? null : k);
 
-  const row = (k: LayerKey | "keys" | "owner", icon: React.ReactNode, name: string, value: React.ReactNode, set: boolean, can: boolean, body?: React.ReactNode) => {
+  const row = (k: LayerKey | "keys" | "owner" | "runbook", icon: React.ReactNode, name: string, value: React.ReactNode, set: boolean, can: boolean, body?: React.ReactNode) => {
     const is = open === k;
     const head = (
       <div className="grid grid-cols-[20px_minmax(0,1fr)_auto_12px] items-center gap-2.5 h-10 px-2">
@@ -130,6 +132,10 @@ export default function Inspector(p: InspectorProps) {
           : l.key === "refunds" ? <Link href="/agents/refunds" className="drawn-btn btn-gold" style={sm}>Open the refunds page</Link>
           : undefined))}
 
+        {p.runbook && <>
+          <li className="eyebrow px-2 pt-4 pb-1.5">sealed</li>
+          {row("runbook", <LockMark />, "Runbook", "passkey only", true, true, p.runbook)}
+        </>}
         <li className="eyebrow px-2 pt-4 pb-1.5">keys</li>
         {row("keys", <KeyMark />, "Keys", agent.guardians.length ? `${agent.guardians.length} guardians` : "agent, cold", true, true,
           <dl className="grid grid-cols-[72px_1fr] gap-y-1.5 text-xs">
@@ -165,5 +171,6 @@ export default function Inspector(p: InspectorProps) {
   );
 }
 
+const LockMark = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
 const KeyMark = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="8" cy="12" r="4.5" /><path d="M12.5 12H21M18 12v3M15 12v2.5" /></svg>;
 const OwnerMark = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 17l6-6 4 4 6-6" /><path d="M14 9h6v6" /></svg>;
