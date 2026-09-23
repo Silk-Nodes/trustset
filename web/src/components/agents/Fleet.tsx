@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type Agent, short } from "@/lib/chain";
 import { type LayerKey, type PulseEvent, span, switchState } from "@/lib/layers";
-import { type Bucket, type Density, type Filter, type Group, type Row, type Sort, type StateKey, type View, BUILT_IN, GROUP_WORD, NO_FILTER, SORT_WORD, STATE_WORD, apply, counts, densityFor, fromParams, grouped, isFiltered, loadDensity, loadViews, saveDensity, saveViews, toParams } from "@/lib/fleet";
+import { type Bucket, type Density, type Filter, type Group, type Row, type Sort, type StateKey, type View, BUILT_IN, GROUP_WORD, NO_FILTER, STATE_WORD, apply, counts, densityFor, fromParams, grouped, isFiltered, loadDensity, loadViews, saveDensity, saveViews, toParams } from "@/lib/fleet";
 import LayerIcon from "./LayerIcon";
 import Pulse from "./Pulse";
 import StatusDot from "./StatusDot";
@@ -10,9 +10,11 @@ import Switch from "./Switch";
 
 /* the fleet. every agent this wallet owns, at the density the reader chose.
  *
- * fleet is the default: a views rail, a count strip, a table with the eight
- * layers as eight columns, group headers, a bulk bar, and rows drawn only
- * while on screen. rows drops the furniture, cards adds the switch and the
+ * fleet is the default: one row of controls, a table with the eight layers
+ * as eight columns, group headers, a bulk bar, and rows drawn only while on
+ * screen. it shares the explorer's grammar on purpose, so the two read as one
+ * product: state chips that carry their counts, rarer filters behind one menu,
+ * sorting on the column headers, grouping and density in the footer. rows drops the furniture, cards adds the switch and the
  * pulse inline. the columns never change between densities; only the air
  * around them does, so a habit formed at three agents works at three hundred.
  * the view lives in the url, so a filtered fleet can be sent to someone. */
@@ -34,7 +36,9 @@ const field = { background: "var(--bg-base)", border: "1px solid var(--hairline)
 
 export type BulkKind = "pause" | "resume" | "stop" | "limits";
 export type FleetProps = {
-  agents: Agent[]; rows: Row[]; now: number; pulses: Record<string, { events: PulseEvent[] } | undefined>;
+  agents: Agent[]; rows: Row[]; now: number;
+  /* the sentence each owner wrote, by agent id, shown where the row had room */
+  purposes?: Record<string, string>; pulses: Record<string, { events: PulseEvent[] } | undefined>;
   busy: Set<string>; canSign: boolean;
   onOpen: (id: bigint, open?: LayerKey) => void; onToggle: (a: Agent) => void; onStop: (a: Agent) => void;
   onBulk: (kind: BulkKind, rows: Row[], limits?: { expiresAt: number; window: number }) => void;
@@ -90,6 +94,7 @@ export default function Fleet(p: FleetProps) {
   const shown = useMemo(() => apply(rows, f, sort, rev), [rows, f, sort, rev]);
   const buckets = useMemo(() => grouped(shown, group), [shown, group]);
   const c = useMemo(() => counts(rows), [rows]);
+  const byState = useMemo(() => Object.fromEntries(STATES.map(s => [s, rows.filter(r => r.state === s).length])) as Record<StateKey, number>, [rows]);
 
   /* selection and the cursor. j and k walk, enter opens, x selects, / finds. */
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -126,10 +131,7 @@ export default function Fleet(p: FleetProps) {
     for (const b of buckets) { if (b.label) out.push({ kind: "group", b }); for (const r of b.rows) out.push({ kind: "row", r, i: i++ }); }
     return out;
   }, [buckets]);
-  const fleet = density === "fleet", cards = density === "cards";
-  /* the views rail needs a wide screen; below it the views are chips */
-  const [wide, setWide] = useState(true);
-  useEffect(() => { const m = matchMedia("(min-width: 1024px)"); const f = () => setWide(m.matches); f(); m.addEventListener("change", f); return () => m.removeEventListener("change", f); }, []);
+  const cards = density === "cards";
   /* a phone gets the same columns folded: the marks under the name, the state
      word at the right, and the filters behind one chip */
   const [phone, setPhone] = useState(false);
@@ -186,20 +188,24 @@ export default function Fleet(p: FleetProps) {
   };
   const viewList = (vertical: boolean) => (
     <>
-      {views.map(v => viewRow(v, vertical))}
+      {/* only the reader's own views. the built-in four were each a copy of
+          something already on screen: all is clear, needs attention is three
+          state chips, expires in 24h and no panic button are items in this
+          same menu. */}
+      {saved.map(v => viewRow(v, vertical))}
       {dirty && (naming && !naming.id
         ? <input autoFocus value={naming.text} onChange={e => setNaming({ text: e.target.value })} onBlur={commitName} onKeyDown={e => { if (e.key === "Enter") commitName(); if (e.key === "Escape") setNaming(null); }} placeholder="name this view" className={vertical ? "h-8 w-full rounded-lg px-2.5 text-[13px] outline-none focus-visible:ring-2 mt-1" : "h-7 rounded-full px-2.5 text-[12px] outline-none focus-visible:ring-2"} style={field} />
         : <button type="button" onClick={() => setNaming({ text: "" })} className={vertical ? "w-full text-left rounded-lg px-2.5 h-8 text-[12px] outline-none focus-visible:ring-2 mt-1" : chipCls} style={vertical ? faint : { ...chip(false), borderStyle: "dashed" }}>+ save view</button>)}
     </>
   );
 
-  /* the eight marks. orange when set, dashed when not, dimmed until the
+  /* the eight marks. ink when set, dashed when not, dimmed until the
      extras that decide three of them have arrived. */
   const dots = (r: Row) => (
     <div className="flex items-center gap-1" aria-label={r.known ? `${r.set} of 8 layers set` : "reading"} style={{ opacity: r.known ? 1 : 0.4, transition: "opacity .3s" }}>
       {r.layers.map(l => (
         <span key={l.key} data-tip={r.known ? `${l.name}: ${l.value}` : `${l.name}: reading…`} className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[5px]"
-          style={{ color: l.set ? "var(--orange-text)" : "var(--text-light)", background: l.set ? "color-mix(in srgb, var(--orange) 16%, transparent)" : "transparent", border: l.set ? "1px solid color-mix(in srgb, var(--orange) 35%, transparent)" : "1px dashed var(--hairline)" }}>
+          style={{ color: l.set ? "var(--text-dark)" : "var(--text-light)", background: l.set ? "color-mix(in srgb, var(--text-dark) 8%, transparent)" : "transparent", border: l.set ? "1px solid transparent" : "1px dashed var(--hairline)" }}>
           <LayerIcon k={l.key} size={12} />
         </span>
       ))}
@@ -249,11 +255,12 @@ export default function Fleet(p: FleetProps) {
         )}
         <div role="gridcell" className="flex items-center gap-2.5 min-w-0">
           <StatusDot status={r.a.status} size={8} live={r.state === "trusted"} />
-          <div className="min-w-0 leading-tight">
+          <div className="min-w-0 leading-tight xl:w-[240px] xl:shrink-0">
             <div className={`truncate ${cards ? "text-[14px]" : "text-[13px]"} font-semibold`}>{r.name}</div>
             <div className="mono text-[10.5px] truncate" style={quiet}>agent {r.id} · {short(r.a.key)}{r.tag ? ` · ${r.tag}` : ""}</div>
             {phone && <div className="mt-1">{dots(r)}</div>}
           </div>
+          {!cards && <span className="hidden xl:block min-w-0 truncate text-[12.5px]" style={p.purposes?.[r.id] ? quiet : faint}>{p.purposes?.[r.id] || "no purpose given"}</span>}
         </div>
         {!cards && !phone && <div role="gridcell" className="hidden md:block">{quick(r)}</div>}
         {cards
@@ -271,80 +278,47 @@ export default function Fleet(p: FleetProps) {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-3 min-w-0">
-      {/* the count strip: four numbers, each a filter */}
-      {fleet && !phone && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {([["trusted", c.trusted, "trusted", () => { openView(BUILT_IN[0]); setF({ ...NO_FILTER, states: ["trusted"] }); }], ["attention", c.attention, "need attention", () => openView(BUILT_IN[1])], ["24h", c.within24, "expire in 24h", () => openView(BUILT_IN[2])], ["stopped", c.stopped, "stopped", () => { openView(BUILT_IN[0]); setF({ ...NO_FILTER, states: ["stopped"] }); }]] as [string, number, string, () => void][]).map(([k, n, w, go]) => (
-            <button key={k} type="button" onClick={go} className="sheet text-left px-4 py-3 outline-none focus-visible:ring-2 flex items-baseline gap-2">
-              <span className="text-[22px] font-semibold tabular tracking-[-0.02em]" style={{ color: k === "attention" && n > 0 ? "var(--orange-text)" : "var(--text-dark)" }}>{n}</span>
-              <span className="text-[12px]" style={quiet}>{w}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="flex-1 min-h-0 flex gap-4">
-        {fleet && wide && <nav aria-label="Views" className="flex w-[220px] shrink-0 flex-col gap-0.5"><div className="eyebrow px-2.5 mb-1">views</div>{viewList(true)}</nav>}
-
-        <div className="flex-1 min-h-0 min-w-0 flex flex-col">
-          {/* toolbar: search, then the filters the density earns */}
-          <div className="flex flex-wrap items-center gap-2 mb-2">
+      {/* one row of controls, the same grammar as the explorer. the state chips
+          carry the counts, which is what the four stat cards and the views rail
+          used to say twice over, and everything rarer sits behind one menu. */}
+      <div className="flex-1 min-h-0 flex flex-col min-w-0">
+          <div className="relative z-[3] flex flex-wrap items-center gap-2 mb-3">
             <label className="relative">
               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 mono text-[11px]" style={faint}>/</span>
               <input ref={search} value={f.q} onChange={e => setF(x => ({ ...x, q: e.target.value }))} placeholder="name, id, key" spellCheck={false}
-                className="h-8 w-[200px] rounded-full pl-7 pr-3 text-[13px] outline-none focus-visible:ring-2" style={{ background: "var(--surface)", border: "1px solid var(--hairline)", color: "var(--text-dark)" }} />
+                className="h-7 w-[150px] sm:w-[180px] rounded-full pl-7 pr-3 text-[12.5px] outline-none focus-visible:ring-2" style={{ background: "var(--surface)", border: "1px solid var(--hairline)", color: "var(--text-dark)" }} />
             </label>
-            {!cards && phone && (
-              <>
-                <Menu label={f.states.length ? f.states.map(s => STATE_WORD[s]).join(", ") : "state"} on={f.states.length > 0}>
-                  {STATES.map(s => <Check key={s} on={f.states.includes(s)} onClick={() => setState(s)}>{STATE_WORD[s]}</Check>)}
-                </Menu>
-                <Menu label="more" on={f.missing.length > 0 || f.within > 0 || f.active24 || group !== "none"} align="right">
-                  <div className="eyebrow px-2.5 pt-1.5 pb-1">missing layer</div>
-                  {LAYERS.filter(l => l.k !== "switch" && l.k !== "past").map(l => <Check key={l.k} on={f.missing.includes(l.k)} onClick={() => setMissing(l.k)}><LayerIcon k={l.k} size={13} />{l.name}</Check>)}
-                  <div className="eyebrow px-2.5 pt-2 pb-1">expires in</div>
-                  {([["off", 0], ["a day", DAY], ["a week", 7 * DAY], ["30 days", 30 * DAY]] as [string, number][]).map(([w, s]) => <Check key={s} on={f.within === s} onClick={() => setF(x => ({ ...x, within: s }))}>{w}</Check>)}
-                  <Check on={f.active24} onClick={() => setF(x => ({ ...x, active24: !x.active24 }))}>active in 24h</Check>
-                  <div className="eyebrow px-2.5 pt-2 pb-1">group</div>
-                  {(Object.keys(GROUP_WORD) as Group[]).map(g => <Check key={g} on={group === g} onClick={() => setGroup(g)}>{GROUP_WORD[g]}</Check>)}
-                  <div className="eyebrow px-2.5 pt-2 pb-1">sort</div>
-                  {(Object.keys(SORT_WORD) as Sort[]).map(s => <Check key={s} on={sort === s} onClick={() => setSort(s)}>{SORT_WORD[s]}</Check>)}
-                </Menu>
-                {isFiltered(f) && <button type="button" onClick={() => setF(NO_FILTER)} className={chipCls} style={{ ...chip(false), border: "1px solid transparent" }}>clear</button>}
-                <span className="flex-1" />
-              </>
-            )}
-            {!cards && !phone && (
-              <>
-                <Menu label={f.states.length ? f.states.map(s => STATE_WORD[s]).join(", ") : "state"} on={f.states.length > 0}>
-                  {STATES.map(s => <Check key={s} on={f.states.includes(s)} onClick={() => setState(s)}>{STATE_WORD[s]}</Check>)}
-                </Menu>
-                <Menu label={f.missing.length ? `missing ${f.missing.length}` : "missing layer"} on={f.missing.length > 0}>
-                  {LAYERS.filter(l => l.k !== "switch" && l.k !== "past").map(l => <Check key={l.k} on={f.missing.includes(l.k)} onClick={() => setMissing(l.k)}><LayerIcon k={l.k} size={13} />{l.name}</Check>)}
-                </Menu>
-                <Menu label={f.within ? `expires in ${span(f.within)}` : "expires in"} on={f.within > 0}>
-                  {([["off", 0], ["a day", DAY], ["a week", 7 * DAY], ["30 days", 30 * DAY]] as [string, number][]).map(([w, s]) => <Check key={s} on={f.within === s} onClick={() => setF(x => ({ ...x, within: s }))}>{w}</Check>)}
-                </Menu>
-                <button type="button" onClick={() => setF(x => ({ ...x, active24: !x.active24 }))} className={chipCls} style={chip(f.active24)}>active 24h</button>
-                {isFiltered(f) && <button type="button" onClick={() => setF(NO_FILTER)} className={chipCls} style={{ ...chip(false), border: "1px solid transparent" }}>clear</button>}
-                <span className="flex-1" />
-                <Menu label={GROUP_WORD[group]} on={group !== "none"}>{(Object.keys(GROUP_WORD) as Group[]).map(g => <Check key={g} on={group === g} onClick={() => setGroup(g)}>{GROUP_WORD[g]}</Check>)}</Menu>
-                <Menu label={`${SORT_WORD[sort]}${rev ? " ↑" : ""}`} on={false}>{(Object.keys(SORT_WORD) as Sort[]).map(s => <Check key={s} on={sort === s} onClick={() => sortBy(s)}>{SORT_WORD[s]}</Check>)}</Menu>
-              </>
-            )}
-            {cards && <span className="flex-1" />}
-            {!phone && <Menu label={`${density}${chosen ? "" : " · auto"}`} on={false} align="right">
-              {(["cards", "rows", "fleet"] as Density[]).map(d => <Check key={d} on={chosen === d} onClick={() => pick(d)}>{d}</Check>)}
-              <Check on={chosen === null} onClick={() => pick(null)}>auto by count</Check>
-            </Menu>}
+            <span className="hidden sm:block w-px h-4 mx-1" style={{ background: "var(--hairline)" }} />
+            {STATES.map(st => (
+              <button key={st} type="button" onClick={() => setState(st)} className={chipCls} style={chip(f.states.includes(st))}>
+                {STATE_WORD[st]}
+                <span className="mono text-[11px] tabular" style={{ color: f.states.includes(st) ? "inherit" : "var(--text-light)" }}>{byState[st]}</span>
+              </button>
+            ))}
+            <Menu label={current && !current.builtIn ? current.name : f.missing.length || f.within || f.active24 ? `more filters · ${f.missing.length + (f.within ? 1 : 0) + (f.active24 ? 1 : 0)}` : "more filters"}
+              on={(!!current && !current.builtIn) || f.missing.length > 0 || f.within > 0 || f.active24}>
+              <div className="eyebrow px-2.5 pt-1.5 pb-1">missing layer</div>
+              {LAYERS.filter(l => l.k !== "switch" && l.k !== "past").map(l => <Check key={l.k} on={f.missing.includes(l.k)} onClick={() => setMissing(l.k)}><LayerIcon k={l.k} size={13} />{l.name}</Check>)}
+              <div className="eyebrow px-2.5 pt-2 pb-1">expires in</div>
+              {([["off", 0], ["a day", DAY], ["a week", 7 * DAY], ["30 days", 30 * DAY]] as [string, number][]).map(([w, v]) => <Check key={v} on={f.within === v} onClick={() => setF(x => ({ ...x, within: v }))}>{w}</Check>)}
+              <Check on={f.active24} onClick={() => setF(x => ({ ...x, active24: !x.active24 }))}>active in the last 24h</Check>
+              {(saved.length > 0 || dirty) && <div className="eyebrow px-2.5 pt-2 pb-1">your views</div>}
+              {viewList(true)}
+            </Menu>
+            {isFiltered(f) && <button type="button" onClick={() => openView(BUILT_IN[0])} className={chipCls} style={{ ...chip(false), border: "1px solid transparent" }}>clear</button>}
           </div>
-          {!cards && !(fleet && wide) && <div className="flex flex-wrap gap-1.5 mb-2">{viewList(false)}</div>}
 
-          <div className="sheet flex-1 min-h-0 flex flex-col overflow-clip">
+          {/* sized by its rows, not stretched to the window: eight agents in a
+              frame the height of the screen read as a table with a hole in it.
+              past the window it caps and scrolls inside. */}
+          <div className="sheet min-h-0 flex flex-col overflow-clip">
             {!cards && (
               <div role="row" className={`grid ${cols} items-center gap-3 px-3 h-9 shrink-0`} style={{ borderBottom: "1px solid var(--hairline)", background: "color-mix(in srgb, var(--surface) 94%, var(--text-dark))" }}>
                 <span className="inline-flex items-center justify-center w-6 h-6 -ml-1"><input type="checkbox" aria-label="select all shown" checked={flat.length > 0 && selected.length === flat.length} onChange={() => setSel(selected.length === flat.length ? new Set() : new Set(flat.map(r => r.id)))} className="w-3.5 h-3.5 accent-[var(--orange)]" /></span>
-                {th("name", "agent")}
+                <span className="flex items-center min-w-0">
+                  <span className="xl:w-[268px] shrink-0">{th("name", "agent")}</span>
+                  <span className="hidden xl:inline eyebrow">purpose</span>
+                </span>
                 {!phone && <span className="hidden md:block" />}
                 <span className="hidden md:block">{th("attention", "state")}</span>
                 <span className="hidden md:block">{th("expiry", "expires")}</span>
@@ -365,6 +339,18 @@ export default function Fleet(p: FleetProps) {
                 : rowEl(it.r, it.i))}
               {windowed && end < items.length && <div style={{ height: (items.length - end) * h }} />}
             </div>
+            {selected.length === 0 && (
+              <div className="shrink-0 flex flex-wrap items-center gap-2 px-3 py-2" style={{ borderTop: items.length ? "1px solid var(--hairline)" : undefined }}>
+                <span className="mono text-[11.5px] tabular" style={quiet}>{flat.length === rows.length ? `${rows.length} agent${rows.length === 1 ? "" : "s"}` : `${flat.length} of ${rows.length}`}</span>
+                {!phone && <span className="hidden lg:inline mono text-[10.5px]" style={faint}>j k move · x select · / find</span>}
+                <span className="flex-1" />
+                <Menu label={GROUP_WORD[group]} on={group !== "none"} align="right" up>{(Object.keys(GROUP_WORD) as Group[]).map(g => <Check key={g} on={group === g} onClick={() => setGroup(g)}>{GROUP_WORD[g]}</Check>)}</Menu>
+                {!phone && <Menu label={`${density}${chosen ? "" : " · auto"}`} on={false} align="right" up>
+                  {(["cards", "rows", "fleet"] as Density[]).map(d => <Check key={d} on={chosen === d} onClick={() => pick(d)}>{d}</Check>)}
+                  <Check on={chosen === null} onClick={() => pick(null)}>auto by count</Check>
+                </Menu>}
+              </div>
+            )}
             {/* the bulk bar. each action is one transaction per agent, and says so. */}
             {selected.length > 0 && (
               <div className="shrink-0" style={{ borderTop: "1px solid var(--hairline)", background: "color-mix(in srgb, var(--orange) 6%, var(--surface))" }}>
@@ -388,14 +374,13 @@ export default function Fleet(p: FleetProps) {
               </div>
             )}
           </div>
-        </div>
       </div>
     </div>
   );
 }
 
 /* a chip that opens a small list. closes on outside click and escape. */
-function Menu({ label, on, align, children }: { label: string; on: boolean; align?: "right"; children: React.ReactNode }) {
+function Menu({ label, on, align, up, children }: { label: string; on: boolean; align?: "right"; up?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -409,7 +394,7 @@ function Menu({ label, on, align, children }: { label: string; on: boolean; alig
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className={chipCls} style={chip(on)}>{label}<span className="text-[9px]" aria-hidden>▾</span></button>
       {open && (
-        <div className={`absolute z-20 mt-1 min-w-[180px] rounded-xl p-1 flex flex-col ${align === "right" ? "right-0" : "left-0"}`} style={{ background: "var(--surface)", border: "1px solid var(--hairline)", boxShadow: "0 12px 32px rgba(0,0,0,0.12)", transformOrigin: align === "right" ? "top right" : "top left" }}>
+        <div className={`absolute z-20 ${up ? "bottom-full mb-1" : "mt-1"} min-w-[200px] max-h-[60vh] overflow-y-auto rounded-xl p-1 flex flex-col ${align === "right" ? "right-0" : "left-0"}`} style={{ background: "var(--surface)", border: "1px solid var(--hairline)", boxShadow: "0 12px 32px rgba(0,0,0,0.22)", transformOrigin: `${up ? "bottom" : "top"} ${align === "right" ? "right" : "left"}` }}>
           {children}
         </div>
       )}

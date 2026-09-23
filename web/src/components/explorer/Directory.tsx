@@ -34,10 +34,10 @@ export type Row = {
 export type Missing = "guardians" | "limits" | "identity";
 export type Query = { page: number; per: number; sort: Sort; rev: boolean; states: State[]; missing: Missing[]; q: string };
 
-/* views are just filters with a name. each one is a set of url params, so a
+/* views are just filters with a name, and only ones the chips cannot make.
+   "needs attention" was expired, gone quiet and paused chips pressed together. each one is a set of url params, so a
    view is a link as much as anything else here, and picking one twice clears it. */
 const VIEWS: { key: string; label: string; states: State[]; missing: Missing[] }[] = [
-  { key: "attention", label: "needs attention", states: ["expired", "quiet", "paused"], missing: [] },
   { key: "unguarded", label: "trusted, no guardians", states: ["trusted"], missing: ["guardians"] },
   { key: "unlimited", label: "no limits", states: [], missing: ["limits"] },
   { key: "unnamed", label: "unnamed", states: [], missing: ["identity"] },

@@ -31,7 +31,7 @@ const span = (sec: number) => sec >= 172800 ? `${Math.round(sec / 86400)} days` 
  * is the one exception, and it carries anvil's published default key so the
  * thing can be run with no wallet installed at all. */
 export default function Agents() {
-  const { conn, who } = useWallet();
+  const { conn, who, connectNow } = useWallet();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [guarded, setGuarded] = useState<Guarded[]>([]);
   const [delayDays, setDelayDays] = useState(1);
@@ -358,6 +358,7 @@ export default function Agents() {
   }, [conn, selKey]);
   const cur = selectedRaw ? { ...selectedRaw, history: histories[selectedRaw.id.toString()] ?? selectedRaw.history } : null;
   const names = useMemo(() => Object.fromEntries(all.map(a => [a.id.toString(), labelFor(a).name])), [all]); // eslint-disable-line react-hooks/exhaustive-deps
+  const purposes = useMemo(() => Object.fromEntries(all.map(a => [a.id.toString(), labelFor(a).purpose ?? ""])), [all]); // eslint-disable-line react-hooks/exhaustive-deps
   const groups = useMemo(() => {
     if (sampleOn) return sampleGroups();
     const g: Record<string, string> = {};
@@ -452,8 +453,11 @@ export default function Agents() {
     </section>
   );
 
-  const register = <button type="button" className="drawn-btn btn-gold" style={{ padding: "6px 12px", fontSize: "0.78rem" }} disabled={!signedIn} title="Tell the switch about an agent you already run. Nothing is created."
-    onClick={() => setRegOpen(true)}>Register agent</button>;
+  /* the page's one solid button. it used to be disabled until a wallet was
+     connected, which drew the main action of the console in grey. now it asks
+     for the wallet first and opens the dialog once there is one. */
+  const register = <button type="button" className="drawn-btn btn-orange" style={{ padding: "6px 14px", fontSize: "0.78rem" }} title="Tell the switch about an agent you already run. Nothing is created."
+    onClick={() => { if (signedIn) setRegOpen(true); else connectNow().then(() => setRegOpen(true)).catch(() => {}); }}>Register agent</button>;
 
   return (
     <>
@@ -478,14 +482,11 @@ export default function Agents() {
             saying so. an empty card with the word connect showed a visitor
             nothing about what any of this does. */}
         {sampleOn && (
-          <div className="shrink-0 mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl px-3.5 py-2.5"
-            style={{ background: "color-mix(in srgb, var(--orange) 9%, var(--surface))", border: "1px solid color-mix(in srgb, var(--orange) 28%, transparent)" }}>
-            <span className="mono text-[10.5px] uppercase tracking-[0.12em] rounded-full px-2 py-0.5 shrink-0" style={{ background: "var(--orange)", color: "#160A06" }}>sample</span>
-            <span className="text-[12.5px]" style={{ color: "var(--text-dark)" }}>
-              {guardingRoute ? `${guardedShown.length} agents somebody else owns, to show what a guardian does.` : `${all.length} agents that are not real, to show the console working.`}{" "}
-              <span style={{ color: "var(--text-medium)" }}>Connect the wallet you registered yours with, top right, and it reads {conn!.cfg.chain} instead. That wallet is the <Term k="cold key">cold key</Term>: it can stop them and never spend from them.</span>
-            </span>
-          </div>
+          <p className="shrink-0 mb-3 text-[12.5px] flex flex-wrap items-center gap-x-2 gap-y-1" style={{ color: "var(--text-medium)" }}>
+            <span className="mono text-[10px] uppercase tracking-[0.12em] rounded-full px-2 py-0.5" style={{ border: "1px solid var(--hairline)", color: "var(--text-dark)" }}>sample</span>
+            {guardingRoute ? `${guardedShown.length} agents somebody else owns, to show what a guardian does.` : `${all.length} made-up agents, to show the console working.`}
+            <span>Connect the wallet that is your agents&apos; <Term k="cold key">cold key</Term> to see yours.</span>
+          </p>
         )}
         {conn && signedIn && !guardingRoute && !loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>Reading your agents from {conn.cfg.chain}…</div>}
         {conn && signedIn && !guardingRoute && loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm text-ink/70">Nothing under {short(ownerAddr(conn)!)} yet. <Term k="register">Register</Term> the <Term k="agent key">agent key</Term> of an agent you already run, and this wallet becomes the one that can stop it. <span className="ml-2">{register}</span></div>}
@@ -495,7 +496,7 @@ export default function Agents() {
         {/* the fleet, only when the url is not naming one agent. without the
             routeId test an unknown id drew the error under a full table. */}
         {conn && (signedIn || sampleOn) && !guardingRoute && routeId === null && all.length > 0 && (
-          <Fleet agents={all} rows={rows} now={now} pulses={pulses} busy={busy} canSign={canSign}
+          <Fleet agents={all} rows={rows} purposes={purposes} now={now} pulses={pulses} busy={busy} canSign={canSign}
             onOpen={goAgent} onToggle={a => pause(a)} onStop={a => stop(a)} onBulk={bulk} />
         )}
         {conn && (signedIn || sampleOn) && routeId !== null && !cur && (loaded || sampleOn) && <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>No agent {routeId.toString()} under this wallet. <button type="button" onClick={() => go("/agents")} className="underline">Back to the fleet</button></div>}
