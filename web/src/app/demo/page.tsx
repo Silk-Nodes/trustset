@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Venue from "./Venue";
 import Footer from "@/components/Footer";
+import LiveAgent from "@/components/LiveAgent";
 
 export const metadata: Metadata = { title: "Try it" };
 
@@ -20,6 +21,10 @@ export default function Page() {
           Register the key it already signs with and you get the rest. Seven steps below, each one a real
           transaction on Monad testnet. Nothing here is a recording.
         </p>
+        {/* the walkthrough below is yours to run. this one is already running,
+            on our server, and pausing it is the same switch you are about to
+            register with. it renders nothing when no live agent is configured. */}
+        <div className="mb-8"><LiveAgent /></div>
         <Venue />
       </main>
       <Footer />
