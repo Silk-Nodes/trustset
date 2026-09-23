@@ -326,7 +326,7 @@ export default function Fleet(p: FleetProps) {
                 {phone ? <span className="eyebrow">state</span> : <span className="flex items-center gap-1">{LAYERS.map(l => <span key={l.k} data-tip={l.name} className="inline-flex w-[18px] h-[18px] items-center justify-center" style={quiet}><LayerIcon k={l.k} size={12} /></span>)}</span>}
               </div>
             )}
-            <div ref={scroller} onScroll={e => setTop((e.target as HTMLDivElement).scrollTop)} className="flex-1 min-h-0 overflow-y-auto" role="grid" aria-rowcount={flat.length}>
+            <div ref={scroller} onScroll={e => setTop((e.target as HTMLDivElement).scrollTop)} className="flex-1 min-h-0 overflow-y-auto max-h-[calc(100dvh-280px)]" role="grid" aria-rowcount={flat.length}>
               {items.length === 0 && (
                 <div className="px-4 py-10 text-[13px] text-center flex flex-col items-center gap-3" style={quiet}>
                   <span>{rows.length ? "nothing matches" : "no agents yet"}</span>
