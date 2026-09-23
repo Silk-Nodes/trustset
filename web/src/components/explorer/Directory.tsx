@@ -83,9 +83,11 @@ export type DirectoryProps = {
   query: Query; onQuery: (q: Partial<Query>) => void; loading?: boolean;
   /* where the index lives, for the hover preview. empty means this origin. */
   base?: string;
+  /* whatever opens the toolbar row, the page's tabs */
+  lead?: React.ReactNode;
 };
 
-export default function Directory({ rows, total, counts, coverage, query, onQuery, loading, base }: DirectoryProps) {
+export default function Directory({ rows, total, counts, coverage, query, onQuery, loading, base, lead }: DirectoryProps) {
   const router = useRouter();
   /* the keyboard cursor, the same j and k as the console's fleet. -1 is none,
      so a reader who never touches the keys never sees a highlighted row. */
@@ -186,9 +188,12 @@ export default function Directory({ rows, total, counts, coverage, query, onQuer
           <span key={c.k} data-tip={tip} {...(i >= COLS.length - 3 ? { "data-tip-end": "" } : {})}
             className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[5px]"
             style={{
-              color: mark === "set" ? "var(--orange-text)" : "var(--text-light)",
-              background: mark === "set" ? "color-mix(in srgb, var(--orange) 16%, transparent)" : "transparent",
-              border: mark === "set" ? "1px solid color-mix(in srgb, var(--orange) 35%, transparent)" : mark === "unset" ? "1px dashed var(--hairline)" : "1px solid transparent",
+              /* ink, not orange. orange already means paused, expired and gone
+                 quiet on this page, and eight orange boxes a row read as eight
+                 warnings on an agent that is perfectly healthy. */
+              color: mark === "set" ? "var(--text-dark)" : "var(--text-light)",
+              background: mark === "set" ? "color-mix(in srgb, var(--text-dark) 8%, transparent)" : "transparent",
+              border: mark === "unset" ? "1px dashed var(--hairline)" : "1px solid transparent",
               opacity: mark === "unknown" ? 0.35 : 1,
             }}>
             <LayerIcon k={c.k} size={12} />
@@ -206,7 +211,9 @@ export default function Directory({ rows, total, counts, coverage, query, onQuer
     <div className="min-w-0">
       {/* every control above the table it controls. the sort used to sit under
           it, which is the one place nobody looks for a control. */}
-      <div className="relative z-[3] flex flex-wrap items-center gap-2 mb-3">
+      <div className="relative z-[3] flex flex-wrap items-center gap-2 mb-4">
+        {lead}
+        {lead && <span className="hidden sm:block w-px h-4 mx-1" style={{ background: "var(--hairline)" }} />}
         {STATES.map(s => (
           <button key={s} type="button" onClick={() => toggleState(s)} className={chipCls} style={chip(query.states.includes(s))}>
             {WORD[s]}
@@ -241,7 +248,10 @@ export default function Directory({ rows, total, counts, coverage, query, onQuer
       <div className="sheet">
         <div role="row" className={`grid ${COLS_CLS} items-center gap-3 px-3 h-9 sticky z-[2]`}
           style={{ top: 64, borderBottom: "1px solid var(--hairline)", background: "color-mix(in srgb, var(--surface) 94%, var(--text-dark))" }}>
-          {th("id", "agent")}
+          <span className="flex items-center min-w-0">
+            <span className="xl:w-[288px] shrink-0">{th("id", "agent")}</span>
+            <span className="hidden xl:inline eyebrow">purpose</span>
+          </span>
           {!phone && <span className="hidden md:block eyebrow">owner</span>}
           <span className="hidden md:block eyebrow">state</span>
           <span className="hidden md:block">{th("expiry", "expires")}</span>
@@ -290,11 +300,13 @@ export default function Directory({ rows, total, counts, coverage, query, onQuer
               style={{ height: h, borderBottom: "1px solid var(--hairline)", ...(cursor === i ? { background: "color-mix(in srgb, var(--orange) 8%, transparent)", boxShadow: "inset 2px 0 0 var(--orange)" } : null) }}>
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: r.state === "trusted" ? "var(--sage)" : r.state === "stopped" ? "var(--text-light)" : "var(--terra)" }} />
-                <div className="min-w-0 leading-tight">
+                <div className="min-w-0 leading-tight xl:w-[260px] xl:shrink-0">
                   <div className="text-[13px] font-semibold truncate">{r.name || `Agent ${r.id}`}</div>
                   <div className="mono text-[10.5px] truncate" style={quiet}>agent {r.id} · {short(r.agent_key)}{r.erc8004_id ? ` · 8004 #${r.erc8004_id}` : ""}</div>
                   {phone && <div className="mt-1">{marks(r)}</div>}
                 </div>
+                {/* the sentence the owner wrote, in the band that used to be empty */}
+                <span className="hidden xl:block min-w-0 truncate text-[12.5px]" style={r.purpose ? quiet : faint}>{r.purpose || "no purpose given"}</span>
               </div>
               {!phone && <div className="hidden md:block mono text-[11.5px] truncate" style={quiet}>{short(r.cold_key)}</div>}
               <div className="hidden md:block">{word(r.state)}</div>
