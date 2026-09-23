@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ethers } from "ethers";
 import { motion, AnimatePresence } from "motion/react";
 import { useWallet } from "@/components/WalletProvider";
@@ -76,6 +76,11 @@ export default function Venue() {
   /* incremented when a pause lands, which plays the sweep once. */
   const [sweep, setSweep] = useState(0);
   const done = useCallback((a: Act) => setSeen(p => new Set(p).add(a)), []);
+  /* getting the shared practice agent ready. "resetting" while the server
+     clears what the last visitor left; "busy" when the break is fresh, which
+     means somebody else is using it right now and it is left alone. */
+  const [prep, setPrep] = useState<"idle" | "resetting" | "busy">("idle");
+  const triedReset = useRef(false);
 
   const pull = useCallback(async (owner: string | null) => {
     const r = await fetch(`/api/demo${owner ? `?owner=${owner}` : ""}`, { cache: "no-store" });
@@ -86,8 +91,28 @@ export default function Venue() {
 
   useEffect(() => {
     setS(null); setLog([]); setSeen(new Set()); setOpen(new Set()); setRefusedAt(null); setRestored(false);
+    triedReset.current = false; setPrep("idle");
     pull(me).catch(e => setNote(String(e)));
   }, [me, pull]);
+
+  /* a visitor without a wallet who finds the practice agent broken gets it
+     reset, once per visit, before step one asks them to do anything. the
+     server decides whether the break is stale enough to undo; if it is fresh,
+     another visitor is mid-walkthrough and the page says so instead. */
+  useEffect(() => {
+    if (!s || s.owned || s.trusted || triedReset.current) return;
+    if (s.status === 3 || s.status === 4) return;
+    triedReset.current = true;
+    setPrep("resetting");
+    fetch("/api/demo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "reset", owner: null }) })
+      .then(r => r.json())
+      .then(j => {
+        if (j.error) { setPrep("idle"); return; }
+        setS(v => (v ? { ...v, ...j } : v));
+        setPrep(j.busy ? "busy" : "idle");
+      })
+      .catch(() => setPrep("idle"));
+  }, [s]);
 
   /* how far the reader got, kept across a navigation.
    *
@@ -246,7 +271,7 @@ export default function Venue() {
     window.scrollTo({ top: 0, behavior: m.reduced ? "auto" : "smooth" });
   };
 
-  const agent = <AgentCard s={s} off={off} refusedAt={refusedAt} reduced={m.reduced} />;
+  const agent = <AgentCard s={s} off={off} refusedAt={refusedAt} reduced={m.reduced} resetting={prep === "resetting"} />;
   const rail = (
     <>
       <Console log={log} cfg={cfg} reduced={m.reduced} />
@@ -324,7 +349,9 @@ export default function Venue() {
               trade anyway and promise the venue would accept it, which meant
               the walkthrough opened on a revert and copy saying that could not
               happen. it says what is true and offers the way back instead. */}
-          {!off
+          {prep === "resetting"
+            ? null
+            : !off
             ? <Do label="Send a trade" busy={busy === "trade"} disabled={!s} onClick={() => post("trade", "accepted", "runs")} />
             : s?.status === 2
               ? <Do label="Bring it back first" busy={busy === "resume" || busy === "flip"} disabled={!s || !!s.mismatch} onClick={() => flip(1)} />
@@ -333,8 +360,12 @@ export default function Venue() {
                 : s?.status === 3 || s?.status === 4
                   ? <Do label="Use the shared agent instead" tone="quiet" onClick={() => w.disconnect()} />
                   : null}
-          <Aside tone={off ? "off" : "plain"}>
-            {!off
+          <Aside tone={off && prep !== "resetting" ? "off" : "plain"}>
+            {prep === "resetting"
+              ? "Getting the practice agent ready. The last visitor left it off, so it is being reset for you: a real transaction, a few seconds."
+              : prep === "busy" && off
+              ? "Another visitor is using the practice agent right now, so it is left as they have it. It resets itself a few minutes after they finish, or bring it back yourself."
+              : !off
               ? <>The venue accepts it because the switch says the agent is active. {s ? `${s.trades} trades so far.` : ""}</>
               : s?.status === 2
                 ? "This agent is shared, and whoever came before left it switched off. A trade sent now would be refused, which is step two. Bring it back to start from the beginning."
@@ -357,7 +388,7 @@ export default function Venue() {
             : <Do label="Send the same trade" busy={busy === "trade"} disabled={!s} onClick={() => post("trade", "refused", "switch")} />}
           <Aside>
             {!off
-              ? "Then send the same trade again and watch the venue refuse it."
+              ? "The same switch as the real agent at the top of the page, here on the practice agent, so you can send the same trade again and watch the venue refuse it."
               : "The agent is off. Refused inside the venue's own call, so nothing upstream can skip it. The explorer marks this one failed, and that is the proof: a refusal that went through would not be a refusal."}
           </Aside>
         </Step>
@@ -427,8 +458,8 @@ export default function Venue() {
 }
 
 /* the agent, as a thing on the page rather than a row of addresses. */
-function AgentCard({ s, off, refusedAt, reduced }: { s: State | null; off: boolean; refusedAt: number | null; reduced: boolean }) {
-  const word = !s ? "reading the chain" : s.trusted ? "trusted" : s.expired ? "expired" : s.status === 2 ? "switched off" : "not trusted";
+function AgentCard({ s, off, refusedAt, reduced, resetting }: { s: State | null; off: boolean; refusedAt: number | null; reduced: boolean; resetting?: boolean }) {
+  const word = !s ? "reading the chain" : resetting ? "getting ready" : s.trusted ? "trusted" : s.expired ? "expired" : s.status === 2 ? "switched off" : "not trusted";
   const tone = off ? "var(--orange)" : "var(--sage)";
   return (
     <div className="sheet p-5 relative overflow-hidden" style={{
@@ -446,6 +477,11 @@ function AgentCard({ s, off, refusedAt, reduced }: { s: State | null; off: boole
         <span className="text-[22px] font-semibold tracking-[-0.02em] leading-none">{word}</span>
         <span className="ml-auto mono text-[11px]" style={{ color: "var(--text-medium)" }}>agent {s?.agentId ?? "…"}</span>
       </div>
+      {/* what this agent is, in one line, because the page has two: the real
+          one at the top and this one, which the steps act on */}
+      <p className="text-[12px] mt-2" style={{ color: "var(--text-medium)" }}>
+        {!s ? "\u00a0" : s.owned ? "Your agent. Your wallet is its cold key." : "The practice agent, shared by visitors, so press anything."}
+      </p>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div>
