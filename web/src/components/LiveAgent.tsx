@@ -51,7 +51,9 @@ const SAYS: Record<string, string> = {
    explanation. the explorer is a tool and this is a demonstration sitting on
    top of it, so on that page it earns a line in the toolbar rather than a box
    above it. the landing page keeps the card, where it IS the argument. */
-export default function LiveAgent({ compact = false }: { compact?: boolean } = {}) {
+/* lead: whatever introduces the card on its page. drawn with the card and only
+   with it, so a deployment with no live agent leaves no heading over nothing. */
+export default function LiveAgent({ compact = false, lead = null }: { compact?: boolean; lead?: React.ReactNode } = {}) {
   const m = useMotionPrefs();
   const [s, setS] = useState<State | null>(null);
   const [busy, setBusy] = useState(false);
@@ -120,6 +122,8 @@ export default function LiveAgent({ compact = false }: { compact?: boolean } = {
   const heard = s?.said ? Math.max(0, Math.round((Date.now() - new Date(s.said.at).getTime()) / 1000)) : null;
 
   return (
+    <>
+    {lead}
     <div className={compact ? "min-w-0 mb-3 pb-3" : "sheet px-4 py-3.5 sm:px-5 sm:py-4"}
       style={compact ? { borderBottom: "1px solid var(--hairline)" } : undefined}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
@@ -216,5 +220,6 @@ export default function LiveAgent({ compact = false }: { compact?: boolean } = {
           also said "the left box" and "the right box", which stopped being
           true the moment the two boxes became two values on one line. */}
     </div>
+    </>
   );
 }

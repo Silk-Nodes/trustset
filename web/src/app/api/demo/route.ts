@@ -128,6 +128,46 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: rc?.status === 1, hash: tx.hash, block: rc?.blockNumber ?? null, ...(await state(id.toString())) });
     }
 
+    /* put the shared practice agent back to a clean start.
+     *
+     * it keeps whatever the last visitor left: switched off, or with an end
+     * date that ran out. the next visitor's very first screen used to be an
+     * orange "clear the end date first", before they had done anything. so a
+     * visitor who finds it broken has it reset for them.
+     *
+     * only when the break is stale. the agent is shared, and somebody three
+     * minutes into the walkthrough with it paused on purpose must not have it
+     * resumed under them. a pause older than three minutes, an end date that
+     * ran out more than three minutes ago, a heartbeat missed as long ago: that
+     * is a state somebody left behind, not one somebody is looking at. anything
+     * fresher is answered with busy, and the page says another visitor is
+     * using it. never for an agent the visitor owns. */
+    if (action === "reset") {
+      if (d.owned) return NextResponse.json({ error: "your wallet is the cold key" }, { status: 403 });
+      const p = provider(c);
+      const boss = await payer(c, p);
+      const ks = new ethers.Contract(c.killSwitch, KS, boss);
+      const a = await ks.getAgent(id);
+      const now = Math.floor(Date.now() / 1000);
+      const STALE = 180;
+      const status = Number(a.status), since = Number(a.statusSince);
+      const ends = Number(a.expiresAt), win = Number(a.heartbeatWindow), beat = Number(a.lastBeat);
+      if (status === 3 || status === 4) return NextResponse.json({ error: "the shared agent was stopped for good" }, { status: 409 });
+      const pausedStale = status === 2 && now - since > STALE;
+      const endedStale = ends > 0 && now - ends > STALE;
+      const lapsedStale = win > 0 && now - (beat + win) > STALE;
+      const freshBreak = (status === 2 && !pausedStale) || (ends > 0 && ends <= now && !endedStale) || (win > 0 && beat + win < now && !lapsedStale);
+      if (freshBreak) return NextResponse.json({ reset: false, busy: true, ...(await state(id.toString())) });
+      const hashes: string[] = [];
+      if (endedStale || lapsedStale || (ends > 0 && ends <= now) || (win > 0 && beat + win < now)) {
+        const tx = await ks.setLimits(id, 0, 0); await tx.wait(); hashes.push(tx.hash);
+      }
+      if (pausedStale) {
+        const tx = await ks.setStatus(id, 1, ethers.id("demo reset for the next visitor")); await tx.wait(); hashes.push(tx.hash);
+      }
+      return NextResponse.json({ reset: hashes.length > 0, hashes, ...(await state(id.toString())) });
+    }
+
     if (action === "pause" || action === "resume") {
       /* only when the deployer is the cold key. if the visitor's wallet holds
          it, the stop is theirs to sign and the server must not be able to. */
