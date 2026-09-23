@@ -53,13 +53,15 @@ async function register() {
   const p = new ethers.JsonRpcProvider(RPC, undefined, { staticNetwork: true });
   const cold = new ethers.Wallet(process.env.DEMO_PAYER_KEY, p);
   const ks = new ethers.Contract(d.killSwitch, KS, cold);
+  step("signing in to Dynamic and loading the wallet");
   const agent = await dynamicSigner(p, RPC);
   const key = await agent.getAddress();
-  await walletMeta(await dynamicClient(), key);
+  step(`wallet ${key} loaded`);
 
   let id = await ks.agentIdByKey(key);
   if (id === 0n) {
     /* the agent's own consent, signed by Dynamic, checked here before it costs gas */
+    step("asking Dynamic to sign the agent's consent");
     const digest = await ks.registrationDigest(key, cold.address);
     const innerHash = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(
       ["address", "uint256", "string", "address", "address"], [d.killSwitch, (await p.getNetwork()).chainId, "trustset:register", key, cold.address]));
@@ -69,6 +71,7 @@ async function register() {
     console.log("consent signed by Dynamic and checked");
 
     /* the same shape as agent 7: a guardian, and a two hour heartbeat */
+    step("registering on the switch");
     const seven = await ks.getAgent(process.env.LIVE_AGENT_ID || 7);
     const tx = await ks.registerWithLimits(key, cold.address, [...seven.guardians], seven.guardianThreshold, sig, 0, seven.heartbeatWindow || 7200);
     await tx.wait();
@@ -92,7 +95,25 @@ async function register() {
   console.log(`\nset in .env and restart the agent and the web service:\nLIVE_AGENT_ID=${id}`);
 }
 
+/* a failed call to Dynamic throws an axios error, and node prints the whole
+   object, sockets and all, three hundred lines of it. the part a person needs
+   is the step, the status and the server's words. nothing else is printed:
+   the object also carries the request, and the request carries the token. */
+function step(s) { console.log(`· ${s}`); }
+function brief(e) {
+  const status = e?.status ?? e?.response?.status;
+  const said = e?.response?.data?.error ?? e?.response?.data?.message ?? e?.data?.error;
+  return [e?.name && e.name !== "Error" ? e.name : null, status ? `status ${status}` : null, said ? `server: ${typeof said === "string" ? said : JSON.stringify(said)}` : null, e?.message]
+    .filter(Boolean).join(" · ").slice(0, 600);
+}
+
 const cmd = process.argv[2];
-if (cmd === "create") await create();
-else if (cmd === "register") await register();
-else { console.error("usage: node agent/dynamic-setup.mjs create | register"); process.exit(1); }
+try {
+  if (cmd === "create") await create();
+  else if (cmd === "register") await register();
+  else { console.error("usage: node agent/dynamic-setup.mjs create | register"); process.exit(1); }
+} catch (e) {
+  console.error(`\nFAILED: ${brief(e)}`);
+  if (e?.cause) console.error(`cause: ${brief(e.cause)}`);
+  process.exit(1);
+}
