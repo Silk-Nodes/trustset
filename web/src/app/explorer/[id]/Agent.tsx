@@ -2,6 +2,8 @@
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import Term from "@/components/Term";
+import Runbook from "@/components/agents/Runbook";
+import { connect, type Conn } from "@/lib/chain";
 import { say, ago, every, short, dayOf, type Ev, type Tone } from "../words";
 
 /* one agent's whole life.
@@ -130,6 +132,7 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
           {a.successor_id ? <Field k="Trust moved to" v={`Agent ${a.successor_id}`} /> : null}
           <Field k="Registered" v={new Date(a.registered_at).toLocaleString()} />
         </dl>
+        <Sealed id={a.id} />
       </div>
 
       <History events={events} explorer={explorer} />
@@ -286,6 +289,21 @@ function Field({ k, v, note, explorer, addr }: { k: string; v: string; note?: Re
         {addr && explorer ? <a href={`${explorer}/address/${v}`} target="_blank" rel="noreferrer" className="hover:underline">{v}</a> : v}
       </dd>
       {note && <dd className="text-[12px] mt-0.5" style={{ color: "var(--text-medium)" }}>{note}</dd>}
+    </div>
+  );
+}
+
+/* the owner's sealed notes, if there are any. read from the chain directly, not
+   the index, and opened with the passkey alone: this page never asks for a
+   wallet, which is what lets a phone with nothing but the passkey read them. */
+function Sealed({ id }: { id: number }) {
+  const [conn, setConn] = useState<Conn | null>(null);
+  useEffect(() => { connect().then(setConn).catch(() => {}); }, []);
+  if (!conn) return null;
+  return (
+    <div className="mt-6 pt-5" style={{ borderTop: "1px solid var(--hairline)" }}>
+      <div className="eyebrow mb-2.5">Sealed by the owner</div>
+      <Runbook conn={conn} signer={null} id={BigInt(id)} sample={false} readOnly />
     </div>
   );
 }
