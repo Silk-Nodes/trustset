@@ -66,7 +66,16 @@ function NavDrawer({ pathname }: { pathname: string }) {
   );
 }
 
+/* the app (the console and the explorer) has its own frame, so the site's
+   header is not drawn there. the check lives in a wrapper so the site header's
+   own hooks never run conditionally. */
+export const isAppPath = (p: string) => p.startsWith("/agents") || p.startsWith("/explorer");
 export default function Header() {
+  const pathname = usePathname();
+  return isAppPath(pathname) ? null : <SiteHeader />;
+}
+
+function SiteHeader() {
   const [live, setLive] = useState<{ agents: number; revoked: number; block: number } | null>(null);
   useEffect(() => {
     let alive = true;

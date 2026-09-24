@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ago } from "@/app/explorer/words";
+import { ago } from "@/app/(app)/explorer/words";
 
 /* look an agent up. the question a counterparty brings is about one agent:
  * may I deal with this one, now. so the page asks for that agent and answers

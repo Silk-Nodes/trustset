@@ -5,6 +5,7 @@ import type { Extra, PulseEvent } from "@/lib/layers";
 import Module from "./Module";
 import History from "./History";
 import Inspector, { type InspectorProps } from "./Inspector";
+import TrustLine from "./TrustLine";
 
 /* one agent. the canvas in the middle, its settings at the right.
  *
@@ -19,6 +20,10 @@ export type AgentPageProps = {
   onBack: () => void; onPrev?: () => void; onNext?: () => void; position: string;
   history: { events: PulseEvent[]; total?: number; more?: () => void; loading?: boolean };
   inspector: Omit<InspectorProps, "agent" | "now" | "explorer" | "extra" | "name">;
+  /* beside the list rather than instead of it: one column that scrolls, the
+     switch first, the settings inline, the history last. no drawer, because
+     the panel is already the narrow view. */
+  panel?: boolean;
 };
 
 export default function AgentPage(p: AgentPageProps) {
@@ -45,6 +50,28 @@ export default function AgentPage(p: AgentPageProps) {
     </div>
   );
   const inspector = <Inspector key={p.agent.id.toString()} {...p.inspector} agent={p.agent} now={p.now} explorer={p.explorer} extra={p.extra} name={p.name} />;
+  if (p.panel) return (
+    <div className="module rounded-[16px] flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden">
+      <div className="shrink-0 flex items-center gap-2 h-11 px-3" style={{ borderBottom: "1px solid var(--hairline)" }}>
+        <span className="text-[14px] font-semibold truncate">{p.name}</span>
+        <span className="mono text-[11px] shrink-0" style={{ color: "var(--text-light)" }}>agent {p.agent.id.toString()}</span>
+        <span className="flex-1" />
+        <span className="hidden sm:inline mono text-[11px] tabular" style={{ color: "var(--text-light)" }}>{p.position}</span>
+        <button type="button" onClick={p.onPrev} disabled={!p.onPrev} aria-label="previous agent" title="[" className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-[13px] outline-none focus-visible:ring-2 disabled:opacity-35" style={{ color: "var(--text-medium)" }}>‹</button>
+        <button type="button" onClick={p.onNext} disabled={!p.onNext} aria-label="next agent" title="]" className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-[13px] outline-none focus-visible:ring-2 disabled:opacity-35" style={{ color: "var(--text-medium)" }}>›</button>
+        <button type="button" onClick={p.onBack} aria-label="close" title="esc" className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-[15px] outline-none focus-visible:ring-2" style={{ color: "var(--text-medium)" }}>×</button>
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-5">
+        <Module bare slim agent={p.agent} name={p.name} now={p.now} events={p.events} indexed={p.indexed} extra={p.extra} explorer={p.explorer} busy={p.busy} onToggle={p.onToggle} onStop={p.onStop} />
+        <div>
+          <div className="eyebrow mb-1.5">trust, last 24 hours</div>
+          <TrustLine agent={p.agent} now={p.now} events={p.events} height={12} labels />
+        </div>
+        <div>{inspector}</div>
+        <History agent={p.agent} events={p.history.events} total={p.history.total} more={p.history.more} loading={p.history.loading} indexed={p.indexed} now={p.now} explorer={p.explorer} />
+      </div>
+    </div>
+  );
   return (
     <div className="flex-1 min-h-0 flex flex-col min-w-0">
       {nav}

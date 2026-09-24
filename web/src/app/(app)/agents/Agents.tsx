@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { motion } from "motion/react";
+import { useMotionPrefs } from "@/lib/motion";
 import { ethers } from "ethers";
 import { registerPasskey } from "@/lib/webauthn";
 import Fleet from "@/components/agents/Fleet";
 import AgentPage from "@/components/agents/AgentPage";
 import HumanProof from "@/components/agents/HumanProof";
-import Footer from "@/components/Footer";
 import Shell from "@/components/agents/Shell";
 import { useWallet } from "@/components/WalletProvider";
 import RegisterDialog from "@/components/agents/RegisterDialog";
@@ -33,6 +34,7 @@ const span = (sec: number) => sec >= 172800 ? `${Math.round(sec / 86400)} days` 
  * thing can be run with no wallet installed at all. */
 export default function Agents() {
   const { conn, who, askSignIn, ask } = useWallet();
+  const motionPrefs = useMotionPrefs();
   /* set when register was pressed signed out, so the dialog opens once signed in */
   const wantRegister = useRef(false);
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -465,57 +467,8 @@ export default function Agents() {
   /* the page's one solid button. it used to be disabled until a wallet was
      connected, which drew the main action of the console in grey. now it asks
      for the wallet first and opens the dialog once there is one. */
-  const register = <button type="button" className="drawn-btn btn-orange" style={{ padding: "6px 14px", fontSize: "0.78rem" }} title="Tell the switch about an agent you already run. Nothing is created."
-    onClick={() => {
-      if (signedIn) { setRegOpen(true); return; }
-      /* not signed in: open the sign-in panel with the reason on it, and open
-         the dialog on its own once somebody is. this used to call the browser
-         wallet directly, which with no extension installed did nothing at all. */
-      wantRegister.current = true;
-      askSignIn("Sign in to register an agent. The wallet you sign in with becomes its cold key: the one key that can stop it.");
-    }}>Register agent</button>;
-
-  return (
-    <>
-      {/* one agent is a canvas: one window tall, its history and settings
-          scrolling inside themselves. the fleet and guarding are ordinary
-          pages; the fleet's table caps its own height and windows its rows. */}
-      <Shell frame={!guardingRoute && routeId !== null} wide={guardingRoute || routeId === null} title={cur ? labelFor(cur).name : guardingRoute ? "Guarding" : "Your agents"} note={conn ? <>{conn.cfg.chain}{asOf && signedIn ? ` · as of ${asOf}` : ""}</> : undefined}
-        actions={register} badges={waiting ? { "/agents/guarding": waiting } : undefined}>
-
-        {/* a notice is a toast at the corner, never a bar that moves the table */}
-        {note && (
-          <div role="status" className="fixed z-[70] bottom-4 right-4 left-4 sm:left-auto sm:max-w-md sheet px-4 py-3 text-xs flex items-start gap-3" style={{ boxShadow: "0 12px 32px rgba(0,0,0,0.14)" }}>
-            <span className="break-words min-w-0" style={{ color: "var(--text-dark)" }}>{note}</span>
-            <button type="button" onClick={() => setNote(null)} className="ml-auto shrink-0" style={{ color: "var(--text-medium)" }} aria-label="Dismiss">×</button>
-          </div>
-        )}
-        {conn === undefined && <div className="sheet p-6 text-sm text-ink/70">Connecting…</div>}
-        {conn === null && <div className="sheet p-6 text-sm text-ink/70">No chain configured.</div>}
-        {/* no wallet: the console itself, drawn from the sample, under one line
-            saying so. an empty card with the word connect showed a visitor
-            nothing about what any of this does. */}
-        {sampleOn && (
-          <p className="shrink-0 mb-3 text-[12.5px] flex flex-wrap items-center gap-x-2 gap-y-1" style={{ color: "var(--text-medium)" }}>
-            <span className="mono text-[10px] uppercase tracking-[0.12em] rounded-full px-2 py-0.5" style={{ border: "1px solid var(--hairline)", color: "var(--text-dark)" }}>sample</span>
-            {guardingRoute ? `${guardedShown.length} agents somebody else owns, to show what a guardian does.` : `${all.length} made-up agents, to show the console working.`}
-            <span>Connect the wallet that is your agents&apos; <Term k="cold key">cold key</Term> to see yours.</span>
-          </p>
-        )}
-        {conn && signedIn && !guardingRoute && !loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>Reading your agents from {conn.cfg.chain}…</div>}
-        {conn && signedIn && !guardingRoute && loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm text-ink/70">Nothing under {short(ownerAddr(conn)!)} yet. <Term k="register">Register</Term> the <Term k="agent key">agent key</Term> of an agent you already run, and this wallet becomes the one that can stop it. <span className="ml-2">{register}</span></div>}
-        {conn && (signedIn || sampleOn) && guardingRoute && (
-          <div className="min-w-0">{guardedShown.length ? guardingPanel : <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>Nobody has named this wallet as a guardian yet.</div>}</div>
-        )}
-        {/* the fleet, only when the url is not naming one agent. without the
-            routeId test an unknown id drew the error under a full table. */}
-        {conn && (signedIn || sampleOn) && !guardingRoute && routeId === null && all.length > 0 && (
-          <Fleet agents={all} rows={rows} purposes={purposes} now={now} pulses={pulses} busy={busy} canSign={canSign}
-            onOpen={goAgent} onToggle={a => pause(a)} onStop={a => stop(a)} onBulk={bulk} />
-        )}
-        {conn && (signedIn || sampleOn) && routeId !== null && !cur && (loaded || sampleOn) && <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>No agent {routeId.toString()} under this wallet. <button type="button" onClick={() => go("/agents")} className="underline">Back to the fleet</button></div>}
-        {conn && (signedIn || sampleOn) && cur && (
-          <AgentPage agent={cur} name={labelFor(cur).name} now={now} explorer={explorer}
+  const PANEL = conn && cur ? (
+          <AgentPage panel agent={cur} name={labelFor(cur).name} now={now} explorer={explorer}
             events={pulses[cur.id.toString()]?.events ?? []} indexed={pulses[cur.id.toString()]?.indexed ?? null} extra={extras[cur.id.toString()] ?? {}}
             busy={{ pause: busy.has("p" + cur.id.toString()), stop: busy.has(cur.id.toString()) }}
             onToggle={() => pause(cur)} onStop={() => stop(cur)}
@@ -539,7 +492,74 @@ export default function Agents() {
                   onProved={() => setStamps(st => ({ ...st, [cur.id.toString()]: { ...st[cur.id.toString()], human: true } }))} />
               ) : null,
             }} />
+  ) : null;
+
+  const register = <button type="button" className="drawn-btn btn-orange" style={{ padding: "6px 14px", fontSize: "0.78rem" }} title="Tell the switch about an agent you already run. Nothing is created."
+    onClick={() => {
+      if (signedIn) { setRegOpen(true); return; }
+      /* not signed in: open the sign-in panel with the reason on it, and open
+         the dialog on its own once somebody is. this used to call the browser
+         wallet directly, which with no extension installed did nothing at all. */
+      wantRegister.current = true;
+      askSignIn("Sign in to register an agent. The wallet you sign in with becomes its cold key: the one key that can stop it.");
+    }}>Register agent</button>;
+
+  return (
+    <>
+      {/* one agent is a canvas: one window tall, its history and settings
+          scrolling inside themselves. the fleet and guarding are ordinary
+          pages; the fleet's table caps its own height and windows its rows. */}
+      <Shell frame={!guardingRoute} title={guardingRoute ? "Guarding" : "Agents"} note={conn ? <>{conn.cfg.chain}{asOf && signedIn ? ` · as of ${asOf}` : ""}</> : undefined}
+        actions={register} badges={waiting ? { "/agents/guarding": waiting } : undefined}>
+
+        {/* a notice is a toast at the corner, never a bar that moves the table */}
+        {note && (
+          <div role="status" className="fixed z-[70] bottom-4 right-4 left-4 sm:left-auto sm:max-w-md sheet px-4 py-3 text-xs flex items-start gap-3" style={{ boxShadow: "0 12px 32px rgba(0,0,0,0.14)" }}>
+            <span className="break-words min-w-0" style={{ color: "var(--text-dark)" }}>{note}</span>
+            <button type="button" onClick={() => setNote(null)} className="ml-auto shrink-0" style={{ color: "var(--text-medium)" }} aria-label="Dismiss">×</button>
+          </div>
         )}
+        {conn === undefined && <div className="sheet p-6 text-sm text-ink/70">Connecting…</div>}
+        {conn === null && <div className="sheet p-6 text-sm text-ink/70">No chain configured.</div>}
+        {/* no wallet: the console itself, drawn from the sample, under one line
+            saying so. an empty card with the word connect showed a visitor
+            nothing about what any of this does. */}
+        {sampleOn && (
+          <p className="shrink-0 mb-3 text-[12px] flex flex-wrap items-center gap-x-2 gap-y-1" style={{ color: "var(--text-medium)" }}>
+            <span className="mono text-[10px] uppercase tracking-[0.12em] rounded-full px-2 py-0.5" style={{ border: "1px solid var(--hairline)", color: "var(--text-dark)" }}>sample</span>
+            <span>{guardingRoute ? `${guardedShown.length} agents somebody else owns, to show what a guardian does.` : `${all.length} made-up agents.`} Connect the wallet that is your agents&apos; <Term k="cold key">cold key</Term> to see yours.</span>
+          </p>
+        )}
+        {conn && signedIn && !guardingRoute && !loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>Reading your agents from {conn.cfg.chain}…</div>}
+        {conn && signedIn && !guardingRoute && loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm text-ink/70">Nothing under {short(ownerAddr(conn)!)} yet. <Term k="register">Register</Term> the <Term k="agent key">agent key</Term> of an agent you already run, and this wallet becomes the one that can stop it. <span className="ml-2">{register}</span></div>}
+        {conn && (signedIn || sampleOn) && guardingRoute && (
+          <div className="min-w-0">{guardedShown.length ? guardingPanel : <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>Nobody has named this wallet as a guardian yet.</div>}</div>
+        )}
+        {/* the list and the agent side by side. opening an agent used to
+            replace the list with it, so looking at five agents was five trips
+            there and back. now the agent opens in a panel beside the list,
+            [ and ] step through the list with the panel following, and the
+            url still names the agent so a link opens it. below xl there is no
+            room for both, and the panel takes the width with its own close. */}
+        {conn && (signedIn || sampleOn) && !guardingRoute && all.length > 0 && (routeId === null || cur) && (
+          <div className="flex-1 min-h-0 flex gap-4">
+            <div className={`min-w-0 min-h-0 flex-col flex-1 ${cur ? "hidden xl:flex" : "flex"}`}>
+              <Fleet agents={all} rows={rows} purposes={purposes} now={now} pulses={pulses} busy={busy} canSign={canSign} selected={cur?.id.toString()} narrow={!!cur}
+                onOpen={goAgent} onToggle={a => pause(a)} onStop={a => stop(a)} onBulk={bulk} />
+            </div>
+            {cur && (
+              /* the panel slides in from the side it lives on, once, when it
+                 opens. stepping between agents with [ and ] swaps what is in it
+                 without moving it: a keyboard action is never animated. */
+              <motion.aside aria-label={`Agent ${cur.id}`} className="min-w-0 min-h-0 w-full xl:w-[560px] shrink-0 flex flex-col"
+                initial={motionPrefs.reduced ? { opacity: 0 } : { opacity: 0, transform: "translateX(24px)" }} animate={{ opacity: 1, transform: "translateX(0px)" }}
+                transition={motionPrefs.reduced ? { duration: 0.15 } : { type: "spring", bounce: 0, duration: 0.35 }}>
+                {PANEL}
+              </motion.aside>
+            )}
+          </div>
+        )}
+        {conn && (signedIn || sampleOn) && routeId !== null && !cur && (loaded || sampleOn) && <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>No agent {routeId.toString()} under this wallet. <button type="button" onClick={() => go("/agents")} className="underline">Back to the fleet</button></div>}
         {conn && signedIn && (
           <RegisterDialog open={regOpen} onClose={() => setRegOpen(false)} coldKey={ownerAddr(conn)!}
             conn={conn}
@@ -547,10 +567,6 @@ export default function Agents() {
             checkKey={async k => { const id = await agentIdForKey(conn, k); return id === 0n ? null : id; }} />
         )}
       </Shell>
-      {/* every page ends in the footer. the list is an ordinary page now that
-          its table ends at its last row; the agent page keeps its one window
-          canvas and the footer sits one scroll below it. */}
-      <Footer />
     </>
   );
 }

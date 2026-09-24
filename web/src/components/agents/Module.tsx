@@ -89,7 +89,7 @@ export default function Module({ agent, name, events, extra, now, busy, onToggle
 
       {/* the switch, and the held press beside it */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 min-w-0">
-        <Switch state={sw} live={live} busy={busy?.pause} onToggle={onToggle} label={sw === "on" ? `pause ${name}` : `bring ${name} back`} />
+        <Switch size="lg" state={sw} live={live} busy={busy?.pause} onToggle={onToggle} label={sw === "on" ? `pause ${name}` : `bring ${name} back`} />
         <button type="button" disabled={ended || !!busy?.stop}
           onPointerDown={e => { e.preventDefault(); begin(); }} onPointerUp={end} onPointerLeave={end} onPointerCancel={end}
           onKeyDown={e => { if (e.key === " " && !e.repeat) { e.preventDefault(); begin(); } }} onKeyUp={e => { if (e.key === " ") end(); }}

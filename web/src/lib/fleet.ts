@@ -13,7 +13,8 @@ import { type Extra, type Layer, type LayerKey, type PulseEvent, layersOf } from
 export type Density = "cards" | "rows" | "fleet";
 /* the count picks the default. up to six agents fit on one screen as cards;
    up to thirty as one-line rows; past that the fleet needs its furniture. */
-export const densityFor = (n: number): Density => n <= 6 ? "cards" : n <= 30 ? "rows" : "fleet";
+/* the breaker panel for a fleet a person can hold in their head, the table past it */
+export const densityFor = (n: number): Density => n <= 30 ? "cards" : "fleet";
 
 export type StateKey = "trusted" | "expired" | "quiet" | "paused" | "stopped";
 export const STATE_WORD: Record<StateKey, string> = { trusted: "trusted", expired: "expired", quiet: "gone quiet", paused: "paused", stopped: "stopped" };
@@ -140,7 +141,7 @@ export const BUILT_IN: View[] = [
   { id: "24h", name: "expires in 24h", filter: { ...NO_FILTER, within: 86400 }, sort: "expiry", group: "none", builtIn: true },
   { id: "unguarded", name: "no panic button", filter: { ...NO_FILTER, missing: ["panic"] }, sort: "name", group: "none", builtIn: true },
 ];
-const VIEWS_KEY = "trustset.views", TAGS_KEY = "trustset.tags", DENSITY_KEY = "trustset.density";
+const VIEWS_KEY = "trustset.views", TAGS_KEY = "trustset.tags", DENSITY_KEY = "trustset.density.v2";
 export function loadViews(): View[] { try { const v = JSON.parse(localStorage.getItem(VIEWS_KEY) ?? "[]"); return Array.isArray(v) ? v : []; } catch { return []; } }
 export function saveViews(v: View[]) { try { localStorage.setItem(VIEWS_KEY, JSON.stringify(v)); } catch { /* no storage */ } }
 export function loadTags(chain: string): Record<string, string> { try { return JSON.parse(localStorage.getItem(`${TAGS_KEY}.${chain}`) ?? "{}"); } catch { return {}; } }
