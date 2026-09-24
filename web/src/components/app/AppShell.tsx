@@ -108,7 +108,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <BadgeCtx.Provider value={badgeCtx}>
-      <div className="fixed inset-0 z-[5] flex" style={{ background: "var(--bg-base)" }}>
+      {/* no ground of its own: the site's aurora sits under the frame, turned
+          down for work, and shows in the gaps around the panels */}
+      <div className="fixed inset-0 z-[5] flex">
         <div className="hidden lg:block relative shrink-0 transition-[width] duration-200 ease-out" style={{ width: pinned ? 228 : 56 }}>
         <aside aria-label="App" onMouseEnter={peekOn} onMouseLeave={peekOff} onFocus={peekOn} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) peekOff(); }}
           className="absolute inset-y-0 left-0 z-[40] flex flex-col overflow-hidden"
@@ -146,19 +148,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div id="app-scroll" className="flex-1 min-h-0 overflow-y-auto overflow-x-clip pb-14 lg:pb-0">
             <AppSearch.Provider value={openSearch}>{children}</AppSearch.Provider>
           </div>
-          <div className="hidden lg:flex shrink-0 h-7 items-center gap-4 px-4 mono text-[10.5px]" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-light)" }}>
+          <div className="hidden lg:flex shrink-0 h-7 items-center gap-4 px-4 mono text-[10.5px] app-material" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
             <span className="tabular">{block ? `block ${block.toLocaleString("en-US")}` : "reading the chain"}</span>
             <span className="ml-auto">⌘K search · {"⌘\\"} sidebar · j k move · enter open · esc close</span>
           </div>
         </div>
 
         {/* on a phone the sidebar becomes a tab bar, where a thumb reaches */}
-        <nav aria-label="App" className="lg:hidden fixed bottom-0 inset-x-0 z-[6] h-14 grid grid-cols-4" style={{ borderTop: "1px solid var(--hairline)", background: "var(--bg-base)" }}>
+        <nav aria-label="App" className="lg:hidden fixed bottom-0 inset-x-0 z-[6] h-14 grid grid-cols-4 app-material" style={{ borderTop: "1px solid var(--hairline)" }}>
           {[...OPERATE, ...PUBLIC].map(n => {
             const on = n.match(pathname); const count = badges[n.href] ?? 0;
             return (
               <Link key={n.href} href={n.href} aria-current={on ? "page" : undefined} className="relative flex flex-col items-center justify-center gap-0.5 text-[10.5px] font-medium outline-none"
-                style={{ color: on ? "var(--text-dark)" : "var(--text-light)" }}>
+                style={{ color: on ? "var(--text-dark)" : "var(--text-medium)" }}>
                 <span className="w-5 h-5 inline-flex items-center justify-center">{n.icon}</span>{n.label}
                 {count > 0 && <span className="absolute top-1.5 right-[calc(50%-18px)] mono text-[9.5px] rounded-full px-1" style={{ background: "var(--orange)", color: "#160A06" }}>{count}</span>}
               </Link>
@@ -178,7 +180,7 @@ export function TopBar({ title, note, actions }: { title: React.ReactNode; note?
   const open = useContext(AppSearch);
   const still = !!useReducedMotion();
   return (
-    <div className="sticky top-0 z-[20] h-12 flex items-center gap-2 sm:gap-3 px-4 sm:px-5" style={{ borderBottom: "1px solid var(--hairline)", background: "var(--bg-base)" }}>
+    <div className="sticky top-0 z-[20] h-12 flex items-center gap-2 sm:gap-3 px-4 sm:px-5 app-material" style={{ borderBottom: "1px solid var(--hairline)" }}>
       <Link href="/" className="lg:hidden shrink-0" aria-label="trustset home"><Mark size={20} /></Link>
       <h1 className="text-[15px] font-semibold tracking-[-0.01em] whitespace-nowrap shrink-0 flex items-center">{title}</h1>
       {/* the title never gives way: on a phone the note steps out of the bar

@@ -66,7 +66,7 @@ export default function RefundReplay({ sample = false }: { sample?: boolean }) {
           <span className="ml-auto eyebrow rounded-full px-2 py-1" /* the tint it sits on lifts the ground, so --orange-text lands at 4.37:1
                 on it: a pass everywhere else and a miss here. 10% of the tint
                 keeps the badge reading as orange and clears the minimum. */
-            style={{ background: "color-mix(in srgb, var(--orange) 10%, transparent)", color: "var(--orange-text)" }}>sample</span>
+            style={{ background: "color-mix(in srgb, var(--orange) 10%, var(--surface))", color: "var(--orange-text)" }}>sample</span>
         </div>
       )}
     </div>
