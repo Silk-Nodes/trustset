@@ -3,6 +3,11 @@ import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import Term from "@/components/Term";
 import Runbook from "@/components/agents/Runbook";
+import Switch from "@/components/agents/Switch";
+import TrustLine from "@/components/agents/TrustLine";
+import { IconCopy } from "@/components/app/icons";
+import type { Agent as ChainAgent, Status } from "@/lib/chain";
+import { type PulseEvent, switchState } from "@/lib/layers";
 import { connect, type Conn } from "@/lib/chain";
 import { say, ago, every, short, dayOf, type Ev, type Tone } from "../words";
 
@@ -85,32 +90,7 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
 
   return (
     <>
-      {/* the answer first, then what justifies it */}
-      <div className="sheet px-5 py-5 sm:px-7 sm:py-6 mb-4 flex flex-wrap items-center gap-x-6 gap-y-4"
-        style={{ borderColor: live ? "color-mix(in srgb, var(--sage) 45%, transparent)" : "color-mix(in srgb, var(--orange) 40%, transparent)" }}>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2.5">
-            <span className="w-3 h-3 rounded-full shrink-0" style={{ background: live ? "var(--sage)" : a.status === "active" ? "var(--terra)" : "var(--orange)" }} />
-            <span className="text-[26px] sm:text-[30px] font-semibold tracking-[-0.025em] leading-none"
-              style={{ color: live ? "var(--sage-text)" : "var(--orange-text)" }}>
-              {word}
-            </span>
-            <span className="text-[13px] truncate" style={{ color: "var(--text-medium)" }}>right now, on Monad testnet</span>
-          </div>
-          <p className="text-[14px] mt-2.5 max-w-[62ch]" style={{ color: "var(--text-medium)" }}>{why}</p>
-        </div>
-        {/* the same answer, for a machine. the endpoints exist; showing them
-            beside the human sentence is the whole difference between an
-            explorer you read and one you can build against. */}
-        <div className="flex flex-col gap-1.5 shrink-0">
-          <span className="eyebrow">Check it yourself</span>
-          <code className="mono text-[12.5px] rounded-lg px-3 py-2 whitespace-nowrap"
-            style={{ background: "var(--bg-base)", border: "1px solid var(--hairline)", color: "var(--text-dark)" }}>npx @trustset/check {a.id}</code>
-          <a href={`/api/verify?agent=${a.id}`} target="_blank" rel="noreferrer" className="mono text-[11.5px] hover:underline" style={{ color: "var(--text-medium)" }}>
-            or read it as JSON ↗
-          </a>
-        </div>
-      </div>
+      <Verdict a={a} events={events} word={word} why={why} live={live} now={now} />
 
     <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-4 items-stretch">
       <div className="sheet p-5 sm:p-7">
@@ -138,6 +118,77 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
       <History events={events} explorer={explorer} />
     </div>
     </>
+  );
+}
+
+/* the verdict, for a stranger deciding whether to deal with this agent.
+ *
+ * the same object the owner sees in the console, read only: the breaker in its
+ * position, the word, the one sentence that justifies it, the three limits as
+ * facts, and the agent's last day as a strip. then the same answer for a
+ * machine, as one command with a copy button. a raw json link sat under it and
+ * nobody reads an api response in a browser tab; the command is the check a
+ * developer would actually run. */
+function Verdict({ a, events, word, why, live, now }: { a: Row; events: Ev[]; word: string; why: string; live: boolean; now: number }) {
+  const ex = Number(a.expires_at), hb = Number(a.heartbeat_window), lb = Number(a.last_beat);
+  const pulse: PulseEvent[] = useMemo(() => events.map(e => ({ kind: e.kind, at: Math.floor(Date.parse(e.at) / 1000), actor: e.actor, data: e.data })), [events]);
+  /* the console's agent, drawn from the index's row, so the breaker and the
+     strip are the same components and cannot read differently here */
+  const agent: ChainAgent = useMemo(() => ({
+    id: BigInt(a.id), key: a.agent_key, coldKey: a.cold_key, guardians: a.guardians ?? [], threshold: a.threshold,
+    status: a.status as Status, since: Math.floor(Date.parse(a.status_at) / 1000), successor: BigInt(a.successor_id ?? 0), history: [],
+    expiresAt: ex, heartbeatWindow: hb, lastBeat: lb,
+  }), [a, ex, hb, lb]);
+  const sw = switchState(agent, [...pulse].sort((x, y) => y.at - x.at));
+  const expired = ex > 0 && now >= ex, lapsed = hb > 0 && now > lb + hb;
+  const tone = live ? "var(--sage)" : a.status === "active" ? "var(--terra)" : a.status === "paused" ? "var(--orange)" : "var(--text-light)";
+  const toneText = live ? "var(--sage-text)" : a.status === "revoked" || a.status === "rotated" ? "var(--text-dark)" : "var(--orange-text)";
+  const g = a.guardians?.length ?? 0;
+  const facts: { text: string; warn?: boolean }[] = [
+    hb ? { text: lapsed ? `missed its ${every(hb)} heartbeat` : `reports every ${every(hb)}, last ${ago(new Date(lb * 1000).toISOString())}`, warn: lapsed } : { text: "no heartbeat" },
+    ex ? { text: expired ? `ended ${new Date(ex * 1000).toLocaleDateString()}` : `trusted until ${new Date(ex * 1000).toLocaleDateString()}`, warn: expired } : { text: "no end date" },
+    { text: g ? `${g} guardian${g === 1 ? "" : "s"}, ${a.threshold} to pause` : "no guardians" },
+  ];
+  const cmd = `npx @trustset/check ${a.id}`;
+  const [copied, setCopied] = useState(false);
+  const copy = () => navigator.clipboard.writeText(cmd).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600); }).catch(() => {});
+
+  return (
+    <section aria-label="Verdict" className="module rounded-[16px] mb-4 overflow-hidden"
+      style={{ boxShadow: `var(--module-shadow), inset 0 0 0 1px color-mix(in srgb, ${tone} 35%, transparent)` }}>
+      <div className="p-5 sm:p-6 grid gap-5 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
+        <div className="flex items-start gap-4 min-w-0 md:contents">
+          <Switch state={sw} live={live} size="lg" caption="none" disabled onToggle={() => {}} label={`switch ${sw}, read only`} />
+          <div className="min-w-0">
+            <div className="eyebrow">right now · Monad testnet</div>
+            <div className="text-[28px] sm:text-[32px] font-semibold tracking-[-0.03em] leading-none mt-1.5" style={{ color: toneText }}>{word}</div>
+            <p className="text-[14px] mt-2 max-w-[62ch]" style={{ color: "var(--text-medium)" }}>{why}</p>
+            <ul className="flex flex-wrap gap-1.5 mt-3" aria-label="Its limits">
+              {facts.map(f => (
+                <li key={f.text} className="mono text-[11px] h-6 px-2.5 rounded-full inline-flex items-center whitespace-nowrap"
+                  style={{ border: `1px solid ${f.warn ? "color-mix(in srgb, var(--orange) 45%, transparent)" : "var(--hairline)"}`, color: f.warn ? "var(--orange-text)" : "var(--text-medium)" }}>{f.text}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <span className="eyebrow">check it yourself</span>
+          <div className="flex items-center gap-1 h-10 pl-3 pr-1 rounded-[10px] min-w-0" style={{ background: "var(--enclosure)", boxShadow: "var(--enclosure-shadow)", border: "1px solid var(--hairline)" }}>
+            <code className="mono text-[12.5px] whitespace-nowrap truncate flex-1 min-w-0" style={{ color: "var(--text-dark)" }}><span style={{ color: "var(--text-medium)" }}>$ </span>{cmd}</code>
+            <button type="button" onClick={copy} aria-label={copied ? "Copied" : "Copy the command"} title={copied ? "copied" : "copy"}
+              className="w-8 h-8 shrink-0 rounded-lg inline-flex items-center justify-center outline-none focus-visible:ring-2 active:scale-[0.94] transition-transform"
+              style={{ color: copied ? "var(--sage-text)" : "var(--text-medium)" }}>
+              <IconCopy done={copied} />
+            </button>
+          </div>
+          <span className="text-[11.5px]" style={{ color: "var(--text-medium)" }} aria-live="polite">{copied ? "copied to the clipboard" : "asks the contract, not this page"}</span>
+        </div>
+      </div>
+      <div className="px-5 sm:px-6 pb-5 pt-4" style={{ borderTop: "1px solid var(--hairline)" }}>
+        <div className="eyebrow mb-2">trust, last 24 hours</div>
+        <TrustLine agent={agent} now={now} events={pulse} height={10} labels />
+      </div>
+    </section>
   );
 }
 
