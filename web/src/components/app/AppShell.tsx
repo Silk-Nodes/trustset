@@ -90,7 +90,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const on = n.match(pathname);
     const count = badges[n.href] ?? 0;
     return (
-      <MLink key={n.href} href={n.href} aria-current={on ? "page" : undefined} aria-label={n.label} initial="rest" animate="rest" whileHover={still ? undefined : "hover"} whileFocus={still ? undefined : "hover"}
+      <MLink key={n.href} href={n.href} aria-current={on ? "page" : undefined} aria-label={n.label}
+        /* a pointer click folds the rail and lets go of focus; enter from the
+           keyboard (detail 0) keeps focus where the reader is */
+        onClick={(e: React.MouseEvent<HTMLAnchorElement>) => { if (e.detail > 0) { setPeek(false); e.currentTarget.blur(); } }}
+        initial="rest" animate="rest" whileHover={still ? undefined : "hover"} whileFocus={still ? undefined : "hover"}
         className="relative flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-[13px] outline-none focus-visible:ring-2 transition-colors whitespace-nowrap"
         style={{ background: on ? "color-mix(in srgb, var(--text-dark) 8%, transparent)" : "transparent", color: on ? "var(--text-dark)" : "var(--text-medium)", fontWeight: on ? 600 : 500 }}>
         <span className="relative w-4 h-4 inline-flex items-center justify-center shrink-0" style={{ color: on ? "var(--text-dark)" : "var(--text-light)" }}>
@@ -112,7 +116,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           down for work, and shows in the gaps around the panels */}
       <div className="fixed inset-0 z-[5] flex">
         <div className="hidden lg:block relative shrink-0 transition-[width] duration-200 ease-out" style={{ width: pinned ? 228 : 56 }}>
-        <aside aria-label="App" onMouseEnter={peekOn} onMouseLeave={peekOff} onFocus={peekOn} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) peekOff(); }}
+        <aside aria-label="App" onMouseEnter={peekOn} onMouseLeave={peekOff}
+          /* keyboard focus opens it, so tabbing in shows the labels. a click
+             also leaves focus on the link it pressed, and opening on that
+             kept the rail spread over the page after every click until the
+             reader clicked somewhere else. */
+          onFocus={e => { if ((e.target as HTMLElement).matches(":focus-visible")) peekOn(); }}
+          onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) peekOff(); }}
           className="absolute inset-y-0 left-0 z-[40] flex flex-col overflow-hidden"
           style={{ width: open ? 228 : 56, transition: "width 200ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 200ms ease", borderRight: "1px solid var(--hairline)", background: "var(--rail)",
             boxShadow: peek && !pinned ? "12px 0 32px rgba(0,0,0,0.22)" : "none" }}>
