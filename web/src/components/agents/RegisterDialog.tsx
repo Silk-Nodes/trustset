@@ -206,12 +206,22 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
               right now is about to be named on chain, is one line, not a box. */}
           <p className="text-sm text-ink/70 mb-1">An agent signs with an <Term k="agent key">agent key</Term> of its own. Your wallet becomes its <Term k="cold key">cold key</Term>.</p>
           <p className="text-[12.5px] mb-4" style={{ color: "var(--text-medium)" }}>That names this wallet <Term k="on chain forever">on chain</Term>. Use one that holds nothing; it only ever needs gas.</p>
-          <div className="grid grid-cols-2 gap-2 mb-4">
+          <div role="radiogroup" aria-label="The agent's key" className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
             {(["paste", "generate"] as Mode[]).map(k => (
-              <button key={k} type="button" onClick={() => setMode(k)} className="rounded-xl px-3 py-3 text-left text-sm transition-colors"
+              /* a choice, drawn as one: top aligned so both titles share a line
+                 (a button centres its content, which left the shorter card's
+                 text floating lower), a radio mark that fills when chosen, and
+                 one line under each title */
+              <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => setMode(k)}
+                className="rounded-[12px] px-3.5 py-3 text-left text-sm flex flex-col items-stretch justify-start gap-1 outline-none focus-visible:ring-2 transition-colors active:scale-[0.99]"
                 style={{ border: `1px solid ${mode === k ? "var(--orange)" : "var(--hairline)"}`, background: mode === k ? "color-mix(in srgb, var(--orange) 8%, transparent)" : "transparent" }}>
-                <div className="font-semibold">{k === "paste" ? "It already has one" : "I do not have one yet"}</div>
-                <div className="text-[11px] mt-0.5" style={{ color: "var(--text-medium)" }}>{k === "paste" ? "Paste the address it signs with" : "Makes a key only. There is no agent until you run software with it"}</div>
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold leading-snug flex-1 min-w-0">{k === "paste" ? "It already has one" : "I do not have one yet"}</span>
+                  <span aria-hidden className="w-4 h-4 rounded-full shrink-0 inline-flex items-center justify-center" style={{ border: `1.5px solid ${mode === k ? "var(--orange)" : "var(--hairline)"}` }}>
+                    {mode === k && <span className="w-2 h-2 rounded-full" style={{ background: "var(--orange)" }} />}
+                  </span>
+                </span>
+                <span className="text-[12px] leading-snug" style={{ color: "var(--text-medium)" }}>{k === "paste" ? "Paste the address it signs with" : "Make a new key for it"}</span>
               </button>
             ))}
           </div>
@@ -247,7 +257,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
                 </>
               ) : (
                 <>
-                  <p className="text-sm text-ink/80 mb-3">Made in this browser, never sent anywhere. The next screen shows its private key once.</p>
+                  <p className="text-sm text-ink/80 mb-3">A key only: there is no agent until you run software with it. Made in this browser, never sent anywhere, and the next screen shows its private key once.</p>
                   <button type="button" className="drawn-btn btn-gold" onClick={generate}>Make the key</button>
                 </>
               )}
