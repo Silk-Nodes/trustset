@@ -26,7 +26,7 @@ export default function Page() {
         <div className="mb-10 sm:mb-14 max-w-3xl">
           <h1 className="text-[38px] sm:text-[52px] font-semibold tracking-[-0.035em] leading-[1.02]">Questions</h1>
           <p className="text-[17px] sm:text-[19px] text-ink/70 mt-4 max-w-[54ch]">
-            What it does, what it will not do for you, and who can change it. Every number below was read off the deployed contract, including the ones that are inconvenient.
+            What it does, what it will not do for you, and who can change it.
           </p>
         </div>
         <Faq />

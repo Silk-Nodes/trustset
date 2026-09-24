@@ -1,4 +1,5 @@
 "use client";
+import { ClaimIcon } from "./claimIcons";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
@@ -43,6 +44,8 @@ export function Checks() {
   const [live, setLive] = useState<Live | null>(null);
   const [down, setDown] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  /* the tile under the pointer or the keyboard, which plays its icon */
+  const [hot, setHot] = useState<number | null>(null);
 
   /* the same read the header makes, on the same cadence, and a failure is
      shown rather than papered over: a dead dependency must never look like a
@@ -74,7 +77,7 @@ export function Checks() {
           Do not take our word for it.
         </h2>
         <p className="text-[17px] sm:text-[19px] text-ink/70 mt-4 max-w-[52ch]">
-          Every product promises it is safe. A switch that lives in a contract can be read instead. Six claims, and where to check each one.
+          Six claims, and where to check each one.
         </p>
       </div>
 
@@ -118,17 +121,22 @@ export function Checks() {
                   : <span className="mono text-[12px] whitespace-nowrap" style={{ color: "var(--text-dark)" }}>{c.where}</span>;
                 return (
                   <motion.li key={c.claim}
-                    className="flex flex-col min-w-0 px-5 py-5 sm:px-6 sm:py-6 transition-colors hover:bg-[color-mix(in_srgb,var(--text-dark)_4%,transparent)]"
+                    onPointerEnter={e => { if (e.pointerType === "mouse" && !m.reduced) setHot(i); }} onPointerLeave={() => setHot(h => h === i ? null : h)}
+                    onFocus={() => { if (!m.reduced) setHot(i); }} onBlur={() => setHot(h => h === i ? null : h)}
+                    className="claim-tile flex flex-col min-w-0 px-5 py-5 sm:px-6 sm:py-6 transition-colors hover:bg-[color-mix(in_srgb,var(--text-dark)_4%,transparent)]"
                     style={{ borderRight: "1px solid var(--hairline)", borderBottom: "1px solid var(--hairline)" }}
                     initial={m.reduced ? { opacity: 0 } : { opacity: 0, y: 8 }}
                     animate={arrived ? { opacity: 1, y: 0 } : undefined}
                     transition={m.reduced ? { duration: 0.2 } : { duration: 0.45, ease: EASE, delay: 0.12 + 0.06 * i }}>
-                    <div className="flex items-center gap-2">
-                      <span className="mono text-[11px] tabular" style={{ color: "var(--text-medium)" }}>{String(i + 1).padStart(2, "0")}</span>
-                      <span className="mono text-[10px] uppercase tracking-[0.12em] rounded-full px-2 py-0.5" style={{ color: "var(--text-medium)", border: "1px solid var(--hairline)" }}>{c.kind}</span>
+                    <div className="flex items-center gap-2.5">
+                      <ClaimIcon i={i} hot={hot === i} />
+                      <span className="mono text-[11px] tabular ml-auto" style={{ color: "var(--text-medium)" }}>{String(i + 1).padStart(2, "0")}</span>
                     </div>
                     <h3 className="text-[16px] sm:text-[17px] font-semibold tracking-[-0.015em] leading-[1.3] mt-3 text-balance">{c.claim}</h3>
-                    <p className="text-[13px] mt-1.5" style={{ color: "var(--text-medium)" }}>{c.line}</p>
+                    {/* the proof, in place: always in the layout so the tile
+                        never changes height, shown on hover or focus where a
+                        pointer can hover, and simply shown where it cannot */}
+                    <p className="claim-proof text-[13px] mt-1.5" style={{ color: "var(--text-medium)" }}>{c.line}</p>
                     <div className="mt-auto pt-4">{link}</div>
                   </motion.li>
                 );

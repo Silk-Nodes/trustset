@@ -8,7 +8,7 @@ import { TopBar, useNavBadge } from "@/components/app/AppShell";
    frame: the body is exactly the window's height below the bar, and whatever
    is inside scrolls on its own; otherwise the body flows and the work area
    scrolls. the sidebar's guarding count comes from here. */
-export default function Shell({ title, note, actions, frame, badges, children }: { title: string; note?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode;
+export default function Shell({ title, note, actions, frame, badges, children }: { title: React.ReactNode; note?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode;
   badges?: Record<string, number>;
   frame?: boolean;
   /* kept for the pages that still pass it; every console page is full width now */

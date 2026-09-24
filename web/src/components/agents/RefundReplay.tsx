@@ -1,4 +1,5 @@
 "use client";
+import Tip from "@/components/Tip";
 import { useEffect, useState } from "react";
 
 /* the refunds page, replayed on a loop, for a reader with no wallet.
@@ -23,6 +24,8 @@ const START: { id: number; amount: string; s: S; left: number }[] = [
   { id: 140, amount: "0.500", s: "refunded", left: 0 },
   { id: 139, amount: "0.012", s: "delivered", left: 0 },
 ];
+export const STATE_TIP = { held: "In escrow until you release it, or until its window closes and anyone may refund it.", delivered: "Released to the service on your receipt.", refunded: "Its window closed unsettled, so it came back to you." } as const;
+
 export default function RefundReplay({ sample = false }: { sample?: boolean }) {
   const [rows, setRows] = useState(START);
   const [tick, setTick] = useState(0);
@@ -43,10 +46,10 @@ export default function RefundReplay({ sample = false }: { sample?: boolean }) {
           <div key={r.id} className="grid grid-cols-[1fr_auto] sm:grid-cols-[80px_1fr_150px_auto] items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 text-sm" style={{ borderBottom: "1px solid var(--hairline)", background: hot ? "color-mix(in srgb, var(--orange) 6%, transparent)" : undefined, transition: "background .3s" }}>
             <span className="mono text-xs tabular">#{r.id}</span>
             <span className="min-w-0">
-              <span className="font-semibold" style={{ color: hot ? "var(--orange-text)" : r.s === "delivered" ? "var(--sage-text)" : "var(--text-dark)" }}>{r.s === "held" ? "Held" : r.s === "delivered" ? "Delivered" : "Refunded"}</span>
-              <span className="text-ink/70"> · {r.amount} mUSD {r.s === "held" ? "in escrow" : r.s === "delivered" ? "to the service" : "back to you"}</span>
+              <Tip text={STATE_TIP[r.s]}><span className="font-semibold" style={{ color: hot ? "var(--orange-text)" : r.s === "delivered" ? "var(--sage-text)" : "var(--text-dark)" }}>{r.s === "held" ? "Held" : r.s === "delivered" ? "Delivered" : "Refunded"}</span></Tip>
+              <span className="mono text-[12.5px] tabular" style={{ color: "var(--text-medium)" }}> · {r.amount} mUSD</span>
             </span>
-            <span className="hidden sm:block mono text-xs tabular text-right" style={{ color: "var(--text-medium)" }}>{r.s !== "held" ? "closed" : `${r.left}s left`}</span>
+            <span className="hidden sm:block mono text-xs tabular text-right" style={{ color: "var(--text-medium)" }}>{r.s === "held" ? `${r.left}s left` : ""}</span>
             <span className="flex gap-1.5">
               {r.s === "held" && <span className="drawn-btn btn-gold" style={{ padding: "6px 12px", fontSize: "0.75rem" }}>Release</span>}
               {/* a drawing of the control while the window is still open, so it
@@ -58,13 +61,14 @@ export default function RefundReplay({ sample = false }: { sample?: boolean }) {
           </div>
         );
       })}
-      <div className="px-4 sm:px-5 py-3 min-h-[52px] mt-auto flex items-center gap-3">
-        <span className="text-xs text-ink/70">A payment is exactly one of held, delivered, refunded. Never two.</span>
-        {sample && <span className="ml-auto eyebrow rounded-full px-2 py-1" /* the tint it sits on lifts the ground, so --orange-text lands at 4.37:1
+      {sample && (
+        <div className="px-4 sm:px-5 py-3 min-h-[52px] mt-auto flex items-center gap-3">
+          <span className="ml-auto eyebrow rounded-full px-2 py-1" /* the tint it sits on lifts the ground, so --orange-text lands at 4.37:1
                 on it: a pass everywhere else and a miss here. 10% of the tint
                 keeps the badge reading as orange and clears the minimum. */
-            style={{ background: "color-mix(in srgb, var(--orange) 10%, transparent)", color: "var(--orange-text)" }}>sample</span>}
-      </div>
+            style={{ background: "color-mix(in srgb, var(--orange) 10%, transparent)", color: "var(--orange-text)" }}>sample</span>
+        </div>
+      )}
     </div>
   );
 }

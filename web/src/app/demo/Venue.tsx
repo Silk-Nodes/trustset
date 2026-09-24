@@ -1,4 +1,5 @@
 "use client";
+import Tip, { InfoTip } from "@/components/Tip";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ethers } from "ethers";
 import { motion, AnimatePresence } from "motion/react";
@@ -344,7 +345,7 @@ export default function Venue() {
 
       <div className="grid gap-3 min-w-0">
         <Step n={1} stage={stage("runs")} onToggle={() => toggle("runs")} title="Your agent is already running"
-          why="You wrote it, or you will. It holds a key and it trades. trustset did not create it and cannot make it do anything: all it knows is that this key is agent number one of yours.">
+          why="It holds a key and it trades." more="You wrote it, or you will. trustset did not create it and cannot make it do anything: all it knows is that this key is agent number one of yours.">
           {/* the shared agent keeps whatever state the last visitor left it in,
               so somebody who switched it off and closed the tab hands the next
               reader an agent that is already off. step one used to invite a
@@ -384,7 +385,7 @@ export default function Venue() {
         </Step>
 
         <Step n={2} stage={stage("switch")} onToggle={() => toggle("switch")} title="Something goes wrong. You switch it off."
-          why="A key leaks, a strategy misfires, or you simply want it to stop. One transaction from your wallet, and from the next block every app that checks refuses that key. Nothing already mined is undone.">
+          why="One transaction, and every app that checks refuses it next block." more="A key leaks, a strategy misfires, or you simply want it to stop. Nothing already mined is undone.">
           {!off
             ? <Do label="Switch it off" busy={busy === "pause" || busy === "flip"} disabled={!s || !!s.mismatch} onClick={() => flip(2)} />
             : <Do label="Send the same trade" busy={busy === "trade"} disabled={!s} onClick={() => post("trade", "refused", "switch")} />}
@@ -396,12 +397,12 @@ export default function Venue() {
         </Step>
 
         <Step n={3} stage={stage("back")} onToggle={() => toggle("back")} title="It is a breaker, not a fuse"
-          why="A stop that cannot be undone is a fuse, and people hesitate to pull a fuse. This one goes both ways: pause while you look into it, bring it back when you are satisfied. Only ending it for good is permanent.">
+          why="Pause while you look into it, bring it back when you are done." more="A stop that cannot be undone is a fuse, and people hesitate to pull a fuse. Only ending it for good is permanent.">
           <Do label={paused ? "Bring it back" : "It is back"} busy={busy === "resume" || busy === "flip"} disabled={!s || !paused || !!s.mismatch} onClick={() => flip(1, "back")} />
         </Step>
 
         <Step n={4} stage={stage("guardians")} onToggle={() => toggle("guardians")} title="Who stops it when you cannot?"
-          why="You are asleep, or the wallet is in a drawer. Guardians are people you chose who can pause your agent by vote. They can never spend from it and never end it outright, and you can undo anything they do.">
+          why="People you chose pause it by vote." more="For when you are asleep, or the wallet is in a drawer. Guardians can never spend from it and never end it outright, and you can undo anything they do.">
           {!paused
             ? <Do label="Have a guardian vote" busy={busy === "guardianVote"} disabled={!s} onClick={() => post("guardianVote", "guardian")} />
             : <Do label="Undo it, as the owner" busy={busy === "resume" || busy === "flip"} disabled={!s || !!s.mismatch} onClick={() => flip(1, "guardians")} />}
@@ -413,7 +414,7 @@ export default function Venue() {
         </Step>
 
         <Step n={5} stage={stage("limits")} onToggle={() => toggle("limits")} title="Trust that ends by itself"
-          why="Most agents should not be trusted forever. Give one an end date and it stops being trusted when the date passes, with nobody sending anything and nobody needing to be awake. A heartbeat does the same for silence: miss it and the trust lapses.">
+          why="An end date, or a heartbeat it has to keep." more="When the date passes or a beat is missed it stops being trusted, with nobody sending anything and nobody needing to be awake.">
           {!s?.expiresAt && <Do label="Trust it for 90 seconds" busy={busy === "limits"} disabled={!s || !!s.mismatch} onClick={() => limits(90, "limits")} />}
           {!!s?.expiresAt && (
             <Aside tone={left > 0 ? "plain" : "off"}>
@@ -427,7 +428,7 @@ export default function Venue() {
         </Step>
 
         <Step n={6} stage={stage("human")} onToggle={() => toggle("human")} title="A switch you can reach without a wallet"
-          why="The emergency is exactly when the wallet is on another machine. A passkey on your phone can pause the agent with a fingerprint, verified on chain by Monad's own P256 precompile. It can pause and nothing else, so a lost phone costs you an interruption rather than an agent.">
+          why="A fingerprint on your phone can pause it." more="The emergency is exactly when the wallet is on another machine. The passkey is verified on chain by Monad's P256 precompile. It can pause and nothing else, so a lost phone costs you an interruption rather than an agent.">
           {/* a new tab, because the panic page is meant to be opened on a phone
               and because leaving this one mid walkthrough is how the reader
               lost their place. */}
@@ -437,7 +438,7 @@ export default function Venue() {
         </Step>
 
         <Step n={7} stage={stage("record")} onToggle={() => toggle("record")} title="And it is all on the record" last
-          why="Every line above happened on Monad and none of it can be edited afterwards, by us or by you. Anyone deciding whether to deal with this agent can read the same history.">
+          why="Every line above happened on Monad." more="None of it can be edited afterwards, by us or by you. Anyone deciding whether to deal with this agent can read the same history.">
           <a href={`/explorer/${s?.agentId ?? ""}`} target="_blank" rel="noreferrer" className="drawn-btn btn-orange" style={{ padding: "9px 16px", fontSize: "0.85rem" }} onClick={() => done("record")}>See this agent&apos;s history</a>
         </Step>
 
@@ -483,7 +484,7 @@ function AgentCard({ s, off, refusedAt, reduced, resetting, compact = false }: {
       {/* what this agent is, in one line, because the page has two: the real
           one at the top and this one, which the steps act on */}
       {!compact && <p className="text-[12px] mt-2" style={{ color: "var(--text-medium)" }}>
-        {!s ? "\u00a0" : s.owned ? "Your agent. Your wallet is its cold key." : "The practice agent, shared by visitors, so press anything."}
+        {!s ? "\u00a0" : s.owned ? "Your agent. Your wallet is its cold key." : "Shared by visitors. Press anything."}
       </p>}
 
       {!compact && <div className="mt-4 grid grid-cols-2 gap-3">
@@ -504,13 +505,13 @@ function AgentCard({ s, off, refusedAt, reduced, resetting, compact = false }: {
           <motion.div key="refused" initial={reduced ? { opacity: 0 } : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.28, ease: EASE }}
             className="mt-4 pt-3 text-[13px] font-semibold break-words" style={{ borderTop: "1px solid var(--hairline)", color: "var(--orange-text)" }}>
-            Trade refused at block <span className="mono tabular">{refusedAt}</span>. The venue asked the switch and the switch said no, so the transaction failed. That is the point, not a fault.
+            <Tip text="The venue asked the switch and the switch said no, so the transaction failed. That is the point, not a fault.">Trade refused at block <span className="mono tabular">{refusedAt}</span>.</Tip>
           </motion.div>
         )}
       </AnimatePresence>
       {!compact && !(refusedAt !== null && off) && (
         <p className="mt-4 pt-3 text-[12px]" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
-          {!s ? "" : off ? "Every app that checks the switch refuses this key from here on." : "Every app that checks the switch will serve this key. The page re-reads the chain every twelve seconds."}
+          {!s ? "" : <Tip text="The page re-reads the chain every twelve seconds.">{off ? "Every app that checks refuses this key." : "Every app that checks will serve this key."}</Tip>}
         </p>
       )}
     </div>
@@ -522,7 +523,7 @@ function Console({ log, cfg, reduced }: { log: Line[]; cfg?: Parameters<typeof T
   return (
     <div className="sheet p-5">
       <div className="text-[11px] mono uppercase tracking-[0.12em] mb-2.5" style={{ color: "var(--text-medium)" }}>On chain</div>
-      {log.length === 0 && <p className="text-[12.5px]" style={{ color: "var(--text-medium)" }}>Nothing sent yet. Every line that appears here is a real transaction.</p>}
+      {log.length === 0 && <p className="text-[12.5px]" style={{ color: "var(--text-medium)" }}>Nothing sent yet.</p>}
       <ul className="grid">
         <AnimatePresence initial={false}>
           {log.map(l => {
@@ -550,8 +551,10 @@ type Stage = "done" | "reopened" | "current" | "ahead";
 /* one step. the reader is on exactly one of these at a time; the ones behind
    fold to a line, the ones ahead wait without offering anything to press,
    because a button that cannot be pressed yet reads as a broken button. */
-function Step({ n, stage, onToggle, title, why, children, last }: {
-  n: number; stage: Stage; onToggle: () => void; title: string; why: string; children: React.ReactNode; last?: boolean;
+function Step({ n, stage, onToggle, title, why, more, children, last }: {
+  n: number; stage: Stage; onToggle: () => void; title: string; why: string;
+  /* the rest of the reasoning, on the title's tip: one sentence stays in view */
+  more?: string; children: React.ReactNode; last?: boolean;
 }) {
   const isDone = stage === "done" || stage === "reopened";
   const showBody = stage === "current" || stage === "reopened";
@@ -599,7 +602,7 @@ function Step({ n, stage, onToggle, title, why, children, last }: {
           </div>
         ) : (
           <div className="px-5 sm:px-6 pt-5 sm:pt-6">
-            <h2 className="text-lg sm:text-xl font-semibold tracking-tight">{title}</h2>
+            <h2 className="text-lg sm:text-xl font-semibold tracking-tight">{title}{more && <InfoTip text={more} />}</h2>
             <p className="text-sm mt-2 max-w-[62ch]" style={{ color: "var(--text-medium)" }}>{why}</p>
           </div>
         )}

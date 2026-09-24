@@ -1,4 +1,5 @@
 "use client";
+import Tip, { InfoTip } from "@/components/Tip";
 import { useCallback, useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { registerPasskey, platformAvailable } from "@/lib/webauthn";
@@ -125,7 +126,7 @@ export default function Passkey({ initialId }: { initialId?: string }) {
       </label>
 
       <div className="min-h-[22px] mt-2 text-[12.5px]" style={{ color: "var(--text-medium)" }}>
-        {!id ? "The id of the agent to nominate a passkey for." :
+        {!id ? "\u00a0" :
          !info ? "Reading the switch…" :
          info.error ? info.error :
          info.set ? `A passkey is already nominated, used ${info.nonce} time${info.nonce === 1 ? "" : "s"}. Nominating another replaces it.` :
@@ -147,11 +148,7 @@ export default function Passkey({ initialId }: { initialId?: string }) {
 
       {/* step one: the device makes the key. */}
       <div className="sheet px-4 py-4 mt-4">
-        <div className="text-sm font-semibold">1. Make the passkey on this device</div>
-        <p className="text-[12.5px] mt-1" style={{ color: "var(--text-medium)" }}>
-          The private half is created inside this device and never leaves it. What travels is the public
-          point and the name of this site, {host || "this site"}, which the passkey is bound to for good.
-        </p>
+        <div className="text-sm font-semibold flex items-center">1. Make the passkey on this device<InfoTip text={`The private half is created inside this device and never leaves it. What travels is the public point and the name of this site, ${host || "this site"}, which the passkey is bound to for good.`} /></div>
         <button type="button" onClick={make} disabled={!id || busy !== "" || !canPasskey}
           className="drawn-btn btn-gold mt-3" style={{ padding: "9px 16px", fontSize: "0.85rem", opacity: !id || busy !== "" || !canPasskey ? 0.55 : 1 }}>
           {busy === "make" ? "Waiting for your passkey…" : made ? "Make another" : "Create a passkey"}
@@ -176,9 +173,8 @@ export default function Passkey({ initialId }: { initialId?: string }) {
       <div className="sheet px-4 py-4 mt-3">
         <div className="text-sm font-semibold" style={{ color: made ? "var(--text-dark)" : "var(--text-medium)" }}>2. Nominate it on the switch</div>
         <p className="text-[12.5px] mt-1" style={{ color: "var(--text-medium)" }}>
-          Signed by the agent&apos;s cold key. From then on that passkey can pause this agent and do nothing
-          else: it cannot resume it, end it, move its limits or touch its keys.
-          {mine && " Your wallet holds that key, so this one is yours to sign."}
+          <Tip text="It cannot resume the agent, end it, move its limits or touch its keys.">Signed by the cold key. It can pause, nothing else.</Tip>
+          {mine && " Your wallet holds that key."}
         </p>
         <div className="flex flex-wrap items-center gap-2 mt-3">
           {/* the token is how the operator authorises the SERVER to sign. a

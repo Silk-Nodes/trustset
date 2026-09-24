@@ -6,6 +6,7 @@ import { useMotionPrefs } from "@/lib/motion";
 import Pulse from "./Pulse";
 import Stack from "./Stack";
 import Switch from "./Switch";
+import Tip from "@/components/Tip";
 
 /* one agent, as a module on a switchboard.
  *
@@ -32,9 +33,11 @@ export type ModuleProps = {
   bare?: boolean;
   /* without the stack, for a screen that draws the layers as tiles below */
   slim?: boolean;
+  /* without its own name, for a panel whose header already says it */
+  headless?: boolean;
 };
 
-export default function Module({ agent, name, events, extra, now, busy, onToggle, onStop, onLayer, onOpen, explorer, indexed, bare, slim }: ModuleProps) {
+export default function Module({ agent, name, events, extra, now, busy, onToggle, onStop, onLayer, onOpen, explorer, indexed, bare, slim, headless }: ModuleProps) {
   const m = useMotionPrefs();
   const live = trusted(agent, now);
   const sw = switchState(agent, events);
@@ -62,15 +65,20 @@ export default function Module({ agent, name, events, extra, now, busy, onToggle
   };
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
-  const caption = ended ? (agent.status === "revoked" ? "stopped for good" : "rotated to a successor")
-    : sw === "tripped" ? "a guardian paused it. your cold key brings it back."
-    : sw === "off" ? "paused by you. one motion brings it back."
-    : live ? "trusted. every app that checks will serve it."
-    : `on, but ${word.toLowerCase()}. clear its limits to be trusted again.`;
+  /* what the word means, on the word. it used to be a line under the switch
+     that said the state a second time. */
+  const caption = ended ? (agent.status === "revoked" ? "Stopped for good. Nothing can bring it back." : "Rotated. Trust moved to its successor.")
+    : sw === "tripped" ? "A guardian paused it. Your cold key brings it back."
+    : sw === "off" ? "You paused it. The switch brings it back."
+    : live ? "Every app that checks will serve it."
+    : `The switch is on, but it is ${word.toLowerCase()}. Clear its limits to be trusted again.`;
+  const wordTip = <Tip text={caption}><span className="mono text-[11px] uppercase tracking-[0.12em] whitespace-nowrap" style={{ color: wordColor }}>{word}</span></Tip>;
 
   return (
     <article className={`${bare ? "" : "sheet p-5"} min-w-0 flex flex-col gap-4 relative`} style={{ borderColor: !bare && sw === "tripped" ? "var(--orange)" : undefined }}>
-      {/* head: who, and the one word that matters */}
+      {/* head: who, and the one word that matters. a panel names the agent
+          in its own header, so there it is left out. */}
+      {!headless && (
       <header className="flex items-start gap-3 min-w-0">
         <span className="relative inline-flex w-3 h-3 shrink-0 mt-[5px]">
           {live && !m.reduced && <span className="absolute inset-0 rounded-full animate-ping" style={{ background: tone, opacity: 0.35 }} />}
@@ -84,12 +92,14 @@ export default function Module({ agent, name, events, extra, now, busy, onToggle
             agent {agent.id.toString()} · {explorer ? <a href={`${explorer}/address/${agent.key}`} target="_blank" rel="noreferrer" className="hover:underline">{short(agent.key)}</a> : short(agent.key)}
           </div>
         </div>
-        <div className="mono text-[11px] uppercase tracking-[0.12em] whitespace-nowrap pt-1" style={{ color: wordColor }}>{word}</div>
+        <div className="pt-1">{wordTip}</div>
       </header>
+      )}
 
       {/* the switch, and the held press beside it */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 min-w-0">
-        <Switch size="lg" state={sw} live={live} busy={busy?.pause} onToggle={onToggle} label={sw === "on" ? `pause ${name}` : `bring ${name} back`} />
+        <Switch size="lg" caption="none" state={sw} live={live} busy={busy?.pause} onToggle={onToggle} label={sw === "on" ? `pause ${name}` : `bring ${name} back`} />
+        {headless && wordTip}
         <button type="button" disabled={ended || !!busy?.stop}
           onPointerDown={e => { e.preventDefault(); begin(); }} onPointerUp={end} onPointerLeave={end} onPointerCancel={end}
           onKeyDown={e => { if (e.key === " " && !e.repeat) { e.preventDefault(); begin(); } }} onKeyUp={e => { if (e.key === " ") end(); }}
@@ -106,7 +116,6 @@ export default function Module({ agent, name, events, extra, now, busy, onToggle
             {ended ? "stopped" : busy?.stop ? "stopping…" : holding ? "keep holding" : "hold to stop"}
           </span>
         </button>
-        <p className="basis-full text-[12px] leading-snug" style={{ color: "var(--text-medium)" }}>{caption}</p>
       </div>
 
       {/* the pulse */}
@@ -114,8 +123,8 @@ export default function Module({ agent, name, events, extra, now, busy, onToggle
         <Pulse events={events} now={now} />
         <div className="mt-1.5 flex items-baseline justify-between gap-3 text-[12px]" style={{ color: "var(--text-medium)" }}>
           <span className="truncate">
-            {indexed === false ? "the index is not reachable, so the last day cannot be drawn"
-              : <>last: <span style={{ color: "var(--text-dark)" }}>{last.text}</span> {span(Math.max(0, now - last.at))} ago</>}
+            {indexed === false ? <Tip text="The index is not reachable, so the last day cannot be drawn.">index away</Tip>
+              : <Tip text={`Last: ${last.text}.`}>seen {span(Math.max(0, now - last.at))} ago</Tip>}
           </span>
           <span className="mono text-[10.5px] whitespace-nowrap">24h</span>
         </div>
@@ -126,7 +135,6 @@ export default function Module({ agent, name, events, extra, now, busy, onToggle
 
       {/* the clock */}
       <footer className="text-[12px] pt-3 flex items-baseline gap-2" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
-        <span className="mono text-[10.5px] uppercase tracking-[0.12em]">next</span>
         <span style={{ color: clock && clock.at <= now ? "var(--orange-text)" : "var(--text-dark)" }}>{clock ? clock.text : "no clocks running"}</span>
       </footer>
     </article>

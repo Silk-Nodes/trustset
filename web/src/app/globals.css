@@ -195,6 +195,17 @@ h1, h2, h3, h4 { font-family: var(--font-main); font-weight: 600; letter-spacing
    centred tooltip runs off it. these anchor their right edge to the mark
    instead, so the text grows leftwards into the table it belongs to. */
 [data-tip][data-tip-end]:hover::after, [data-tip][data-tip-end]:focus-visible::after { left: auto; right: 0; transform: none; }
+/* the proof under each claim on the landing page's check tiles. a pointer that
+   can hover finds it by hovering the tile; a finger that cannot just sees it. */
+@media (hover: hover) {
+  .claim-tile .claim-proof { opacity: 0; transform: translateY(4px); transition: opacity 180ms ease, transform 220ms cubic-bezier(0.23, 1, 0.32, 1); }
+  .claim-tile:hover .claim-proof, .claim-tile:focus-within .claim-proof { opacity: 1; transform: none; }
+}
+@media (hover: hover) and (prefers-reduced-motion: reduce) { .claim-tile .claim-proof { transform: none; transition: opacity 150ms ease; } }
+/* a tip grows out of what it explains, and fast: it is read, not watched */
+@keyframes tip-in { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+.tip-card { animation: tip-in 120ms cubic-bezier(0.23, 1, 0.32, 1); }
+@media (prefers-reduced-motion: reduce) { .tip-card { animation: none; } }
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .pin-th thead th { position: sticky; top: 64px; z-index: 3; background: color-mix(in srgb, var(--surface) 94%, var(--text-dark)); box-shadow: 0 2px 0 var(--hairline), 0 -1px 0 var(--hairline); padding-top: 10px; padding-bottom: 10px; }

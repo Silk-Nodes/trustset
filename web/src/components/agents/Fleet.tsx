@@ -418,7 +418,7 @@ export default function Fleet(p: FleetProps) {
                 
                 <span className="flex-1" />
                 <Menu label={GROUP_WORD[group]} on={group !== "none"} align="right" up>{(Object.keys(GROUP_WORD) as Group[]).map(g => <Check key={g} on={group === g} onClick={() => setGroup(g)}>{GROUP_WORD[g]}</Check>)}</Menu>
-                {!phone && <Menu label={`${density === "cards" ? "breakers" : density}${chosen ? "" : " · auto"}`} on={false} align="right" up>
+                {!phone && <Menu label={density === "cards" ? "breakers" : density} on={false} align="right" up>
                   {(["cards", "rows", "fleet"] as Density[]).map(d => <Check key={d} on={chosen === d} onClick={() => pick(d)}>{d === "cards" ? "breakers" : d}</Check>)}
                   <Check on={chosen === null} onClick={() => pick(null)}>auto by count</Check>
                 </Menu>}

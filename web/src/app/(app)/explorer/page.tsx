@@ -21,7 +21,7 @@ export default async function Page() {
       {/* a lookup and a feed, not a directory. there is no headline and no
           paragraph beyond the question the page answers: this is a tool, and
           a reader arrives with one agent in mind. */}
-      <TopBar title="Explorer" note="Look any agent up. Public, no wallet needed." />
+      <TopBar title="Explorer" />
       <main className="w-full px-4 sm:px-5 pt-6 pb-12 min-w-0">
         <Explorer explorer={await explorerUrl()} />
       </main>

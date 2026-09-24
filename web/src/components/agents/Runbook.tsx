@@ -1,4 +1,5 @@
 "use client";
+import { InfoTip } from "@/components/Tip";
 import { useCallback, useEffect, useState } from "react";
 import type { ethers } from "ethers";
 import type { Conn } from "@/lib/chain";
@@ -60,10 +61,11 @@ export default function Runbook({ conn, signer, id, sample, readOnly }: { conn: 
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[11.5px]" style={quiet}>
-        {readOnly
+      <p className="text-[11.5px] flex items-center" style={quiet}>
+        {readOnly ? "the owner's passkey only" : "sealed with your passkey"}
+        <InfoTip text={readOnly
           ? "Stored on chain as ciphertext. Only the owner's passkey opens them, on any device it syncs to, with no wallet."
-          : "Sealed with your passkey in this browser, stored on chain as ciphertext. Any device your passkey syncs to can open it; nobody else can."}
+          : "Stored on chain as ciphertext. Any device your passkey syncs to can open it; nobody else can."} />
       </p>
 
       {notes === null && <p className="text-xs" style={quiet}>Reading the chain…</p>}
@@ -88,7 +90,7 @@ export default function Runbook({ conn, signer, id, sample, readOnly }: { conn: 
       )}
 
       {readOnly ? null : sample ? (
-        <p className="text-xs" style={quiet}>Sample agents cannot hold notes. Connect the cold key of a real agent to seal one.</p>
+        <p className="text-xs" style={quiet}>Sample agents have no notes.</p>
       ) : (
         <div className="flex flex-col gap-2">
           <div className="flex gap-1">

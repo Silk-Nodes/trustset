@@ -1,10 +1,10 @@
 "use client";
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
-import Term from "@/components/Term";
+import { TERMS } from "@/components/Term";
+import Tip, { InfoTip } from "@/components/Tip";
 import Runbook from "@/components/agents/Runbook";
 import Switch from "@/components/agents/Switch";
-import TrustLine from "@/components/agents/TrustLine";
 import { IconCopy } from "@/components/app/icons";
 import type { Agent as ChainAgent, Status } from "@/lib/chain";
 import { type PulseEvent, switchState } from "@/lib/layers";
@@ -90,7 +90,7 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
 
   return (
     <>
-      <Verdict a={a} events={events} word={word} why={why} live={live} now={now} />
+      <Verdict a={a} events={events} word={word} why={why} live={live} />
 
     <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-4 items-stretch">
       <div className="sheet p-5 sm:p-7">
@@ -100,14 +100,13 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
         <dl className="mt-5 grid gap-3.5 text-sm">
           <Field k="Agent id" v={String(a.id)} />
           <Field k="Agent key" v={a.agent_key} explorer={explorer} addr />
-          <Field k="Cold key" v={a.cold_key} explorer={explorer} addr
-            note={<>The only key that can pause or stop it. <Term k="public keys">Why is this public?</Term></>} />
-          <Field k="Guardians" v={a.guardians?.length ? `${a.guardians.length}, ${a.threshold} needed to pause` : "None"} />
-          <Field k="End date" v={ex ? new Date(ex * 1000).toLocaleString() : "None"} note={expired ? "Ran out. No transaction was needed." : undefined} />
-          <Field k="Heartbeat" v={hb ? `every ${every(hb)}` : "None"} note={lapsed ? "Went quiet. Only the cold key can start a new window." : hb ? `Last beat ${ago(new Date(lb * 1000).toISOString())}` : undefined} />
+          <Field k="Cold key" v={a.cold_key} explorer={explorer} addr tip={<>The only key that can pause or stop it, and one that can never spend. {TERMS["public keys"]}</>} />
+          <Field k="Guardians" v={a.guardians?.length ? `${a.threshold} of ${a.guardians.length} to pause` : "None"} tip="Wallets the owner chose to pause it by vote if the owner cannot. They can never spend from it." />
+          <Field k="End date" v={ex ? new Date(ex * 1000).toLocaleString() : "None"} note={expired ? "ran out" : undefined} tip={expired ? "It stopped being trusted at that moment. No transaction was needed." : undefined} />
+          <Field k="Heartbeat" v={hb ? `every ${every(hb)}` : "None"} note={lapsed ? "went quiet" : hb ? `last ${ago(new Date(lb * 1000).toISOString())}` : undefined} tip={lapsed ? "It missed a beat, so it stopped being trusted. Only the cold key can start a new window." : undefined} />
           {a.erc8004_id ? (
             <Field k="ERC-8004 identity" v={`Agent ${a.erc8004_id}`}
-              note="Its owner published a pointer from that registry to this switch. The identity says who the agent is; the switch says whether it may act." />
+              tip="Its owner published a pointer from that registry to this switch. The identity says who the agent is; the switch says whether it may act." />
           ) : null}
           {a.successor_id ? <Field k="Trust moved to" v={`Agent ${a.successor_id}`} /> : null}
           <Field k="Registered" v={new Date(a.registered_at).toLocaleString()} />
@@ -124,12 +123,11 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
 /* the verdict, for a stranger deciding whether to deal with this agent.
  *
  * the same object the owner sees in the console, read only: the breaker in its
- * position, the word, the one sentence that justifies it, the three limits as
- * facts, and the agent's last day as a strip. then the same answer for a
- * machine, as one command with a copy button. a raw json link sat under it and
- * nobody reads an api response in a browser tab; the command is the check a
- * developer would actually run. */
-function Verdict({ a, events, word, why, live, now }: { a: Row; events: Ev[]; word: string; why: string; live: boolean; now: number }) {
+ * position and the word, with the sentence that justifies it on the word. then
+ * the same answer for a machine, as one command with a copy button. a json
+ * link, a heading, a caption, three pills that repeated the card below and a
+ * 24 hour strip all sat here once. */
+function Verdict({ a, events, word, why, live }: { a: Row; events: Ev[]; word: string; why: string; live: boolean }) {
   const ex = Number(a.expires_at), hb = Number(a.heartbeat_window), lb = Number(a.last_beat);
   const pulse: PulseEvent[] = useMemo(() => events.map(e => ({ kind: e.kind, at: Math.floor(Date.parse(e.at) / 1000), actor: e.actor, data: e.data })), [events]);
   /* the console's agent, drawn from the index's row, so the breaker and the
@@ -140,39 +138,23 @@ function Verdict({ a, events, word, why, live, now }: { a: Row; events: Ev[]; wo
     expiresAt: ex, heartbeatWindow: hb, lastBeat: lb,
   }), [a, ex, hb, lb]);
   const sw = switchState(agent, [...pulse].sort((x, y) => y.at - x.at));
-  const expired = ex > 0 && now >= ex, lapsed = hb > 0 && now > lb + hb;
   const tone = live ? "var(--sage)" : a.status === "active" ? "var(--terra)" : a.status === "paused" ? "var(--orange)" : "var(--text-light)";
   const toneText = live ? "var(--sage-text)" : a.status === "revoked" || a.status === "rotated" ? "var(--text-dark)" : "var(--orange-text)";
-  const g = a.guardians?.length ?? 0;
-  const facts: { text: string; warn?: boolean }[] = [
-    hb ? { text: lapsed ? `missed its ${every(hb)} heartbeat` : `reports every ${every(hb)}, last ${ago(new Date(lb * 1000).toISOString())}`, warn: lapsed } : { text: "no heartbeat" },
-    ex ? { text: expired ? `ended ${new Date(ex * 1000).toLocaleDateString()}` : `trusted until ${new Date(ex * 1000).toLocaleDateString()}`, warn: expired } : { text: "no end date" },
-    { text: g ? `${g} guardian${g === 1 ? "" : "s"}, ${a.threshold} to pause` : "no guardians" },
-  ];
   const cmd = `npx @trustset/check ${a.id}`;
   const [copied, setCopied] = useState(false);
   const copy = () => navigator.clipboard.writeText(cmd).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600); }).catch(() => {});
 
   return (
-    <section aria-label="Verdict" className="module rounded-[16px] mb-4 overflow-hidden"
+    <section aria-label="Verdict" className="module rounded-[16px] mb-4"
       style={{ boxShadow: `var(--module-shadow), inset 0 0 0 1px color-mix(in srgb, ${tone} 35%, transparent)` }}>
-      <div className="p-5 sm:p-6 grid gap-5 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
-        <div className="flex items-start gap-4 min-w-0 md:contents">
+      <div className="p-5 sm:p-6 grid gap-5 md:grid-cols-[auto_minmax(0,1fr)_auto] items-center">
+        <div className="flex items-center gap-4 min-w-0 md:contents">
           <Switch state={sw} live={live} size="lg" caption="none" disabled onToggle={() => {}} label={`switch ${sw}, read only`} />
           <div className="min-w-0">
-            <div className="eyebrow">right now · Monad testnet</div>
-            <div className="text-[28px] sm:text-[32px] font-semibold tracking-[-0.03em] leading-none mt-1.5" style={{ color: toneText }}>{word}</div>
-            <p className="text-[14px] mt-2 max-w-[62ch]" style={{ color: "var(--text-medium)" }}>{why}</p>
-            <ul className="flex flex-wrap gap-1.5 mt-3" aria-label="Its limits">
-              {facts.map(f => (
-                <li key={f.text} className="mono text-[11px] h-6 px-2.5 rounded-full inline-flex items-center whitespace-nowrap"
-                  style={{ border: `1px solid ${f.warn ? "color-mix(in srgb, var(--orange) 45%, transparent)" : "var(--hairline)"}`, color: f.warn ? "var(--orange-text)" : "var(--text-medium)" }}>{f.text}</li>
-              ))}
-            </ul>
+            <Tip text={why}><span className="text-[28px] sm:text-[32px] font-semibold tracking-[-0.03em] leading-none" style={{ color: toneText }}>{word}</span></Tip>
           </div>
         </div>
-        <div className="flex flex-col gap-1.5 min-w-0">
-          <span className="eyebrow">check it yourself</span>
+        <div className="min-w-0">
           <div className="flex items-center gap-1 h-10 pl-3 pr-1 rounded-[10px] min-w-0" style={{ background: "var(--enclosure)", boxShadow: "var(--enclosure-shadow)", border: "1px solid var(--hairline)" }}>
             <code className="mono text-[12.5px] whitespace-nowrap truncate flex-1 min-w-0" style={{ color: "var(--text-dark)" }}><span style={{ color: "var(--text-medium)" }}>$ </span>{cmd}</code>
             <button type="button" onClick={copy} aria-label={copied ? "Copied" : "Copy the command"} title={copied ? "copied" : "copy"}
@@ -181,12 +163,8 @@ function Verdict({ a, events, word, why, live, now }: { a: Row; events: Ev[]; wo
               <IconCopy done={copied} />
             </button>
           </div>
-          <span className="text-[11.5px]" style={{ color: "var(--text-medium)" }} aria-live="polite">{copied ? "copied to the clipboard" : "asks the contract, not this page"}</span>
+          <span className="sr-only" aria-live="polite">{copied ? "copied to the clipboard" : ""}</span>
         </div>
-      </div>
-      <div className="px-5 sm:px-6 pb-5 pt-4" style={{ borderTop: "1px solid var(--hairline)" }}>
-        <div className="eyebrow mb-2">trust, last 24 hours</div>
-        <TrustLine agent={agent} now={now} events={pulse} height={10} labels />
       </div>
     </section>
   );
@@ -332,10 +310,10 @@ function History({ events, explorer }: { events: Ev[]; explorer: string }) {
   );
 }
 
-function Field({ k, v, note, explorer, addr }: { k: string; v: string; note?: React.ReactNode; explorer?: string; addr?: boolean }) {
+function Field({ k, v, note, tip, explorer, addr }: { k: string; v: string; note?: React.ReactNode; tip?: React.ReactNode; explorer?: string; addr?: boolean }) {
   return (
     <div>
-      <dt className="text-[11px] mono uppercase tracking-[0.12em]" style={{ color: "var(--text-medium)" }}>{k}</dt>
+      <dt className="text-[11px] mono uppercase tracking-[0.12em] flex items-center" style={{ color: "var(--text-medium)" }}>{k}{tip && <InfoTip text={tip} />}</dt>
       <dd className={`${addr ? "mono text-[12.5px] break-all" : "text-sm"} mt-0.5`}>
         {addr && explorer ? <a href={`${explorer}/address/${v}`} target="_blank" rel="noreferrer" className="hover:underline">{v}</a> : v}
       </dd>
