@@ -71,7 +71,7 @@ export default function AgentPage(p: AgentPageProps) {
             wallet. low is said in orange, and the faucet is one press away */}
         {p.balance !== undefined && p.agent.status !== "revoked" && p.agent.status !== "rotated" && (
           <div className="flex items-center gap-2 min-w-0 text-[12px]">
-            <span className="eyebrow">gas</span>
+            <span className="eyebrow">balance</span>
             <span className="mono tabular" style={{ color: p.balance < LOW_GAS ? "var(--orange-text)" : "var(--text-dark)" }}>{monText(p.balance)}</span>
             {p.balance < LOW_GAS && <span className="mono text-[10.5px]" style={{ color: "var(--orange-text)" }}>low</span>}
             <span className="flex-1" />

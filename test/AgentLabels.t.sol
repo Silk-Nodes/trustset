@@ -14,7 +14,7 @@ contract AgentLabelsTest is Test {
     address agentKey = vm.addr(0xA5);
     uint256 id;
 
-    /* the agent key's consent to its registration, signed with its own key */
+    /* the agent address's consent to its registration, signed with its own key */
     function _consent(uint256 agentPk, address cold) internal view returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s_) = vm.sign(agentPk, ks.registrationDigest(vm.addr(agentPk), cold));
         return abi.encodePacked(r, s_, v);
@@ -133,14 +133,14 @@ contract AgentLabelsTest is Test {
         labels.label(id, name40, string(b));
     }
 
-    /// The cold key can change. After a time-locked change lands, the old cold key
+    /// The owner can change. After a time-locked change lands, the old owner
     /// loses the label as well, and the new one gains it. A label follows control.
     function test_labelFollowsColdKeyChange() public {
         address newCold = makeAddr("newCold");
         vm.prank(owner);
         ks.proposeRevocationKey(id, newCold);
         vm.warp(block.timestamp + 1 days + 1);
-        // the outgoing cold key applies its own replacement
+        // the outgoing owner applies its own replacement
         vm.prank(owner);
         ks.applyRevocationKey(id);
 

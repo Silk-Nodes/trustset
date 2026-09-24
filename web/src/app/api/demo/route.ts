@@ -169,7 +169,7 @@ export async function POST(req: Request) {
     }
 
     if (action === "pause" || action === "resume") {
-      /* only when the deployer is the cold key. if the visitor's wallet holds
+      /* only when the deployer is the owner. if the visitor's wallet holds
          it, the stop is theirs to sign and the server must not be able to. */
       if (d.owned) return NextResponse.json({ error: "your wallet is the owner" }, { status: 403 });
       const p = provider(c);

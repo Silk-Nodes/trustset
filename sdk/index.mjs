@@ -93,7 +93,7 @@ export function client({ rpc = MONAD_TESTNET.rpc, killSwitch = MONAD_TESTNET.kil
       return link.ok ? { ...link, trusted: await ks.isTrusted(link.agentId), why: await this.why(link.agentId) } : link;
     },
 
-    /** Say the agent is alive. Only the agent key can, and only inside its window.
+    /** Say the agent is alive. Only the agent address can, and only inside its window.
      *  Overrides are passed through because Monad charges the whole gas limit,
      *  so a caller that knows the cost should be able to set it. */
     beat: (agentId, signer, overrides = {}) => ks.connect(signer).beat(agentId, overrides),

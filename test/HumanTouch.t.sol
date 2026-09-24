@@ -14,7 +14,7 @@ contract HumanTouchTest is Test {
     address account = address(0xACC0);
     bytes32 action = keccak256("vote on proposal 7");
 
-    /* the agent key's consent to its registration, signed with its own key */
+    /* the agent address's consent to its registration, signed with its own key */
     function _consent(uint256 agentPk, address cold) internal view returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s_) = vm.sign(agentPk, ks.registrationDigest(vm.addr(agentPk), cold));
         return abi.encodePacked(r, s_, v);
@@ -140,7 +140,7 @@ contract HumanTouchTest is Test {
         touch.attestHuman(account, action, a);
     }
 
-    /// an agent key cannot stamp another account's action as "agent" and block the human proof
+    /// an agent address cannot stamp another account's action as "agent" and block the human proof
     function test_agentCannotBlockAnotherAccountsAction() public {
         address agentKey = vm.addr(0xA9);
         address[] memory none;

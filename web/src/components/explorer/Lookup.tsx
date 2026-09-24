@@ -9,7 +9,7 @@ import { ago } from "@/app/(app)/explorer/words";
  * about it, and nothing here lists the agents nobody asked about.
  *
  * the server enforces the same line: no query, no rows; and an address matches
- * an agent key only, never a cold key, so an owner's whole fleet cannot be
+ * an agent address only, never an owner, so an owner's whole fleet cannot be
  * pulled up by the one key that can stop it. */
 type Hit = { id: number; name: string | null; agent_key: string; state: "trusted" | "expired" | "quiet" | "paused" | "stopped"; last_at: string | null };
 const WORD: Record<Hit["state"], string> = { trusted: "trusted", expired: "expired", quiet: "gone quiet", paused: "paused", stopped: "stopped" };

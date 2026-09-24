@@ -117,7 +117,7 @@ contract PanicTest is Test {
         WebAuthn.Assertion memory a = _nominate("uv");
         ks.pauseWithPasskey(id, a);
         /* the agent is paused; the passkey has no way to do anything else. every other
-           entry point still demands the cold key, and a paused agent is not Active so a
+           entry point still demands the owner, and a paused agent is not Active so a
            second pause is refused outright. */
         vm.expectRevert(KillSwitch.BadTransition.selector);
         ks.pauseWithPasskey(id, a);

@@ -100,7 +100,7 @@ export default function Palette({ open, onClose }: { open: boolean; onClose: () 
        first and it works whether or not the index is reachable. */
     if (/^\d+$/.test(needle)) out.push({ id: "jump-id", group: "Go straight there", label: `Agent ${needle}`, hint: "open", sub: "on the explorer", go: go(`/explorer/${needle}`) });
 
-    /* the server already matched these; it matches an agent key and never a
+    /* the server already matched these; it matches an agent address and never a
        owner, so a pasted owner address finds nothing here by design. */
     const matched = needle.length === 0 ? [] : agents.slice(0, 6);
     for (const a of matched) {

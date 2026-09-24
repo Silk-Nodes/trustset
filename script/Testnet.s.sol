@@ -16,16 +16,16 @@ contract Testnet is Script {
         address owner = vm.addr(pk);
 
         vm.startBroadcast(pk);
-        /* one day to change the cold key. the guardian delays are ten minutes
+        /* one day to change the owner. the guardian delays are ten minutes
            here, not the days mainnet would use, so both escape hatches can be
            seen to fire on a testnet inside one sitting: escalating a pause to a
-           stop, and replacing a cold key its owner lost. */
+           stop, and replacing an owner its owner lost. */
         KillSwitch ks = new KillSwitch(1 days, 10 minutes, 10 minutes);
         HumanTouch touch = new HumanTouch(ks);
         Counterparty venue = new Counterparty(ks);
 
         address[] memory guardians = new address[](0);
-        /* real keys, derived from a label, so an agent key is something that can
+        /* real keys, derived from a label, so an agent address is something that can
            actually sign later rather than an address nobody holds. each one
            signs its own consent, as any agent registered here must. */
         uint256 a1 = _reg(ks, uint256(keccak256("trustset agent 1")), owner, guardians, 0);

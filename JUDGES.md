@@ -36,7 +36,7 @@ every step links the transaction on the explorer. nothing is simulated, and
 nothing in the path is ours except the page you are reading.
 
 **if you would rather use your own wallet**, connect one and the page registers
-an agent whose cold key is your address, so the stop is signed by you. that
+an agent whose owner is your address, so the stop is signed by you. that
 needs a little testnet MON for gas, from
 [the official faucet](https://faucet.monad.xyz) or
 [Alchemy's](https://www.alchemy.com/faucets/monad-testnet). it is the same
@@ -51,14 +51,14 @@ own after two minutes so the next person finds it running. one visitor pause
 per five minutes, and anybody can end a visitor's pause early.
 
 its key is not on our server. it signs through a **Dynamic** 2-of-2 MPC server
-wallet, so the thing you just stopped is a Dynamic-held key obeying a cold key
+wallet, so the thing you just stopped is a Dynamic-held key obeying an owner
 it never touches. every trade on its explorer page is sent from that wallet.
 
 ## sign in with an email, no wallet needed
 
 on **/agents**, press **sign in**, then **continue with email**. Dynamic sends
 a code and makes an embedded wallet on first sign-in, and that wallet becomes
-the cold key for your agents. it gets a small, one-time drip of testnet gas so
+the owner for your agents. it gets a small, one-time drip of testnet gas so
 registering an agent does not dead-end. agent 25 was registered this way.
 
 ## the panic button, if you have a phone

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* gas for the agent keys the populate script registers.
+/* gas for the agent addresses the populate script registers.
  *
  * this is not in the forge script, and the reason is a monad behaviour worth
  * writing down: a plain value transfer succeeds with a gas limit of exactly

@@ -154,7 +154,7 @@ contract LimitsTest is Test {
 
         vm.prank(owner);
         ks.setLimits(id, 0, 1 hours);
-        assertTrue(ks.isTrusted(id), "only the cold key starts a new window");
+        assertTrue(ks.isTrusted(id), "only the owner starts a new window");
     }
 
     function test_onlyTheAgentKeyBeats() public {

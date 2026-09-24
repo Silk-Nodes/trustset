@@ -1,7 +1,7 @@
 # trustset
 
 > An off switch for AI agents, on chain. An agent has a key it signs with;
-> trustset gives its owner a separate cold key that can stop it, and gives
+> trustset makes your wallet its owner, the one wallet that can stop it, and gives
 > every app the agent talks to one call to check before acting.
 
 Built by Silk Nodes for Monad Metropolis, track 04. Live at
@@ -14,7 +14,7 @@ the switch, a passkey panic button, guardians, time limits, past signatures,
 identity, human proof, and refunds. An app picks what it needs. There is no
 platform to join, no account, no allowlist and no fee beyond gas.
 
-One transaction from a cold key writes a new status, and from the next block
+One transaction from its owner writes a new status, and from the next block
 `isTrusted(agentId)` returns false to everyone who asks. Pausing is
 reversible. Stopping for good is not.
 
@@ -23,7 +23,7 @@ reversible. Stopping for good is not.
 - The live agent (agent 24) signs through a Dynamic 2-of-2 MPC server wallet;
   no single machine holds its key.
 - Operators can sign in with an email: a Dynamic embedded wallet becomes the
-  cold key that registers and stops agents. No wallet extension needed.
+  owner that registers and stops agents. No wallet extension needed.
 - An agent's runbook and stop reasons can be sealed with the owner's passkey,
   through Mera's PRF key derivation, and stored on chain as ciphertext.
 
@@ -45,7 +45,7 @@ the switch. Reading is a view call and costs the caller nothing.
 - RefundRail          0xf8E44F08263fFB04660483Af44b70E1b25347748
 - ERC-8004 identity   0x8004A818BFB912233c491871b3d84c89A494BD9e  (not ours)
 
-Immutable values, fixed at deployment: cold key change 24 hours, guardian
+Immutable values, fixed at deployment: owner change 24 hours, guardian
 escalation 10 minutes, guardian recovery 10 minutes.
 
 ## What is true, and what is not
@@ -57,8 +57,8 @@ escalation 10 minutes, guardian recovery 10 minutes.
   lost coin. Only the refund rail holds money, and it only ever returns it to
   the payer named in storage.
 - No server of ours sits in any path.
-- An agent key can only be registered by whoever holds it: registration needs
-  that key's signature naming the exact cold key.
+- An agent can only be registered with its own consent: registration needs a
+  signature from the agent's key naming the exact owner.
 - A stop does NOT protect against an agent that has been taken over and
   rewritten. A compromised agent holding a valid key passes every check.
 - A stop does nothing at a venue that never checks.

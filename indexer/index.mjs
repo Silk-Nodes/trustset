@@ -58,7 +58,7 @@ const TRUSTSET_KEY = ethers.id("trustset");
 const STATUS = ["none", "active", "paused", "revoked", "rotated"];
 /* monad's staking precompile. an agent staking MON is not a trustset event,
    but it is an agent acting, and an agent's history should show what it did.
-   only logs whose delegator is a registered agent key are read, matched in the
+   only logs whose delegator is a registered agent address are read, matched in the
    filter itself, so the rest of the chain's staking costs nothing. */
 const STAKING = "0x0000000000000000000000000000000000001000";
 const STAKING_EVENTS = [
@@ -173,13 +173,13 @@ async function pull(p, d, ks, labels, venue, erc8004, from, to) {
   return out.filter(Boolean);
 }
 
-/* every registered agent key, lower case, to its id */
+/* every registered agent address, lower case, to its id */
 async function agentKeys(db) {
   const r = await db.query("SELECT id, agent_key FROM agents");
   return new Map(r.rows.map(x => [String(x.agent_key).toLowerCase(), Number(x.id)]));
 }
 
-/* the staking precompile's logs for agent keys only, one row each, filed
+/* the staking precompile's logs for agent addresses only, one row each, filed
    under the agent whose key it was */
 async function stakes(p, iface, keys, from, to) {
   if (!keys.size) return [];

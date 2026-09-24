@@ -10,7 +10,7 @@ import { explain, ownerTx, settled, STATUS } from "@/lib/chain";
  *
  * two halves, and the order matters. the device makes the key first, which is
  * the only step that cannot be undone or delegated: the private half is born
- * inside the authenticator and never comes out. then the cold key writes the
+ * inside the authenticator and never comes out. then the owner writes the
  * public half to the switch.
  *
  * the page shows the point it is about to write, because nominating a key
@@ -66,13 +66,13 @@ export default function Passkey({ initialId }: { initialId?: string }) {
     } finally { setBusy(""); }
   }
 
-  /* whoever actually holds the cold key does the writing.
+  /* whoever actually holds the owner does the writing.
    *
    * this page only ever asked the server, so a reader whose own wallet was the
-   * cold key made a passkey on their phone and then met a disabled button
+   * owner made a passkey on their phone and then met a disabled button
    * saying the server could not finish. the key was burned for nothing and the
    * only way on was knowing the console had its own control. setStopKey wants
-   * the cold key and nothing else, so a connected owner signs it here, exactly
+   * the owner and nothing else, so a connected owner signs it here, exactly
    * as the console does. */
   const mine = !!w.who && !!info?.coldKey && w.who.address.toLowerCase() === info.coldKey.toLowerCase();
 

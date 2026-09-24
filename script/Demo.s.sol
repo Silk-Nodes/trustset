@@ -9,7 +9,7 @@ import {Counterparty} from "../src/demo/Counterparty.sol";
 import {MockStaking} from "../test/mocks/MockStaking.sol";
 
 /// @notice Local demo on anvil. Anvil has no staking precompile, so a mock stands in at a normal address.
-///         Accounts: 0 deployer and agent owner, 1 and 2 validator auth addresses, 3 agent key.
+///         Accounts: 0 deployer and agent owner, 1 and 2 validator auth addresses, 3 agent address.
 contract Demo is Script {
     function run() external {
         uint256 pk0 = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;

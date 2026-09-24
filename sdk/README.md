@@ -95,12 +95,12 @@ await trustset.history(7);                            // every status change, ol
 ## Keeping a heartbeat
 
 ```js
-await trustset.beat(7, wallet);   // only the agent key, only inside its window
+await trustset.beat(7, wallet);   // only the agent itself, only inside its window
 ```
 
 Once the window has passed the agent cannot revive itself, by design: a key
 that went quiet because somebody else took it must not be brought back by that
-somebody. Only the cold key starts a new window.
+somebody. Only the owner starts a new window.
 
 ## Another chain, another deployment
 

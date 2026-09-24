@@ -72,12 +72,12 @@ export const GROUPS: Group[] = [
         a: "To register, no. trustset never runs your agent and never holds its key. To get the full benefit your agent, or the venue it trades on, should call isTrusted before acting, which is one function call.",
       },
       {
-        id: "cold-key",
+        id: "owner",
         q: "Who owns an agent, and why can the owner not spend?",
         a: "The owner is the wallet you register with (the contract calls it the revocation key), and it is the only wallet that can pause, stop or rotate the agent. It has no power to move the agent's money, because the contract gives it none. That is the point: you can keep it somewhere inconvenient and safe.",
       },
       {
-        id: "lost-cold-key",
+        id: "lost-owner",
         q: "What if I lose the owner wallet?",
         a: "If you named guardians, they can vote to pause the agent, and if you do nothing for the escalation delay they can stop it for good. They can also replace the owner after a delay you are able to cancel. If you registered with no guardians, nobody can stop that agent, which is why the register dialog calls that choice permanent.",
       },

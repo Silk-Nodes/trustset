@@ -177,9 +177,9 @@ async function readChain(idIn: string): Promise<Record<string, unknown>> {
 
 /* pause and resume, signed by the key this server holds.
  *
- * that key is not automatically the agent's cold key, and the difference is the
+ * that key is not automatically the agent's owner, and the difference is the
  * point: a server that runs an agent should not be able to switch it off by
- * default. this route is refused until the cold key is actually handed to the
+ * default. this route is refused until the owner is actually handed to the
  * server's key, which takes a day, because handing an agent over quietly is
  * exactly what the timelock exists to prevent. */
 /* the site went from vpn-only to a public domain, and this route signs with a

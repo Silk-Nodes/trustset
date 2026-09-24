@@ -81,7 +81,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
   const [guardians, setGuardians] = useState<string[]>([]);
   const [gInput, setGInput] = useState("");
   const [threshold, setThreshold] = useState(1);
-  /* the agent key's consent. a generated key signs it here; a pasted key's
+  /* the agent address's consent. a generated key signs it here; a pasted key's
      owner has to bring it, because only the agent can sign as the agent. */
   const [consent, setConsent] = useState("");
   const [copiedMsg, setCopiedMsg] = useState(false);

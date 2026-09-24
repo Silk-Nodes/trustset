@@ -212,7 +212,11 @@ function merge(events: Ev[]): Entry[] {
     if (at) at.push(e); else byTx.set(k, [e]);
   }
   return [...byTx.values()].map(group => {
-    const said = group.map(e => ({ e, ...say(e) }));
+    /* registering emits a status change to active in the same transaction.
+       it is implied by the registration, and leading with it read "back to
+       active" for an agent that had never been away. */
+    const registered = group.some(e => e.kind === "AgentRegistered");
+    const said = group.filter(e => !(registered && e.kind === "StatusChanged")).map(e => ({ e, ...say(e) }));
     /* the consequence leads, not whatever the log happened to emit first: a
        guardian vote reads as "paused", with "guardians reached 1 of 1" as the
        reason under it. */

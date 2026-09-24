@@ -32,7 +32,10 @@ export default function History({ agent, events, indexed, now, explorer, total, 
      index is away, the chain's record still draws. */
   const all = useMemo<PulseEvent[]>(() => indexed === false || (events.length === 0 && agent.history.length > 0 && indexed !== true)
     ? agent.history.slice().reverse().map(h => ({ kind: "StatusChanged", at: h.at, data: { status: h.status } }))
-    : events, [events, agent.history, indexed]);
+    /* a registration's own status change to active is implied by it, and
+       listed on its own it read "brought back" for an agent never away */
+    : events.filter(e => !(e.kind === "StatusChanged" && String(e.data?.status ?? "") === "active" && events.some(r => r.kind === "AgentRegistered" && r.at === e.at))),
+    [events, agent.history, indexed]);
   const list = useMemo(() => all.filter(e => kind === "all" ? true : kind === "status" ? (e.kind === "StatusChanged" || e.kind === "GuardianVoted" || e.kind === "LimitsSet" || e.kind === "Rotated") : kind === "trades" ? e.kind === "TradeAccepted" : e.kind === "Beat"), [all, kind]);
   const days = useMemo(() => {
     const out: { label: string; rows: PulseEvent[] }[] = [];
