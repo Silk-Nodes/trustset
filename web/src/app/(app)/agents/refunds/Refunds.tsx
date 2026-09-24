@@ -6,6 +6,8 @@ import TxLink from "@/components/agents/TxLink";
 import RefundReplay from "@/components/agents/RefundReplay";
 import { useWallet } from "@/components/WalletProvider";
 import Term from "@/components/Term";
+import Tip, { InfoTip } from "@/components/Tip";
+import { STATE_TIP } from "@/components/agents/RefundReplay";
 import { explain, ownerTx, pinRead, READ, retry, settled, short, type Conn } from "@/lib/chain";
 
 /* the refund rail, driven by hand.
@@ -105,7 +107,7 @@ export default function Refunds() {
 
   return (
     <>
-      <Shell wide title="Refunds" note="Your wallet plays the agent">
+      <Shell wide title={<>Refunds<InfoTip text={<>A payment goes into escrow. <b>Release</b> is your receipt, and pays the service. When the window closes unsettled, <b>Refund</b> opens to anyone and the money comes back. A payment is exactly one of held, delivered, refunded. Here your own wallet plays the agent.</>} /></>}>
         {note && <div className="sheet px-4 py-3 mb-3 text-xs flex items-start gap-3"><span className="break-words text-ink/80">{note}</span><button type="button" onClick={() => setNote(null)} className="ml-auto text-ink/70" aria-label="Dismiss">×</button></div>}
         {conn === null && <div className="sheet p-6 text-sm text-ink/70">No chain configured.</div>}
         {conn && !conn.cfg.refunds && <div className="sheet p-6 text-sm text-ink/70">This chain has no refund rail deployed.</div>}
@@ -114,7 +116,7 @@ export default function Refunds() {
             <div className="min-w-0 lg:min-h-[420px]"><RefundReplay sample /></div>
             <div className="sheet p-6 sm:p-8 flex flex-col justify-center text-center gap-3 min-w-0">
               <div className="text-lg font-semibold tracking-tight">These rows are a sample</div>
-              <p className="text-sm text-ink/70">A payment goes into escrow, a receipt releases it to the service, a closed window sends it back, and anyone may press that button. Connect a wallet, top right, and try it with mock dollars.</p>
+              <p className="text-sm" style={{ color: "var(--text-medium)" }}>Sign in to try it with mock dollars.</p>
             </div>
           </div>
         )}
@@ -132,13 +134,13 @@ export default function Refunds() {
                   <div key={r.id.toString()} className="grid grid-cols-[1fr_auto] sm:grid-cols-[80px_1fr_150px_auto] items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 text-sm" style={{ borderBottom: "1px solid var(--hairline)", background: hot ? "color-mix(in srgb, var(--orange) 6%, transparent)" : undefined }}>
                     <span className="mono text-xs tabular">#{r.id.toString()}</span>
                     <span className="min-w-0">
-                      <span className="font-semibold" style={{ color: hot ? "var(--orange-text)" : r.state === "settled" ? "var(--sage-text)" : "var(--text-dark)" }}>
+                      <Tip text={STATE_TIP[r.state === "open" ? "held" : r.state === "settled" ? "delivered" : "refunded"]}><span className="font-semibold" style={{ color: hot ? "var(--orange-text)" : r.state === "settled" ? "var(--sage-text)" : "var(--text-dark)" }}>
                         {r.state === "open" ? "Held" : r.state === "settled" ? "Delivered" : "Refunded"}
-                      </span>
-                      <span className="text-ink/70"> · {fmt(r.amount)} mUSD {r.state === "open" ? "in escrow" : r.state === "settled" ? "to the service" : "back to you"}</span>
+                      </span></Tip>
+                      <span className="mono text-[12.5px] tabular" style={{ color: "var(--text-medium)" }}> · {fmt(r.amount)} mUSD</span>
                     </span>
                     <span className="hidden sm:block mono text-xs tabular text-right" style={{ color: "var(--text-medium)" }}>
-                      {r.state !== "open" ? "closed" : left > 0 ? `${left}s left` : "window closed"}
+                      {r.state !== "open" ? "" : left > 0 ? `${left}s left` : "window closed"}
                     </span>
                     <span className="flex gap-1.5">
                       {r.state === "open" && <button type="button" className="drawn-btn btn-gold" style={{ padding: "6px 12px", fontSize: "0.75rem" }} disabled={!!busy} onClick={() => release(r.id)}>{busy === "release:" + r.id ? "…" : "Release"}</button>}
@@ -151,20 +153,14 @@ export default function Refunds() {
 
             <aside className="drawn-box p-5 flex flex-col gap-4 min-w-0">
               <div>
-                <div className="eyebrow mb-1">Your balance</div>
+                <div className="eyebrow mb-1 flex items-center">Your balance<InfoTip text="A mock dollar, mintable by anyone, because the testnet has no stable to hand." /></div>
                 <div className="text-2xl font-semibold tabular tracking-tight">{bal === null ? "…" : fmt(bal)} <span className="text-sm font-normal text-ink/70">mUSD</span></div>
-                <div className="text-[11px] mt-1" style={{ color: "var(--text-medium)" }}>A mock dollar, mintable by anyone, because the testnet has no stable to hand.</div>
               </div>
               <button type="button" className="drawn-btn btn-gold" disabled={!!busy} onClick={mint}>{busy === "mint" ? "Minting…" : "Mint 10 mUSD"}</button>
               <div className="rule-top pt-4">
                 <div className="text-sm font-semibold">Pay the demo service</div>
-                <div className="text-[12px] mt-1 text-ink/70">0.004 mUSD into <Term tip="The money sits in the rail's own contract. The service is paid only on a receipt you signed; otherwise the window closes and the money comes back.">escrow</Term>, {WINDOW} second window, to a service that never answers.</div>
+                <div className="text-[12px] mt-1" style={{ color: "var(--text-medium)" }}>Into <Term tip="The money sits in the rail's own contract. The service is paid only on a receipt you signed; otherwise the window closes and the money comes back.">escrow</Term>, {WINDOW}s window. The service never answers.</div>
                 <button type="button" className="drawn-btn btn-orange mt-3" disabled={!!busy || (bal !== null && bal < AMOUNT)} onClick={pay}>{busy === "pay" ? "Paying…" : "Pay 0.004 mUSD"}</button>
-              </div>
-              <div className="rule-top pt-4 text-[12px] text-ink/70 flex flex-col gap-2">
-                <div><b className="text-ink">Release</b> is the receipt: you saying it was delivered. The service is paid.</div>
-                <div><b className="text-ink">Refund</b> opens when the window closes. Anyone may press it. The money comes home.</div>
-                <div>A payment is exactly one of held, delivered, refunded. Never two.</div>
               </div>
             </aside>
           </div>

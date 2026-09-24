@@ -1,4 +1,5 @@
 "use client";
+import Tip from "@/components/Tip";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
@@ -194,7 +195,7 @@ export default function LiveAgent({ compact = false, lead = null }: { compact?: 
               : byOperator ? "Switched off by the operator. It stays off until they bring it back."
               : paused ? "It will notice within a minute and start again."
               : cooling ? <>Somebody switched it off a moment ago. You can again in <b style={{ color: "var(--text-dark)" }}>{mmss(coolUntil - clock)}</b>.</>
-              : "Anybody can press this. It will notice within a minute and stop spending, and comes back on its own after two minutes."}
+              : <Tip text="It notices within a minute and stops spending.">Anybody can press this. It comes back after two minutes.</Tip>}
           </span>
           {asking && (
             <input type="password" autoComplete="off" placeholder="operator token" value={token} onChange={e => setToken(e.target.value)}

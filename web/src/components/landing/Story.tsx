@@ -1,4 +1,5 @@
 "use client";
+import Tip from "@/components/Tip";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useArrived } from "@/hooks/useArrived";
@@ -341,7 +342,7 @@ export function HowItWorks() {
           {NEVER.map(([lit, dim]) => (
             <li key={lit} className="flex gap-2.5 text-[13.5px] sm:text-[15px] leading-snug">
               <span aria-hidden className="mono font-semibold shrink-0" style={{ color: "var(--orange-text)" }}>×</span>
-              <span><span className="font-semibold">{lit}</span> <span style={{ color: "var(--text-medium)" }}>{dim}</span></span>
+              <Tip text={dim}><span className="font-semibold">{lit}</span></Tip>
             </li>
           ))}
         </ul>

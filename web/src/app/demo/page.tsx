@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Venue from "./Venue";
+import { InfoTip } from "@/components/Tip";
 import Footer from "@/components/Footer";
 import LiveAgent from "@/components/LiveAgent";
 
@@ -25,15 +26,15 @@ export default function Page() {
         <h1 className="text-[32px] sm:text-[44px] font-semibold tracking-[-0.035em] leading-[1.04] max-w-4xl">
           You built the agent. <span style={{ color: "var(--dim)" }}>Here is everything around it.</span>
         </h1>
-        <p className="text-base sm:text-lg mt-3 max-w-[64ch]" style={{ color: "var(--text-medium)" }}>
-          Two ways to see it. Every button below sends a real transaction on Monad testnet; nothing here is a recording.
+        <p className="text-base sm:text-lg mt-3 max-w-[64ch] flex items-center" style={{ color: "var(--text-medium)" }}>
+          Real transactions on Monad testnet.<InfoTip text="Every button below sends a real transaction. Nothing here is a recording." />
         </p>
 
         <LiveAgent lead={<Section eyebrow="The quick version" title="Stop a real agent" meta="30 seconds"
-          note="A real agent on our server, trading every hour. Switch it off and watch it stop; it comes back on its own after two minutes." />} />
+          note="A real agent, trading every hour. Switch it off and watch it stop." />} />
 
         <Section eyebrow="The full walkthrough" title="Everything around the switch" meta="7 steps"
-          note="On a practice agent, shared by visitors so you can press anything. Connect a wallet and the page gives you your own." />
+          note="A practice agent, shared by visitors. Sign in for your own." />
         <Venue />
       </main>
       <Footer />

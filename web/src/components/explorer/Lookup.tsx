@@ -47,11 +47,10 @@ export default function Lookup({ base }: { base?: string }) {
 
   return (
     <section aria-label="Look up an agent">
-      <h1 className="text-[22px] sm:text-[26px] font-semibold tracking-[-0.02em]">Is this agent trusted?</h1>
-      <p className="text-[13.5px] mt-1.5 max-w-[62ch]" style={quiet}>
-        Look an agent up by its id, its key or its name, and get what the switch says about it right now.
-        {total !== null && <> <span className="tabular">{total}</span> agents are on the switch.</>}
-      </p>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 className="text-[22px] sm:text-[26px] font-semibold tracking-[-0.02em]">Is this agent trusted?</h1>
+        {total !== null && <span className="mono text-[12px] tabular" style={quiet}>{total} agents on the switch</span>}
+      </div>
 
       <div className="relative mt-4 max-w-[640px]">
         {/* drawn, not typed: the ⌕ character is missing from most system fonts
@@ -59,14 +58,14 @@ export default function Lookup({ base }: { base?: string }) {
         <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
           className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "var(--text-medium)" }}><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
         <input ref={input} value={q} onChange={e => setQ(e.target.value)} onKeyDown={onKey} spellCheck={false} autoComplete="off"
-          placeholder="13, 0x4d37…, or a name" aria-label="Agent id, agent key or name"
+          placeholder="id, key or name" aria-label="Agent id, agent key or name"
           className="w-full h-12 rounded-xl pl-10 pr-4 text-[15px] outline-none focus-visible:ring-2"
           style={{ background: "var(--surface)", border: "1px solid var(--hairline)", color: "var(--text-dark)" }} />
 
         {term && hits !== null && (
           <div className="sheet mt-2 overflow-hidden">
             {hits.length === 0 ? (
-              <p className="px-4 py-5 text-[13px]" style={quiet}>No agent matches <span className="mono">{term}</span>. An id, an agent key, or part of a name.</p>
+              <p className="px-4 py-5 text-[13px]" style={quiet}>No agent matches <span className="mono">{term}</span>.</p>
             ) : hits.map((h, i) => (
               <Link key={h.id} href={`/explorer/${h.id}`} onMouseMove={() => setCursor(i)}
                 className="grid grid-cols-[8px_minmax(0,1fr)_auto] sm:grid-cols-[8px_minmax(0,1fr)_96px_72px] items-center gap-3 px-4 h-12 outline-none focus-visible:ring-2 focus-visible:ring-inset"

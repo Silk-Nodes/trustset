@@ -1,4 +1,5 @@
 "use client";
+import Tip from "@/components/Tip";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
@@ -179,7 +180,7 @@ export default function Explorer({ explorer }: { explorer: string }) {
       </div>
 
       <p className="mt-3 mono text-[11px]" style={{ color: "var(--text-medium)" }}>
-        indexed to block {stats?.head ?? "…"} · <span data-tip="A refused trade is a transaction that reverted. It emits no logs, so an index built from logs cannot see it.">refusals are not logged</span>
+        <Tip text="The feed is read from an index of the chain, current to this block. A refused trade reverts and emits no logs, so refusals never appear here.">block {stats?.head ? Number(stats.head).toLocaleString("en-US") : "…"}</Tip>
       </p>
     </>
   );

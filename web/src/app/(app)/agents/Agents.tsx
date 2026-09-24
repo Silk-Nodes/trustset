@@ -13,6 +13,7 @@ import { useWallet } from "@/components/WalletProvider";
 import RegisterDialog from "@/components/agents/RegisterDialog";
 import TxLink, { addrUrl } from "@/components/agents/TxLink";
 import Term from "@/components/Term";
+import Tip, { InfoTip } from "@/components/Tip";
 import { adoptParked, fallbackName, getLabel, parkLabel, setLabel, type Label } from "@/lib/labels";
 import { READ, agentIdForKey, cachedAgents, coldKeyDelay, consentMessage, explain, settled, labelOnChain, loadAgents, loadGuarded, loadHistory, ownerTx, registerOnChain, short, statusWord, trusted, type Agent, type Conn, type Guarded } from "@/lib/chain";
 import { type Extra, type PulseEvent, layersOf } from "@/lib/layers";
@@ -430,7 +431,6 @@ export default function Agents() {
 
   const guardingPanel = (
     <section>
-      <p className="text-[12.5px] mb-3" style={{ color: "var(--text-medium)" }}>Their owners chose you to stop them if the owner cannot. Pause by vote; if the owner does nothing for the delay, stop it.</p>
       <div className="sheet overflow-clip">
         {guardedShown.map(g => {
           const k = "g" + g.id.toString(); const b = busy.has(k);
@@ -441,16 +441,33 @@ export default function Agents() {
              gone quiet. the contract still says Active; isTrusted does
              not, and the guardian is told what isTrusted says. */
           const live = trusted(g, now);
-          const why = live ? "Active" : statusWord(g, now) === "expired" ? "Its end date has passed" : "It has gone quiet";
+          const state = live ? "trusted" : g.status === "paused" ? "paused" : (g.status === "revoked" || g.status === "rotated") ? "stopped" : statusWord(g, now) === "expired" ? "expired" : "gone quiet";
           const dot = live ? "var(--sage)" : (g.status === "active" || g.status === "paused") ? "var(--terra)" : "var(--orange)";
+          /* the row says the state and the one number that matters to a
+             guardian; the rule behind it is on the tip. it used to be a
+             sentence, hidden on phones, which left a phone with no status. */
+          const said = g.status === "active"
+            ? { short: g.voted ? `voted · ${g.votes}/${g.threshold}` : `${g.votes}/${g.threshold} votes`, tip: `${g.votes} of ${g.threshold} guardian votes needed to pause it.${g.voted ? " Yours is in." : ""}${live ? "" : state === "expired" ? " Its end date has passed, so apps already refuse it." : " It missed its heartbeat, so apps already refuse it."}` }
+            : g.status === "paused"
+            ? canEscalate
+              ? { short: "you can stop it", tip: `Paused, and its owner has done nothing for ${span(g.delay)}. Any guardian may now stop it for good.` }
+              : { short: `stop unlocks in ${span(wait)}`, tip: `If its owner does nothing for ${span(g.delay)} after a guardian pause, any guardian may stop it for good. The owner can resume or stop it first.` }
+            : { short: "", tip: "" };
           return (
-            <div key={k} className="grid grid-cols-[1fr_auto] sm:grid-cols-[18px_250px_1fr_auto] items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 text-sm" style={{ borderBottom: "1px solid var(--hairline)" }}>
+            <div key={k} className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[18px_250px_1fr_auto] items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 text-sm" style={{ borderBottom: "1px solid var(--hairline)" }}>
               <span className="hidden sm:block w-2 h-2 rounded-full" style={{ background: dot }} />
-              <div className="min-w-0"><div className="font-semibold truncate">{g.label?.name || `Agent ${g.id}`}</div><div className="mono text-[11px] text-ink/70 whitespace-nowrap truncate">agent {g.id.toString()} · owner {short(g.coldKey)}</div></div>
-              <div className="hidden sm:block text-ink/70 min-w-0">
-                {g.status === "active" && (g.voted ? `Your vote to pause is in. ${g.votes} of ${g.threshold} needed.` : `${why}. ${g.votes} of ${g.threshold} votes to pause so far.`)}
-                {g.status === "paused" && (canEscalate ? `Paused, and its owner has done nothing for ${span(g.delay)}. You may stop it for good.` : `Paused. If its owner does nothing for ${span(g.delay)}, you may stop it. ${span(wait)} left.`)}
-                {(g.status === "revoked" || g.status === "rotated") && "Stopped"}
+              <div className="min-w-0">
+                <div className="font-semibold truncate">{g.label?.name || `Agent ${g.id}`}</div>
+                <div className="mono text-[11px] whitespace-nowrap truncate" style={{ color: "var(--text-medium)" }}>agent {g.id.toString()} · owner {short(g.coldKey)}</div>
+                {/* on a phone the state sits under the name */}
+                <div className="sm:hidden mt-1 flex items-center gap-2 mono text-[11px]">
+                  <span className="uppercase tracking-[0.1em]" style={{ color: live ? "var(--sage-text)" : state === "stopped" ? "var(--text-medium)" : "var(--orange-text)" }}>{state}</span>
+                  {said.short && <Tip text={said.tip}><span style={{ color: "var(--text-medium)" }}>{said.short}</span></Tip>}
+                </div>
+              </div>
+              <div className="hidden sm:flex items-center gap-3 min-w-0 mono text-[11.5px]">
+                <span className="uppercase tracking-[0.1em] shrink-0" style={{ color: live ? "var(--sage-text)" : state === "stopped" ? "var(--text-medium)" : "var(--orange-text)" }}>{state}</span>
+                {said.short && <Tip text={said.tip} className="truncate"><span style={{ color: said.short === "you can stop it" ? "var(--orange-text)" : "var(--text-medium)" }}>{said.short}</span></Tip>}
               </div>
               <div className="flex gap-1.5 justify-end">
                 {g.status === "active" && !g.voted && <button type="button" className="drawn-btn btn-gold" style={{ padding: "6px 12px", fontSize: "0.78rem" }} disabled={b} onClick={() => guardianAct(g, "pause")}>{b ? "…" : "Vote to pause"}</button>}
@@ -501,15 +518,21 @@ export default function Agents() {
          the dialog on its own once somebody is. this used to call the browser
          wallet directly, which with no extension installed did nothing at all. */
       wantRegister.current = true;
-      askSignIn("Sign in to register an agent. The wallet you sign in with becomes its cold key: the one key that can stop it.");
-    }}>Register agent</button>;
+      askSignIn("Sign in to register. That wallet becomes its cold key.");
+    }}><span className="sm:hidden">Register</span><span className="hidden sm:inline">Register agent</span></button>;
+
+  const samplePill = (
+    <Tip text={<>{guardingRoute ? `${guardedShown.length} agents somebody else owns, to show what a guardian does.` : `${all.length} made-up agents, to show the console working.`} Sign in with the wallet that is your agents&apos; cold key to see yours.</>}>
+      <span className="mono text-[10px] uppercase tracking-[0.12em] rounded-full px-2 py-0.5 whitespace-nowrap" style={{ border: "1px solid var(--hairline)", color: "var(--text-dark)" }}>sample</span>
+    </Tip>
+  );
 
   return (
     <>
       {/* one agent is a canvas: one window tall, its history and settings
           scrolling inside themselves. the fleet and guarding are ordinary
           pages; the fleet's table caps its own height and windows its rows. */}
-      <Shell frame={!guardingRoute} title={guardingRoute ? "Guarding" : "Agents"} note={conn ? <>{conn.cfg.chain}{asOf && signedIn ? ` · as of ${asOf}` : ""}</> : undefined}
+      <Shell frame={!guardingRoute} title={guardingRoute ? <>Guarding<InfoTip text="Agents whose owners chose you to stop them if the owner cannot. You pause by vote; if the owner then does nothing for the delay, you may stop it for good. You can never spend from them." /></> : "Agents"} note={sampleOn ? samplePill : undefined}
         actions={register} badges={waiting ? { "/agents/guarding": waiting } : undefined}>
 
         {/* a notice is a toast at the corner, never a bar that moves the table */}
@@ -519,17 +542,12 @@ export default function Agents() {
             <button type="button" onClick={() => setNote(null)} className="ml-auto shrink-0" style={{ color: "var(--text-medium)" }} aria-label="Dismiss">×</button>
           </div>
         )}
+        {sampleOn && <div className="sm:hidden mb-3 shrink-0">{samplePill}</div>}
         {conn === undefined && <div className="sheet p-6 text-sm text-ink/70">Connecting…</div>}
         {conn === null && <div className="sheet p-6 text-sm text-ink/70">No chain configured.</div>}
         {/* no wallet: the console itself, drawn from the sample, under one line
             saying so. an empty card with the word connect showed a visitor
             nothing about what any of this does. */}
-        {sampleOn && (
-          <p className="shrink-0 mb-3 text-[12px] flex flex-wrap items-center gap-x-2 gap-y-1" style={{ color: "var(--text-medium)" }}>
-            <span className="mono text-[10px] uppercase tracking-[0.12em] rounded-full px-2 py-0.5" style={{ border: "1px solid var(--hairline)", color: "var(--text-dark)" }}>sample</span>
-            <span>{guardingRoute ? `${guardedShown.length} agents somebody else owns, to show what a guardian does.` : `${all.length} made-up agents.`} Connect the wallet that is your agents&apos; <Term k="cold key">cold key</Term> to see yours.</span>
-          </p>
-        )}
         {conn && signedIn && !guardingRoute && !loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>Reading your agents from {conn.cfg.chain}…</div>}
         {conn && signedIn && !guardingRoute && loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm text-ink/70">Nothing under {short(ownerAddr(conn)!)} yet. <Term k="register">Register</Term> the <Term k="agent key">agent key</Term> of an agent you already run, and this wallet becomes the one that can stop it. <span className="ml-2">{register}</span></div>}
         {conn && (signedIn || sampleOn) && guardingRoute && (

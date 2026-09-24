@@ -11,7 +11,7 @@ export default function How() {
         <div className="mb-10 sm:mb-14 max-w-3xl">
           <h1 className="text-[38px] sm:text-[52px] font-semibold tracking-[-0.035em] leading-[1.02]">Docs</h1>
           <p className="text-[17px] sm:text-[19px] text-ink/70 mt-4 max-w-[52ch]">
-            What is deployed, how an app reads it, and what it does not do. Built by Silk Nodes for Monad.
+            What is deployed, how an app reads it, and what it does not do.
           </p>
         </div>
         <Docs />

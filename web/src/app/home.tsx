@@ -1,4 +1,5 @@
 "use client";
+import Tip from "@/components/Tip";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import Replay from "@/components/agents/Replay";
@@ -45,7 +46,7 @@ export default function Home() {
         <motion.p initial={m.reduced ? { opacity: 0 } : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={m.reduced ? { duration: 0.2 } : { duration: 0.7, ease: [0.23, 1, 0.32, 1], delay: 0.26 }}
           className="mono text-[12px] sm:text-[13px] tabular mt-7 sm:mt-8 flex flex-wrap items-center gap-x-3 gap-y-1.5" style={{ color: "var(--text-medium)" }}>
           {/* each dot rides with the word before it, so a wrapped line never opens on a dot */}
-          <span className="whitespace-nowrap">Eight layers<span aria-hidden> ·</span></span><span className="whitespace-nowrap">Immutable, no admin<span aria-hidden> ·</span></span><span className="whitespace-nowrap">128,000 fuzzed calls<span aria-hidden> ·</span></span><span className="whitespace-nowrap">Monad testnet</span>
+          <span className="whitespace-nowrap"><Tip text="The switch, a passkey panic button, guardians, time limits, past signatures, identity, human proof and refunds.">Eight layers</Tip><span aria-hidden> ·</span></span><span className="whitespace-nowrap"><Tip text="No owner address, no proxy, no upgrade path. Nobody can change or turn off the deployed contracts, including us.">Immutable, no admin</Tip><span aria-hidden> ·</span></span><span className="whitespace-nowrap"><Tip text="Each test run throws 128,000 random calls at eleven invariants, such as revoked staying revoked.">128,000 fuzzed calls</Tip><span aria-hidden> ·</span></span><span className="whitespace-nowrap"><Tip text="Deployed to Monad testnet only. Nothing here holds real money.">Monad testnet</Tip></span>
         </motion.p>
       </div>
 

@@ -178,10 +178,12 @@ export function TopBar({ title, note, actions }: { title: React.ReactNode; note?
   const open = useContext(AppSearch);
   const still = !!useReducedMotion();
   return (
-    <div className="sticky top-0 z-[20] h-12 flex items-center gap-3 px-4 sm:px-5" style={{ borderBottom: "1px solid var(--hairline)", background: "var(--bg-base)" }}>
+    <div className="sticky top-0 z-[20] h-12 flex items-center gap-2 sm:gap-3 px-4 sm:px-5" style={{ borderBottom: "1px solid var(--hairline)", background: "var(--bg-base)" }}>
       <Link href="/" className="lg:hidden shrink-0" aria-label="trustset home"><Mark size={20} /></Link>
-      <h1 className="text-[15px] font-semibold tracking-[-0.01em] truncate">{title}</h1>
-      {note && <span className="hidden sm:inline text-[12px] truncate" style={{ color: "var(--text-medium)" }}>{note}</span>}
+      <h1 className="text-[15px] font-semibold tracking-[-0.01em] whitespace-nowrap shrink-0 flex items-center">{title}</h1>
+      {/* the title never gives way: on a phone the note steps out of the bar
+          and the page draws it under the bar instead */}
+      {note && <span className="hidden sm:inline-flex items-center text-[12px] min-w-0 shrink-0" style={{ color: "var(--text-medium)" }}>{note}</span>}
       <span className="flex-1" />
       {open && (
         <motion.button type="button" initial="rest" animate="rest" whileHover={still ? undefined : "hover"} onClick={open} className="hidden md:inline-flex items-center gap-2 h-8 rounded-lg px-2.5 text-[12.5px] outline-none focus-visible:ring-2"

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { InfoTip } from "@/components/Tip";
 import Passkey from "./Passkey";
 
 export const metadata: Metadata = { title: "Nominate a passkey", robots: { index: false, follow: false } };
@@ -14,9 +15,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
         <h1 className="text-[32px] font-semibold tracking-[-0.03em] leading-[1.05]">
           Nominate a passkey<br /><span style={{ color: "var(--dim)" }}>that can pause this agent.</span>
         </h1>
-        <p className="text-[13.5px] mt-3" style={{ color: "var(--text-medium)" }}>
-          Do this on the phone you would actually reach for. The device keeps the private half, the switch
-          keeps the public one, and afterwards a fingerprint is enough to stop the agent from anywhere.
+        <p className="text-[13.5px] mt-3 flex items-center" style={{ color: "var(--text-medium)" }}>
+          Do this on the phone you would reach for.<InfoTip text="The device keeps the private half, the switch keeps the public one, and afterwards a fingerprint is enough to pause the agent from anywhere." />
         </p>
       </div>
       <Passkey initialId={id} />

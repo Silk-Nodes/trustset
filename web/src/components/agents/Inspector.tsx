@@ -1,4 +1,5 @@
 "use client";
+import Tip from "@/components/Tip";
 import { useState } from "react";
 import Link from "next/link";
 import { ethers } from "ethers";
@@ -86,15 +87,15 @@ export default function Inspector(p: InspectorProps) {
           l.key === "panic" ? (terminal ? <p className="text-xs" style={quiet}>Already {agent.status}.</p> : (
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap gap-2">
-                <button type="button" className="drawn-btn btn-orange" style={sm} disabled={!p.canSign || busy === "panic"} onClick={p.onSetStopKey}>{busy === "panic" ? "Waiting…" : p.hasStopKey ? "Replace the passkey" : "Add a passkey"}</button>
+                <Tip tap={false} focusable={false} text="Your phone asks for the passkey first, then your wallet signs to nominate it. It can pause this agent and nothing else."><button type="button" className="drawn-btn btn-orange" style={sm} disabled={!p.canSign || busy === "panic"} onClick={p.onSetStopKey}>{busy === "panic" ? "Waiting…" : p.hasStopKey ? "Replace the passkey" : "Add a passkey"}</button></Tip>
                 {p.hasStopKey && <button type="button" className="drawn-btn btn-gold" style={sm} disabled={!p.canSign || busy === "panic"} onClick={p.onClearStopKey}>Remove</button>}
               </div>
-              <span className="text-[11.5px]" style={quiet}>{p.hasStopKey ? <>open <span className="mono">/panic?id={agent.id.toString()}</span> on that phone · used {p.stopKeyUses}×</> : "your phone asks first, then your wallet signs"}</span>
+              {p.hasStopKey && <span className="text-[11.5px]" style={quiet}>open <span className="mono">/panic?id={agent.id.toString()}</span> on that phone · used {p.stopKeyUses}×</span>}
             </div>
           ))
           : l.key === "guardians" ? (agent.guardians.length
             ? <ul className="mono text-xs flex flex-col gap-1">{agent.guardians.map(g => <li key={g}>{a(g)}</li>)}<li style={quiet}>{agent.threshold} of {agent.guardians.length} to pause</li></ul>
-            : <p className="text-xs" style={quiet}>None. Guardians are named when an agent is registered.</p>)
+            : <p className="text-xs" style={quiet}><Tip text="Guardians are named when an agent is registered.">None.</Tip></p>)
           : l.key === "limits" ? (terminal ? <p className="text-xs" style={quiet}>Already {agent.status}.</p> : (
             <div className="flex flex-col gap-2.5">
               <label className="block">

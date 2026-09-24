@@ -1,6 +1,5 @@
 "use client";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import Tip from "./Tip";
 
 /* a word with its meaning attached.
  *
@@ -29,61 +28,8 @@ export const TERMS = {
 } as const;
 export type TermKey = keyof typeof TERMS;
 
-const GAP = 10, PAD = 16, WIDTH = 300;
-
+/* the glossary on top of Tip: the same card, the word named in its eyebrow,
+   the same sentence everywhere the word appears. */
 export default function Term({ k, children, tip }: { k?: TermKey; children: React.ReactNode; tip?: string }) {
-  const text = tip ?? (k ? TERMS[k] : "");
-  const id = useId();
-  const [open, setOpen] = useState(false);     // tapped or focused
-  const [hover, setHover] = useState(false);
-  const [pos, setPos] = useState<{ left: number; top: number; below: boolean; caretX: number } | null>(null);
-  const word = useRef<HTMLButtonElement>(null);
-  const card = useRef<HTMLSpanElement>(null);
-  const shown = open || hover;
-
-  useLayoutEffect(() => {
-    if (!shown || !word.current) return;
-    const place = () => {
-      const w = word.current!.getBoundingClientRect();
-      const h = card.current?.getBoundingClientRect().height ?? 0;
-      const width = Math.min(WIDTH, window.innerWidth - PAD * 2);
-      const cx = w.left + w.width / 2;
-      const left = Math.min(Math.max(PAD, cx - width / 2), window.innerWidth - PAD - width);
-      const below = w.top - h - GAP < PAD;
-      const top = below ? w.bottom + GAP : w.top - h - GAP;
-      setPos({ left, top, below, caretX: Math.min(Math.max(12, cx - left), width - 12) });
-    };
-    place();
-    window.addEventListener("scroll", place, true); window.addEventListener("resize", place);
-    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
-  }, [shown, text]);
-
-  useEffect(() => {
-    if (!open) return;
-    const off = (e: PointerEvent) => { if (!word.current?.contains(e.target as Node) && !card.current?.contains(e.target as Node)) setOpen(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("pointerdown", off); document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("pointerdown", off); document.removeEventListener("keydown", esc); };
-  }, [open]);
-
-  const width = typeof window === "undefined" ? WIDTH : Math.min(WIDTH, window.innerWidth - PAD * 2);
-  return (
-    <>
-      <button ref={word} type="button" aria-describedby={id} onClick={() => setOpen(v => !v)}
-        onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onFocus={() => setHover(true)} onBlur={() => setHover(false)}
-        className="cursor-help underline decoration-dotted underline-offset-[3px] decoration-[1.5px] rounded-sm outline-none focus-visible:ring-2"
-        style={{ textDecorationColor: "var(--orange)", font: "inherit", color: "inherit", background: "none", padding: 0, border: 0 }}>
-        {children}
-      </button>
-      {shown && typeof document !== "undefined" && createPortal(
-        <span ref={card} role="tooltip" id={id}
-          className="fixed z-[100] px-3.5 py-3 text-left font-normal normal-case tracking-normal"
-          style={{ left: pos?.left ?? -9999, top: pos?.top ?? -9999, width, background: "var(--surface)", color: "var(--text-dark)", border: "1px solid var(--hairline)", borderRadius: "var(--radius-sm)", boxShadow: "var(--glass-shadow)", visibility: pos ? "visible" : "hidden" }}>
-          {k && <span className="block eyebrow mb-1.5" style={{ color: "var(--orange-text)" }}>{k}</span>}
-          <span className="block text-[12.5px] leading-relaxed">{text}</span>
-          {/* the caret, on whichever edge faces the word */}
-          <span aria-hidden className="absolute w-[10px] h-[10px] rotate-45" style={{ left: (pos?.caretX ?? 0) - 5, [pos?.below ? "top" : "bottom"]: -6, background: "var(--surface)", borderLeft: pos?.below ? "1px solid var(--hairline)" : undefined, borderTop: pos?.below ? "1px solid var(--hairline)" : undefined, borderRight: pos?.below ? undefined : "1px solid var(--hairline)", borderBottom: pos?.below ? undefined : "1px solid var(--hairline)" }} />
-        </span>, document.body)}
-    </>
-  );
+  return <Tip text={tip ?? (k ? TERMS[k] : "")} label={k} underline>{children}</Tip>;
 }

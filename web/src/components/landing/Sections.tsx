@@ -32,8 +32,8 @@ export function Threats() {
             {THREATS.map(([t, a, b, n]) => (
               <tr key={t} style={{ borderTop: "1px solid var(--hairline)" }}>
                 <td className="py-3.5 pr-4 font-medium align-top">{t}</td>
-                <td className="py-3.5 pr-4 align-top" style={{ color: a === "No" ? "var(--orange-text)" : "var(--text-medium)" }}>{a || "—"}</td>
-                <td className="py-3.5 pr-4 align-top" style={{ color: b.startsWith("Nobody") ? "var(--sage-text)" : "var(--orange-text)" }}>{b || "—"}</td>
+                <td className="py-3.5 pr-4 align-top" style={{ color: a === "No" ? "var(--orange-text)" : "var(--text-medium)" }}>{a || "none"}</td>
+                <td className="py-3.5 pr-4 align-top" style={{ color: b.startsWith("Nobody") ? "var(--sage-text)" : "var(--orange-text)" }}>{b || "none"}</td>
                 <td className="py-3.5 align-top text-ink/70">{n}</td>
               </tr>
             ))}
