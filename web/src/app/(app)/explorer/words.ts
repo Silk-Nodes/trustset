@@ -43,8 +43,19 @@ export function say(e: Ev): { text: string; tone: Tone } {
     case "Labelled": return { text: `Named "${d.name}"`, tone: "plain" };
     case "TradeAccepted": return { text: "Traded on the venue", tone: "live" };
     case "Linked8004": return { text: `Claimed by ERC-8004 agent ${d.erc8004Id}`, tone: "plain" };
+    /* the agent's own staking, read from monad's staking precompile */
+    case "Staked": return { text: `Staked ${monOf(d.amount)} with validator ${d.validatorId}`, tone: "live" };
+    case "Unstaked": return { text: `Unstaked ${monOf(d.amount)} from validator ${d.validatorId}`, tone: "plain" };
+    case "Withdrew": return { text: `Withdrew ${monOf(d.amount)} from validator ${d.validatorId}`, tone: "plain" };
+    case "ClaimedRewards": return { text: `Claimed ${monOf(d.amount)} in rewards from validator ${d.validatorId}`, tone: "live" };
     default: return { text: e.kind, tone: "plain" };
   }
+}
+
+/* an amount in wei, as MON, without a float's tail */
+export function monOf(wei: unknown) {
+  try { const v = BigInt(String(wei)); const whole = v / 10n ** 18n, frac = (v % 10n ** 18n).toString().padStart(18, "0").slice(0, 6).replace(/0+$/, ""); return `${whole}${frac ? "." + frac : ""} MON`; }
+  catch { return "MON"; }
 }
 
 export const every = (s: number) =>

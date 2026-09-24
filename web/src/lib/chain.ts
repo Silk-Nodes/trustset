@@ -152,6 +152,18 @@ export type Signer = { address: string; signer: ethers.Signer; kind: "demo" | "w
 export type Conn = { cfg: Cfg; p: ethers.JsonRpcProvider; owner: ethers.Wallet | null; ks: ethers.Contract; venue: ethers.Contract; touch: ethers.Contract | null; labels: ethers.Contract | null };
 
 declare global { interface Window { ethereum?: ethers.Eip1193Provider & { on?: (e: string, f: (...a: unknown[]) => void) => void } } }
+/* an amount of MON for a line of text: three decimals, never a float's tail */
+export function monText(v: bigint) {
+  if (v === 0n) return "0 MON";
+  if (v < 10n ** 15n) return "<0.001 MON";
+  const whole = v / 10n ** 18n, frac = ((v % 10n ** 18n) / 10n ** 15n).toString().padStart(3, "0").replace(/0+$/, "");
+  return `${whole.toLocaleString("en-US")}${frac ? "." + frac : ""} MON`;
+}
+/* under this an agent cannot pay for much: a stake alone costs about 0.04 */
+export const LOW_GAS = 5n * 10n ** 16n;
+/* where testnet MON comes from. a public page, not ours. */
+export const FAUCET = { "0x279f": "https://faucet.monad.xyz/" } as Record<string, string>;
+
 export const hasWallet = () => typeof window !== "undefined" && !!window.ethereum;
 
 const MONAD_TESTNET = {

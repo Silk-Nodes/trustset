@@ -17,7 +17,7 @@ const HOURS = 24;
 
 export type Tone = "live" | "quiet" | "switch" | "plain";
 export function toneOf(kind: string): Tone {
-  if (kind === "TradeAccepted") return "live";
+  if (kind === "TradeAccepted" || kind === "Staked" || kind === "ClaimedRewards") return "live";
   if (kind === "Beat") return "quiet";
   if (kind === "StatusChanged" || kind === "GuardianVoted") return "switch";
   return "plain";

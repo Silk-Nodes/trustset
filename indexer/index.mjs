@@ -56,6 +56,21 @@ const ERC8004 = ["event MetadataSet(uint256 indexed agentId, string indexed inde
 const ERC8004_REGISTRY = process.env.ERC8004_REGISTRY || "0x8004A818BFB912233c491871b3d84c89A494BD9e";
 const TRUSTSET_KEY = ethers.id("trustset");
 const STATUS = ["none", "active", "paused", "revoked", "rotated"];
+/* monad's staking precompile. an agent staking MON is not a trustset event,
+   but it is an agent acting, and an agent's history should show what it did.
+   only logs whose delegator is a registered agent key are read, matched in the
+   filter itself, so the rest of the chain's staking costs nothing. */
+const STAKING = "0x0000000000000000000000000000000000001000";
+const STAKING_EVENTS = [
+  "event Delegate(uint64 indexed validatorId, address indexed delegator, uint256 amount, uint64 activationEpoch)",
+  "event Undelegate(uint64 indexed validatorId, address indexed delegator, uint8 withdrawId, uint256 amount, uint64 activationEpoch)",
+  "event Withdraw(uint64 indexed validatorId, address indexed delegator, uint8 withdrawId, uint256 amount, uint64 withdrawEpoch)",
+  "event ClaimRewards(uint64 indexed validatorId, address indexed delegator, uint256 amount, uint64 epoch)",
+];
+const STAKE_KIND = { Delegate: "Staked", Undelegate: "Unstaked", Withdraw: "Withdrew", ClaimRewards: "ClaimedRewards" };
+/* a one-off: read only the staking logs from this block to the cursor, for
+   stakes made before the indexer knew to look, then exit */
+const STAKING_FROM = (() => { const i = process.argv.indexOf("--staking-from"); return i >= 0 ? Number(process.argv[i + 1]) : 0; })();
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -88,11 +103,22 @@ async function main() {
   const labels = new ethers.Interface(LABELS);
   const venue = new ethers.Interface(VENUE);
   const erc8004 = new ethers.Interface(ERC8004);
+  const staking = new ethers.Interface(STAKING_EVENTS);
   const db = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 4 });
   await db.query(await readFile(join(HERE, "schema.sql"), "utf8"));
 
   const from = Number(process.env.START_BLOCK || d.startBlock || 0) || (await firstBlock(db, d));
   let cur = await cursor(db, from);
+
+  if (STAKING_FROM) {
+    for (let b = STAKING_FROM; b < cur; b += WINDOW) {
+      const to = Math.min(b + WINDOW - 1, cur - 1);
+      const rows = await stakes(p, staking, await agentKeys(db), b, to);
+      if (rows.length) { await write(db, rows); log(`staking backfill ${b}-${to}: ${rows.length} events`); }
+    }
+    log(`staking backfill done up to block ${cur - 1}`);
+    await db.end(); return;
+  }
   log(`indexing ${d.killSwitch} from block ${cur}`);
 
   for (;;) {
@@ -100,7 +126,7 @@ async function main() {
     const target = Math.max(0, head - BEHIND);
     while (cur <= target) {
       const to = Math.min(cur + WINDOW - 1, target);
-      const rows = await pull(p, d, ks, labels, venue, erc8004, cur, to);
+      const rows = [...await pull(p, d, ks, labels, venue, erc8004, cur, to), ...await stakes(p, staking, await agentKeys(db), cur, to)];
       if (rows.length) await write(db, rows);
       await db.query("INSERT INTO cursor (name, block) VALUES ('main', $1) ON CONFLICT (name) DO UPDATE SET block = $1", [to + 1]);
       if (rows.length) log(`blocks ${cur}-${to}: ${rows.length} events`);
@@ -145,6 +171,34 @@ async function pull(p, d, ks, labels, venue, erc8004, from, to) {
   for (const l of c) out.push(decode(venue, l, stamps.get(l.blockNumber)));
   for (const l of e) out.push(link8004(erc8004, l, stamps.get(l.blockNumber)));
   return out.filter(Boolean);
+}
+
+/* every registered agent key, lower case, to its id */
+async function agentKeys(db) {
+  const r = await db.query("SELECT id, agent_key FROM agents");
+  return new Map(r.rows.map(x => [String(x.agent_key).toLowerCase(), Number(x.id)]));
+}
+
+/* the staking precompile's logs for agent keys only, one row each, filed
+   under the agent whose key it was */
+async function stakes(p, iface, keys, from, to) {
+  if (!keys.size) return [];
+  const topics = [STAKING_EVENTS.map(e => iface.getEvent(e.split("(")[0].replace("event ", "")).topicHash), null,
+    [...keys.keys()].map(k => ethers.zeroPadValue(k, 32))];
+  const logs = await retry(() => p.getLogs({ address: STAKING, topics, fromBlock: from, toBlock: to }));
+  const out = [];
+  for (const l of logs) {
+    let ev; try { ev = iface.parseLog({ topics: [...l.topics], data: l.data }); } catch { continue; }
+    if (!ev) continue;
+    const who = String(ev.args[1]).toLowerCase();
+    const agentId = keys.get(who); if (agentId == null) continue;
+    const ts = (await retry(() => p.getBlock(l.blockNumber)))?.timestamp ?? 0;
+    const amount = ev.name === "Undelegate" || ev.name === "Withdraw" ? ev.args[3] : ev.args[2];
+    out.push({ block: l.blockNumber, tx: l.transactionHash, index: l.index, at: new Date(ts * 1000).toISOString(),
+      kind: STAKE_KIND[ev.name], agentId, actor: ev.args[1],
+      data: { validatorId: Number(ev.args[0]), amount: amount.toString() } });
+  }
+  return out;
 }
 
 /* an 8004 owner saying where their switch is. the value is
