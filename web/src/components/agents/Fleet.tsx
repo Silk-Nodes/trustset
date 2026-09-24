@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type Agent, short } from "@/lib/chain";
+import { type Agent, LOW_GAS, monText, short } from "@/lib/chain";
 import { type LayerKey, type PulseEvent, span, switchState } from "@/lib/layers";
 import { type Bucket, type Density, type Filter, type Group, type Row, type Sort, type StateKey, type View, BUILT_IN, GROUP_WORD, NO_FILTER, STATE_WORD, apply, counts, densityFor, fromParams, grouped, isFiltered, loadDensity, loadViews, saveDensity, saveViews, toParams } from "@/lib/fleet";
 import LayerIcon from "./LayerIcon";
@@ -41,6 +41,8 @@ export type FleetProps = {
   agents: Agent[]; rows: Row[]; now: number;
   /* the sentence each owner wrote, by agent id, shown where the row had room */
   purposes?: Record<string, string>;
+  /* each agent's own wallet, by agent id; absent while it is being read */
+  balances?: Record<string, bigint>;
   /* the agent open in the panel beside the list, marked in its row */
   selected?: string;
   /* the list shares the width with that panel: the columns fold as they do on
@@ -297,7 +299,12 @@ export default function Fleet(p: FleetProps) {
             label={sw === "on" ? `pause ${r.name}` : `bring ${r.name} back`} />
           <div className="min-w-0 flex-1 flex flex-col gap-1">
             {stateWord(r)}
-            <span className="mono text-[10.5px] tabular whitespace-nowrap" style={{ color: "var(--text-medium)" }}>{r.last === null ? "index away" : `seen ${span(r.last)} ago`}</span>
+            {/* the balance first: if the line ever runs out of room it is the
+                tail of "seen" that is cut, never the money */}
+            <span className="mono text-[10.5px] tabular whitespace-nowrap truncate" style={{ color: "var(--text-medium)" }}>
+              {p.balances?.[r.id] !== undefined && !stopped && <><span style={{ color: p.balances[r.id] < LOW_GAS ? "var(--orange-text)" : undefined }}>{monText(p.balances[r.id])}</span> · </>}
+              {r.last === null ? "index away" : `seen ${span(r.last)} ago`}
+            </span>
           </div>
         </div>
         {/* the module's foot: the agent's day at rest, and under the pointer

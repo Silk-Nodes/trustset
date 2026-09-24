@@ -6,6 +6,7 @@ import Tip, { InfoTip } from "@/components/Tip";
 import Runbook from "@/components/agents/Runbook";
 import Switch from "@/components/agents/Switch";
 import { IconCopy } from "@/components/app/icons";
+import CopyButton from "@/components/app/CopyButton";
 import type { Agent as ChainAgent, Status } from "@/lib/chain";
 import { type PulseEvent, switchState } from "@/lib/layers";
 import { connect, type Conn } from "@/lib/chain";
@@ -193,6 +194,7 @@ const GROUPS: [string, string, string[]][] = [
   ["stopped", "Switch", ["StatusChanged", "GuardianVoted", "AgentRegistered"]],
   ["limits", "Limits", ["LimitsSet", "Beat"]],
   ["work", "Work", ["TradeAccepted"]],
+  ["staking", "Staking", ["Staked", "Unstaked", "Withdrew", "ClaimedRewards"]],
   ["keys", "Keys", ["RevocationKeyChangeProposed", "RevocationKeyChanged", "Rotated"]],
   ["labels", "Identity", ["Labelled", "Linked8004"]],
 ];
@@ -314,8 +316,9 @@ function Field({ k, v, note, tip, explorer, addr }: { k: string; v: string; note
   return (
     <div>
       <dt className="text-[11px] mono uppercase tracking-[0.12em] flex items-center" style={{ color: "var(--text-medium)" }}>{k}{tip && <InfoTip text={tip} />}</dt>
-      <dd className={`${addr ? "mono text-[12.5px] break-all" : "text-sm"} mt-0.5`}>
-        {addr && explorer ? <a href={`${explorer}/address/${v}`} target="_blank" rel="noreferrer" className="hover:underline">{v}</a> : v}
+      <dd className={`${addr ? "mono text-[12.5px] break-all flex items-start gap-1" : "text-sm"} mt-0.5`}>
+        <span className="min-w-0">{addr && explorer ? <a href={`${explorer}/address/${v}`} target="_blank" rel="noreferrer" className="hover:underline">{v}</a> : v}</span>
+        {addr && <span className="-mt-1"><CopyButton text={v} label={`Copy the ${k.toLowerCase()}`} size={24} /></span>}
       </dd>
       {note && <dd className="text-[12px] mt-0.5" style={{ color: "var(--text-medium)" }}>{note}</dd>}
     </div>

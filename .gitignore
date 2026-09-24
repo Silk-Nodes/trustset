@@ -18,3 +18,7 @@ scripts/node_modules/
 sdk/node_modules/
 sdk/package-lock.json
 web/node_modules/
+
+# any env file holds secrets; only the examples are committed
+*.env
+!*.env.example

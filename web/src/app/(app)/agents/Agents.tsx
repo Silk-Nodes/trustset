@@ -15,7 +15,7 @@ import TxLink, { addrUrl } from "@/components/agents/TxLink";
 import Term from "@/components/Term";
 import Tip, { InfoTip } from "@/components/Tip";
 import { adoptParked, fallbackName, getLabel, parkLabel, setLabel, type Label } from "@/lib/labels";
-import { READ, agentIdForKey, cachedAgents, coldKeyDelay, consentMessage, explain, settled, labelOnChain, loadAgents, loadGuarded, loadHistory, ownerTx, registerOnChain, short, statusWord, trusted, type Agent, type Conn, type Guarded } from "@/lib/chain";
+import { FAUCET, READ, agentIdForKey, cachedAgents, coldKeyDelay, consentMessage, explain, settled, labelOnChain, loadAgents, loadGuarded, loadHistory, ownerTx, registerOnChain, short, statusWord, trusted, type Agent, type Conn, type Guarded } from "@/lib/chain";
 import { type Extra, type PulseEvent, layersOf } from "@/lib/layers";
 import { type Row, fakeAgents, groupFromPurpose, loadTags, purposeWithGroup, rowsOf, saveTags } from "@/lib/fleet";
 import Runbook from "@/components/agents/Runbook";
@@ -305,6 +305,10 @@ export default function Agents() {
      latest event, its last day, and its ERC-8004 link. see /api/fleet. the
      human count and the refund rows are one read each and stay here. */
   const [extras, setExtras] = useState<Record<string, Extra>>({});
+  /* each agent's own wallet, the MON it pays gas with. read four at a time so
+     the public rpc's rate limit is not what answers, and again every minute.
+     the sample's keys are made up, so the sample carries its own numbers. */
+  const [balances, setBalances] = useState<Record<string, bigint>>({});
   const [pulses, setPulses] = useState<Record<string, { events: PulseEvent[]; indexed: boolean | null }>>({});
   const idsKey = all.map(a => a.id.toString()).join(",");
   useEffect(() => {
@@ -372,6 +376,22 @@ export default function Agents() {
     return g;
   }, [sampleOn, all, tags]);
   const rows = useMemo(() => rowsOf(all, names, extras, pulses, groups, now), [all, names, extras, pulses, groups, now]);
+  const keysKey = all.map(a => a.key).join(",");
+  useEffect(() => {
+    if (!conn) return;
+    if (sampleOn) { setBalances(Object.fromEntries(all.map((a, i) => [a.id.toString(), [4955n, 1200n, 30n, 820n, 2410n, 15n, 640n, 0n][i % 8] * 10n ** 15n]))); return; }
+    let alive = true;
+    const pull = async () => {
+      const out: Record<string, bigint> = {};
+      for (let i = 0; i < all.length; i += 4) {
+        await Promise.all(all.slice(i, i + 4).map(async a => { try { out[a.id.toString()] = await conn.p.getBalance(a.key); } catch { /* left unknown, not zero */ } }));
+      }
+      if (alive) setBalances(out);
+    };
+    pull(); const t = setInterval(pull, 60_000);
+    return () => { alive = false; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conn, keysKey, sampleOn]);
   /* ?open=limits lands on the agent with that settings row open */
   const [openRow, setOpenRow] = useState<LayerKey | undefined>(undefined);
   useEffect(() => { try { const o = new URLSearchParams(location.search).get("open"); setOpenRow(o && ["panic", "guardians", "limits", "identity", "human", "refunds"].includes(o) ? o as LayerKey : undefined); } catch { /* no window */ } }, [routeId]);
@@ -486,6 +506,7 @@ export default function Agents() {
      for the wallet first and opens the dialog once there is one. */
   const PANEL = conn && cur ? (
           <AgentPage panel agent={cur} name={labelFor(cur).name} now={now} explorer={explorer}
+            balance={balances[cur.id.toString()]} faucet={sampleOn ? undefined : FAUCET[conn.cfg.chainIdHex]}
             events={pulses[cur.id.toString()]?.events ?? []} indexed={pulses[cur.id.toString()]?.indexed ?? null} extra={extras[cur.id.toString()] ?? {}}
             busy={{ pause: busy.has("p" + cur.id.toString()), stop: busy.has(cur.id.toString()) }}
             onToggle={() => pause(cur)} onStop={() => stop(cur)}
@@ -562,7 +583,7 @@ export default function Agents() {
         {conn && (signedIn || sampleOn) && !guardingRoute && all.length > 0 && (routeId === null || cur) && (
           <div className="flex-1 min-h-0 flex gap-4">
             <div className={`min-w-0 min-h-0 flex-col flex-1 ${cur ? "hidden xl:flex" : "flex"}`}>
-              <Fleet agents={all} rows={rows} purposes={purposes} now={now} pulses={pulses} busy={busy} canSign={canSign} selected={cur?.id.toString()} narrow={!!cur}
+              <Fleet agents={all} rows={rows} purposes={purposes} balances={balances} now={now} pulses={pulses} busy={busy} canSign={canSign} selected={cur?.id.toString()} narrow={!!cur}
                 onOpen={goAgent} onToggle={a => pause(a)} onStop={a => stop(a)} onBulk={bulk} />
             </div>
             {cur && (

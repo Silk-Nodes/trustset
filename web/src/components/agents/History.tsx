@@ -1,4 +1,5 @@
 "use client";
+import { monOf } from "@/app/(app)/explorer/words";
 import { useMemo, useState } from "react";
 import { type Agent, short } from "@/lib/chain";
 import type { PulseEvent } from "@/lib/layers";
@@ -42,6 +43,10 @@ export default function History({ agent, events, indexed, now, explorer, total, 
   const t = (ts: number) => new Date(ts * 1000).toISOString().slice(11, 16);
   const line = (e: PulseEvent) => {
     if (e.kind === "StatusChanged") { const s = String(e.data?.status ?? ""); return s === "paused" ? "paused" : s === "active" ? "brought back" : s === "revoked" ? "stopped for good" : s === "rotated" ? "rotated" : "status changed"; }
+    if (e.kind === "Staked" || e.kind === "Unstaked" || e.kind === "Withdrew" || e.kind === "ClaimedRewards") {
+      const verb = e.kind === "Staked" ? "staked" : e.kind === "Unstaked" ? "unstaked" : e.kind === "Withdrew" ? "withdrew" : "claimed";
+      return `${verb} ${monOf(e.data?.amount)} · validator ${e.data?.validatorId}`;
+    }
     return VERB[e.kind] ?? e.kind;
   };
   const tab = (k: Kind, w: string) => <button key={k} type="button" onClick={() => { setKind(k); setShown(PAGE); }} aria-pressed={kind === k} className="rounded-full px-2.5 h-6 text-[11.5px] font-medium outline-none focus-visible:ring-2" style={{ background: kind === k ? "color-mix(in srgb, var(--text-dark) 8%, transparent)" : "transparent", color: kind === k ? "var(--text-dark)" : "var(--text-medium)" }}>{w}</button>;
