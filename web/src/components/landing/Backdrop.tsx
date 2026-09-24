@@ -17,9 +17,12 @@ const G3 = "linear-gradient(to top, rgb(0, 0, 31) 0%, rgba(0, 0, 31, 0.85) 8.1%,
 /* intensity follows scroll: full behind the hero, dimmed to a deep ground while
    the story text is on screen, back up for the proof. the text stays legible
    without a scrim and the atmosphere never leaves. */
-function useScrollDim(ref: React.RefObject<HTMLDivElement | null>, light: boolean) {
+function useScrollDim(ref: React.RefObject<HTMLDivElement | null>, light: boolean, level?: number) {
   useEffect(() => {
     const el = ref.current; if (!el) return;
+    /* a fixed level: the app's window never scrolls, its work area does, and
+       a working screen wants a steady ground rather than a changing one */
+    if (level !== undefined) { el.style.opacity = level.toFixed(3); return; }
     const lo = light ? 0.34 : 0.26, hi = light ? 0.62 : 0.8;
     let raf = 0;
     const tick = () => {
@@ -33,7 +36,7 @@ function useScrollDim(ref: React.RefObject<HTMLDivElement | null>, light: boolea
     const on = () => { if (!raf) raf = requestAnimationFrame(tick); };
     tick(); window.addEventListener("scroll", on, { passive: true }); window.addEventListener("resize", on);
     return () => { window.removeEventListener("scroll", on); window.removeEventListener("resize", on); if (raf) cancelAnimationFrame(raf); };
-  }, [ref, light]);
+  }, [ref, light, level]);
 }
 
 /* the aurora blooms out of the bottom right and falls away before it reaches
@@ -43,9 +46,9 @@ function useScrollDim(ref: React.RefObject<HTMLDivElement | null>, light: boolea
    with the words. */
 const MASK = "radial-gradient(120% 110% at 88% 92%, #000 0%, rgba(0,0,0,0.92) 34%, rgba(0,0,0,0.5) 62%, rgba(0,0,0,0) 86%)";
 
-export default function Backdrop({ light }: { light: boolean }) {
+export default function Backdrop({ light, level }: { light: boolean; level?: number }) {
   const ref = useRef<HTMLDivElement>(null);
-  useScrollDim(ref, light);
+  useScrollDim(ref, light, level);
   const layer = (mode: string, blur: string, extra?: React.CSSProperties): React.CSSProperties => ({
     position: "absolute", inset: 0, background: G, mixBlendMode: (light ? "multiply" : mode) as React.CSSProperties["mixBlendMode"], filter: `blur(${blur})`, pointerEvents: "none",
     maskImage: MASK, WebkitMaskImage: MASK, ...extra,

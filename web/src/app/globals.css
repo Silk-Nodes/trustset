@@ -157,6 +157,11 @@ h1, h2, h3, h4 { font-family: var(--font-main); font-weight: 600; letter-spacing
  * product: the agent list and the story visuals. a sheet is a quieter opaque
  * container for supporting material. a rule is no container at all, just lines
  * drawn on the page ground, for reference material. */
+/* the app's bars: a frosted layer over the aurora, so what scrolls under
+   them and the light behind them both stay soft, and their text keeps a
+   near-solid ground to be read against */
+.app-material { background: color-mix(in srgb, var(--bg-base) 84%, transparent); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%); }
+@media (prefers-reduced-transparency: reduce) { .app-material { background: var(--bg-base); backdrop-filter: none; -webkit-backdrop-filter: none; } }
 /* the recess the breakers sit in. the grain is an svg noise tile at a few
    percent, enough to read as a material and not as a pattern. */
 .enclosure { position: relative; background: var(--enclosure); box-shadow: var(--enclosure-shadow); border: 1px solid var(--hairline); border-radius: var(--radius-md); isolation: isolate; }
