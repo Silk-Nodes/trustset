@@ -113,7 +113,7 @@ export const GROUPS: Group[] = [
         a: "We deploy a new contract beside the old one. Existing agents keep working in the old one and stay stoppable; new agents register in the new one; apps move when they choose by changing one address. The cost is honest: agents do not carry over, and anyone who linked an ERC-8004 identity republishes their pointer. That is the price of nobody being able to change the rules under you.",
       },
       {
-        id: "live-agent-key",
+        id: "live-agent-signer",
         q: "Who holds the live agent's key?",
         a: "Not our server alone. The agent on /demo signs every trade through a Dynamic 2-of-2 MPC server wallet: the key is split between Dynamic and us, and neither half can sign by itself. Our half is backed up to Dynamic encrypted under a password only our server knows. It still asks the switch before every action, so it stops the moment its owner, which it never touches, says so.",
       },

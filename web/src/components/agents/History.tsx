@@ -58,7 +58,7 @@ export default function History({ agent, events, indexed, now, explorer, total, 
       <div className="flex items-center gap-1 shrink-0 pb-2" style={{ borderBottom: "1px solid var(--hairline)" }}>
         <span className="eyebrow mr-2">history</span>
         {tab("all", "all")}{tab("status", "status")}{tab("trades", "trades")}{tab("beats", "heartbeats")}
-        <span className="ml-auto mono text-[11px] tabular" style={quiet}>{kind === "all" && total !== undefined ? total : list.length}{indexed === false ? " · index away" : ""}</span>
+        <span className="ml-auto mono text-[11px] tabular" style={quiet}>{kind === "all" && total !== undefined ? total - (events.length - all.length) : list.length}{indexed === false ? " · index away" : ""}</span>
       </div>
       <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto relative">
         {list.length === 0 && <p className="text-[12.5px] py-6 text-center" style={quiet}>{indexed === null ? "reading…" : "nothing yet"}</p>}

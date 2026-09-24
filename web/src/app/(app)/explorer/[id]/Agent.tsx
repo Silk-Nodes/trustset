@@ -195,7 +195,7 @@ const GROUPS: [string, string, string[]][] = [
   ["limits", "Limits", ["LimitsSet", "Beat"]],
   ["work", "Work", ["TradeAccepted"]],
   ["staking", "Staking", ["Staked", "Unstaked", "Withdrew", "ClaimedRewards"]],
-  ["keys", "Keys", ["RevocationKeyChangeProposed", "RevocationKeyChanged", "Rotated"]],
+  ["keys", "Ownership", ["RevocationKeyChangeProposed", "RevocationKeyChanged", "Rotated"]],
   ["labels", "Identity", ["Labelled", "Linked8004"]],
 ];
 const FIRST = 12;

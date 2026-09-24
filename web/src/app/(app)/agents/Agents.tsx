@@ -507,6 +507,7 @@ export default function Agents() {
   const PANEL = conn && cur ? (
           <AgentPage panel agent={cur} name={labelFor(cur).name} now={now} explorer={explorer}
             balance={balances[cur.id.toString()]} faucet={sampleOn ? undefined : FAUCET[conn.cfg.chainIdHex]}
+            recordHref={sampleOn || isSample(cur.id) ? undefined : `/explorer/${cur.id}`}
             events={pulses[cur.id.toString()]?.events ?? []} indexed={pulses[cur.id.toString()]?.indexed ?? null} extra={extras[cur.id.toString()] ?? {}}
             busy={{ pause: busy.has("p" + cur.id.toString()), stop: busy.has(cur.id.toString()) }}
             onToggle={() => pause(cur)} onStop={() => stop(cur)}

@@ -26,7 +26,7 @@ import Lookup from "@/components/explorer/Lookup";
 type Stats = { agents: string; active: string; paused: string; stopped: string; limited: string; events: string; head: string; cursor: string };
 const FILTERS = [
   ["", "Everything"], ["registered", "Registered"], ["stopped", "Paused and stopped"],
-  ["limits", "Limits"], ["work", "Work"], ["guardians", "Guardians"], ["keys", "Keys"], ["labels", "Names"],
+  ["limits", "Limits"], ["work", "Work"], ["guardians", "Guardians"], ["keys", "Ownership"], ["labels", "Names"],
 ] as const;
 
 /* fifteen: enough to read a morning's activity at a glance, few enough that
