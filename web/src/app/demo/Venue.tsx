@@ -494,7 +494,7 @@ function AgentCard({ s, off, refusedAt, reduced, resetting, compact = false }: {
         </div>
         <div>
           <div className="text-[10.5px] mono uppercase tracking-[0.12em]" style={{ color: "var(--text-medium)" }}>
-            <span className="sm:hidden">Read at block</span><span className="hidden sm:inline">Checked the switch at</span>
+            Checked at block
           </div>
           <div className="mono tabular text-[26px] leading-none mt-1">{s ? s.readAt : "…"}</div>
         </div>
