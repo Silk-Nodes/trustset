@@ -112,6 +112,8 @@ export default function Fleet(p: FleetProps) {
 
   /* selection and the cursor. j and k walk, enter opens, x selects, / finds. */
   const [sel, setSel] = useState<Set<string>>(new Set());
+  /* the agent whose breaker is being held, so its words can say so */
+  const [holdingId, setHoldingId] = useState<string | null>(null);
   const [cursor, setCursor] = useState(0);
   const search = useRef<HTMLInputElement>(null);
   const flat = shown;
@@ -240,21 +242,27 @@ export default function Fleet(p: FleetProps) {
   );
   const expires = (r: Row) => r.expiresIn === null ? <span style={quiet}>none</span> : r.expiresIn <= 0 ? <span style={{ color: "var(--orange-text)" }}>ran out</span> : <span style={r.expiresIn <= DAY ? { color: "var(--orange-text)" } : undefined}>{span(r.expiresIn)}</span>;
   const last = (r: Row) => r.last === null ? <span data-tip="the index is not reachable" style={faint}>index away</span> : <span style={quiet}>{span(r.last)}</span>;
-  /* the quick actions at a row's end: pause or bring back in one press,
-     stop with a held one. shown on hover and focus so the table stays quiet. */
+  /* the quick action at a row's end: the row's own breaker, a tap to pause
+     or bring back and a hold to stop for good. shown on hover and focus so
+     the table stays quiet. */
   /* the column shows the agent's day at rest and its controls under the
      pointer. it used to sit empty until hovered, which was 190px of every row
      spent on nothing. */
   const quick = (r: Row) => {
     const ended = r.state === "stopped";
-    const paused = r.a.status === "paused";
+    const ev = p.pulses[r.id]?.events ?? [];
+    const sw = switchState(r.a, ev);
     return (
       <div className="relative">
-      <div className="group-hover:opacity-0 group-focus-within:opacity-0 transition-opacity" aria-hidden><TrustLine agent={r.a} now={now} events={p.pulses[r.id]?.events ?? []} height={8} /></div>
-      <div className="absolute inset-y-0 left-0 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity whitespace-nowrap" style={{ top: "50%", transform: "translateY(-50%)", height: 28 }} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
-        {!ended && <button type="button" className="drawn-btn btn-gold" style={btn} disabled={!p.canSign || p.busy.has("p" + r.id)} onClick={() => p.onToggle(r.a)}>{p.busy.has("p" + r.id) ? "…" : paused ? "bring back" : "pause"}</button>}
-        {!ended && <Hold small disabled={!p.canSign || p.busy.has(r.id)} onHeld={() => p.onStop(r.a)} />}
-      </div>
+      <div className={`${ended ? "" : "group-hover:opacity-0 group-focus-within:opacity-0"} transition-opacity`} aria-hidden={!ended}><TrustLine agent={r.a} now={now} events={ev} height={8} /></div>
+      {!ended && (
+        <div className="absolute left-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity whitespace-nowrap" style={{ top: "50%", transform: "translateY(-50%)" }} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+          <Switch size="sm" caption="none" state={sw} live={r.state === "trusted"} busy={p.busy.has("p" + r.id)} lockBusy={p.busy.has(r.id)} disabled={!p.canSign}
+            onToggle={() => p.onToggle(r.a)} onLockout={() => p.onStop(r.a)} onHolding={v => setHoldingId(v ? r.id : null)}
+            label={sw === "on" ? `pause ${r.name}` : `bring ${r.name} back`} />
+          <span className="mono text-[10.5px]" style={{ color: holdingId === r.id ? "var(--orange-text)" : "var(--text-medium)" }}>{holdingId === r.id ? "keep holding…" : "hold to stop"}</span>
+        </div>
+      )}
       </div>
     );
   };
@@ -284,19 +292,25 @@ export default function Fleet(p: FleetProps) {
           <Lamp state={r.state} color={lit} />
         </div>
         <div className="relative flex items-center gap-3">
-          <Switch state={sw} live={r.state === "trusted"} size="md" caption="none" busy={p.busy.has("p" + r.id)} disabled={!p.canSign}
-            onToggle={() => p.onToggle(r.a)} label={sw === "on" ? `pause ${r.name}` : `bring ${r.name} back`} />
+          <Switch state={sw} live={r.state === "trusted"} size="md" caption="none" busy={p.busy.has("p" + r.id)} lockBusy={p.busy.has(r.id)} disabled={!p.canSign}
+            onToggle={() => p.onToggle(r.a)} onLockout={stopped ? undefined : () => p.onStop(r.a)} onHolding={v => setHoldingId(v ? r.id : null)}
+            label={sw === "on" ? `pause ${r.name}` : `bring ${r.name} back`} />
           <div className="min-w-0 flex-1 flex flex-col gap-1">
             {stateWord(r)}
             <span className="mono text-[10.5px] tabular whitespace-nowrap" style={{ color: "var(--text-medium)" }}>{r.last === null ? "index away" : `seen ${span(r.last)} ago`}</span>
           </div>
         </div>
-        {/* the module's foot: the agent's day at rest, the held stop under the
-            pointer, in the same 26px either way. the stop used to float over
-            the right end of the switch row and covered "seen 3h 1m ago". */}
-        <div className="relative h-[26px] flex items-center">
-          <div className={`w-full ${stopped ? "" : "group-hover:opacity-0 group-focus-within:opacity-0"} transition-opacity duration-150`}><TrustLine agent={r.a} now={now} events={ev} height={6} /></div>
-          {!stopped && <div className="absolute inset-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150" onClick={e => e.stopPropagation()}><Hold small wide disabled={!p.canSign || p.busy.has(r.id)} onHeld={() => p.onStop(r.a)} /></div>}
+        {/* the module's foot: the agent's day at rest, and under the pointer
+            the one thing the breaker cannot say by looking at it, that
+            holding it stops the agent for good */}
+        <div className="relative h-[18px] flex items-center">
+          <div className={`w-full ${stopped ? "" : holdingId === r.id ? "opacity-0" : "group-hover:opacity-0 group-focus-within:opacity-0"} transition-opacity duration-150`}><TrustLine agent={r.a} now={now} events={ev} height={6} /></div>
+          {!stopped && (
+            <span className={`absolute inset-0 flex items-center mono text-[10.5px] ${holdingId === r.id ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"} transition-opacity duration-150`}
+              style={{ color: holdingId === r.id || p.busy.has(r.id) ? "var(--orange-text)" : "var(--text-medium)" }}>
+              {p.busy.has(r.id) ? "stopping…" : holdingId === r.id ? "keep holding…" : `tap to ${sw === "on" ? "pause" : "bring back"} · hold to stop`}
+            </span>
+          )}
         </div>
       </div>
     );
@@ -332,14 +346,14 @@ export default function Fleet(p: FleetProps) {
         </div>
         {!cards && !phone && <div role="gridcell" className={md}>{quick(r)}</div>}
         {cards
-          ? <div role="gridcell" className={md} onClick={e => e.stopPropagation()}><Switch state={sw} live={r.state === "trusted"} busy={p.busy.has("p" + r.id)} disabled={!p.canSign} onToggle={() => p.onToggle(r.a)} label={sw === "on" ? `pause ${r.name}` : `bring ${r.name} back`} /></div>
+          ? <div role="gridcell" className={md} onClick={e => e.stopPropagation()}><Switch state={sw} live={r.state === "trusted"} busy={p.busy.has("p" + r.id)} lockBusy={p.busy.has(r.id)} disabled={!p.canSign} onToggle={() => p.onToggle(r.a)} onLockout={r.state === "stopped" ? undefined : () => p.onStop(r.a)} label={sw === "on" ? `pause ${r.name}` : `bring ${r.name} back`} /></div>
           : <div role="gridcell" className={md}>{stateWord(r)}</div>}
         {cards
           ? <div role="gridcell" className={`${md} min-w-0`}><Pulse events={ev} now={now} height={22} /></div>
           : <div role="gridcell" className={`${md} mono text-[11.5px] tabular`}>{expires(r)}</div>}
         <div role="gridcell" className={`${md} mono text-[11.5px] tabular`}>{last(r)}</div>
         <div role="gridcell">{phone ? stateWord(r) : dots(r)}</div>
-        {cards && !phone && <div role="gridcell" className={md}><div className="flex justify-end opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>{r.state !== "stopped" && <Hold small disabled={!p.canSign || p.busy.has(r.id)} onHeld={() => p.onStop(r.a)} />}</div></div>}
+        {cards && !phone && <div role="gridcell" className={md} />}
       </div>
     );
   };

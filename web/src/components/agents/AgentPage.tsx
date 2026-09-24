@@ -5,7 +5,6 @@ import type { Extra, PulseEvent } from "@/lib/layers";
 import Module from "./Module";
 import History from "./History";
 import Inspector, { type InspectorProps } from "./Inspector";
-import TrustLine from "./TrustLine";
 import { short } from "@/lib/chain";
 
 /* one agent. the canvas in the middle, its settings at the right.
@@ -64,10 +63,6 @@ export default function AgentPage(p: AgentPageProps) {
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-5">
         <Module bare slim headless agent={p.agent} name={p.name} now={p.now} events={p.events} indexed={p.indexed} extra={p.extra} explorer={p.explorer} busy={p.busy} onToggle={p.onToggle} onStop={p.onStop} />
-        <div>
-          <div className="eyebrow mb-1.5">last 24 hours</div>
-          <TrustLine agent={p.agent} now={p.now} events={p.events} height={12} />
-        </div>
         <div>{inspector}</div>
         <History agent={p.agent} events={p.history.events} total={p.history.total} more={p.history.more} loading={p.history.loading} indexed={p.indexed} now={p.now} explorer={p.explorer} />
       </div>
