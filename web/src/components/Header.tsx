@@ -90,7 +90,7 @@ function SiteHeader() {
      too. a centred 1152px header over a full width table put the logo 124px
      inside the first column, which reads as two different pages stacked. one
      list, so adding a wide page cannot leave its header behind. */
-  const wide = inConsole || pathname.startsWith("/explorer") || pathname.startsWith("/demo");
+  const wide = inConsole || pathname.startsWith("/explorer");
 
   /* one search for the whole site, opened from here.
      the trigger looks like a field because that is what people look for, and

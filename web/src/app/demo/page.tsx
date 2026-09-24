@@ -17,12 +17,13 @@ export const metadata: Metadata = { title: "Try it" };
  * what it is for, and the thirty second version comes first for anybody who
  * only has thirty seconds.
  *
- * full width like the explorer and the console: the walkthrough and its rail
- * sit side by side, and a centred column spent a third of a desktop on margin. */
+ * the site's own column, the same width as the landing, the docs and the faq.
+ * it ran full width while the console and the explorer were pages of the
+ * site; they have their own app frame now, and this page is part of the site. */
 export default function Page() {
   return (
     <>
-      <main className="w-full px-4 sm:px-5 pt-8 sm:pt-10 pb-16 min-w-0">
+      <main className="w-full max-w-6xl mx-auto px-4 sm:px-5 pt-8 sm:pt-10 pb-16 min-w-0">
         <h1 className="text-[32px] sm:text-[44px] font-semibold tracking-[-0.035em] leading-[1.04] max-w-4xl">
           You built the agent. <span style={{ color: "var(--dim)" }}>Here is everything around it.</span>
         </h1>
