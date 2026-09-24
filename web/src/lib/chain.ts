@@ -407,9 +407,9 @@ export function explain(e: unknown, c?: Conn): string {
     try {
       const err = c.ks.interface.parseError(data);
       if (err?.name === "AgentKeyInUse") return "That key is already registered as an agent";
-      if (err?.name === "BadAgentSignature") return "That is not the agent key's consent for this cold key";
-      if (err?.name === "BadKeys") return "The agent key and the cold key must be two different, real addresses";
-      if (err?.name === "NotRevocationKey") return "Your wallet is not this agent's cold key";
+      if (err?.name === "BadAgentSignature") return "That is not the agent's consent for this owner";
+      if (err?.name === "BadKeys") return "The agent address and the owner must be two different, real addresses";
+      if (err?.name === "NotRevocationKey") return "Your wallet is not this agent's owner";
       if (err?.name === "Terminal") return "That agent is stopped for good and cannot change";
       if (err) return `The contract refused: ${err.name}`;
     } catch { /* not one of ours */ }

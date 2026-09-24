@@ -104,7 +104,7 @@ export default function Runbook({ conn, signer, id, sample, readOnly }: { conn: 
             className="text-[13px] w-full rounded-lg px-2.5 py-1.5 outline-none focus-visible:ring-2 resize-y" style={field} />
           <div className="flex items-center gap-2">
             <button type="button" className="drawn-btn btn-orange" style={sm} disabled={!signer || !text.trim() || !!busy} onClick={seal}>{busy === "seal" ? "Sealing…" : "Seal with passkey"}</button>
-            <span className="text-[11px]" style={quiet}>{!signer ? "connect the cold key" : "passkey, then one transaction"}</span>
+            <span className="text-[11px]" style={quiet}>{!signer ? "connect the owner wallet" : "passkey, then one transaction"}</span>
           </div>
         </div>
       )}

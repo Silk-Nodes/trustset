@@ -105,7 +105,7 @@ export default function Panic({ initialId }: { initialId?: string }) {
               className="inline-block mt-2 text-[12.5px] underline" style={{ color: "var(--orange-text)" }}>View the transaction</a>
           )}
           <div className="text-[12px] mt-3" style={{ color: "var(--text-medium)" }}>
-            Bringing it back needs the cold key. A passkey can pause and nothing else.
+            Bringing it back needs the owner. A passkey can pause and nothing else.
           </div>
         </motion.div>
       )}

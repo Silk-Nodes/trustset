@@ -25,8 +25,8 @@ export function say(e: Ev): { text: string; tone: Tone } {
       return { text: s || "Status changed", tone: "plain" };
     }
     case "Rotated": return { text: `Trust moved to agent ${d.successorId}`, tone: "quiet" };
-    case "RevocationKeyChangeProposed": return { text: "Cold key change proposed", tone: "plain" };
-    case "RevocationKeyChanged": return { text: "Cold key changed", tone: "plain" };
+    case "RevocationKeyChangeProposed": return { text: "Owner change proposed", tone: "plain" };
+    case "RevocationKeyChanged": return { text: "Owner changed", tone: "plain" };
     case "GuardianVoted": {
       const v = Number(d.votes ?? 0), t = Number(d.threshold ?? 0);
       return { text: v >= t ? `Guardians reached ${v} of ${t} and paused it` : `A guardian voted to pause, ${v} of ${t}`, tone: v >= t ? "off" : "plain" };

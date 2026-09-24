@@ -554,7 +554,7 @@ export function PanicVisual() {
 const IDENT = [
   { k: "id", label: "agent", value: "14" },
   { k: "name", label: "label", value: "Treasury sweeper" },
-  { k: "cold", label: "cold key", value: "0x3cad…96C5" },
+  { k: "cold", label: "owner", value: "0x3cad…96C5" },
   { k: "8004", label: "erc-8004", value: "#1873 → agent 14" },
 ];
 export function IdentityVisual() {
@@ -727,12 +727,12 @@ export function RefundVisual() {
    one no other switch answers. the last three are the layers the contracts
    always had and the page never named: identity, human proof and refunds. */
 const FEATURES = [
-  { k: "The switch", Icon: ZapIcon, lit: "It is 3am and the key has leaked.", dim: "One transaction. Off from the next block.", accent: "next block", body: "Your cold key pauses or stops it, and every app that checks refuses that key from the next block. Nothing already mined is undone, because nothing can be.", Visual: TripVisual },
+  { k: "The switch", Icon: ZapIcon, lit: "It is 3am and the key has leaked.", dim: "One transaction. Off from the next block.", accent: "next block", body: "Your wallet pauses or stops it, and every app that checks refuses that key from the next block. Nothing already mined is undone, because nothing can be.", Visual: TripVisual },
   { k: "Panic button", Icon: IdCardIcon, lit: "You need it stopped, not signed.", dim: "A fingerprint is enough.", accent: "fingerprint", body: "A passkey on your phone pauses it, checked on chain by Monad's own P256 precompile. It can pause and nothing else, so a lost phone costs you an interruption.", Visual: PanicVisual },
-  { k: "Guardians", Icon: LayersIcon, lit: "You are asleep and something is going wrong.", dim: "The people you chose can stop it.", accent: "people you chose", body: "Guardians pause your agent by vote. They can never spend from it or hand it to anyone, and your cold key overrules whatever they do.", Visual: GuardianVisual },
+  { k: "Guardians", Icon: LayersIcon, lit: "You are asleep and something is going wrong.", dim: "The people you chose can stop it.", accent: "people you chose", body: "Guardians pause your agent by vote. They can never spend from it or hand it to anyone, and your wallet overrules whatever they do.", Visual: GuardianVisual },
   { k: "Limits", Icon: RefreshCWIcon, lit: "You forgot the agent was still running.", dim: "Trust that ends by itself.", accent: "by itself", body: "Give it an end date, or a heartbeat it has to keep. When either lapses it stops being trusted, with no transaction and nobody awake.", Visual: LimitsVisual },
   { k: "Past signatures", Icon: HandCoinsIcon, lit: "An order arrives, signed before the stop.", dim: "Judged by when it was signed.", accent: "when it was signed", body: "The switch keeps every change with its timestamp. A venue asks what was true at the moment of signing, so a stop at 14:32 voids the 14:35 order and honours the 14:30 one.", Visual: WhenVisual },
-  { k: "Identity", Icon: TagIcon, lit: "A venue meets a key it has never seen.", dim: "It can still ask whose agent that is.", accent: "whose agent", body: "Every agent has an id, a label and its cold key on chain, and its ERC-8004 identity points back at the switch. An app that knows the agent only by that identity can ask whether it has been stopped, without knowing trustset exists.", Visual: IdentityVisual },
+  { k: "Identity", Icon: TagIcon, lit: "A venue meets a key it has never seen.", dim: "It can still ask whose agent that is.", accent: "whose agent", body: "Every agent has an id, a label and its owner on chain, and its ERC-8004 identity points back at the switch. An app that knows the agent only by that identity can ask whether it has been stopped, without knowing trustset exists.", Visual: IdentityVisual },
   { k: "Human proof", Icon: FingerprintIcon, lit: "A transfer went out at 3am.", dim: "Was it you, or the agent?", accent: "you, or the agent", body: "HumanTouch records a passkey assertion against that exact action, verified on chain by the P256 precompile. Afterwards anyone can ask whether a person was present for it, and the agent cannot forge the answer.", Visual: HumanVisual },
   { k: "Refunds", Icon: UndoIcon, lit: "It was mid-payment when you stopped it.", dim: "The money comes back.", accent: "comes back", body: "Payments run through a rail with a window. Once it closes unsettled, refund(id) pays the payer named in storage, and anybody may call it, so money in flight returns without needing you awake.", Visual: RefundVisual },
 ] as const;

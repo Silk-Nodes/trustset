@@ -134,11 +134,11 @@ export default function Passkey({ initialId }: { initialId?: string }) {
       </div>
 
       {/* the old copy said the server could not finish and stopped there, which
-          for a reader holding the cold key was both true and useless. it names
+          for a reader holding the owner was both true and useless. it names
           the key the switch is waiting for and offers the way to it. */}
       {info && !info.error && !info.holdsColdKey && !mine && (
         <div className="sheet px-4 py-3 mt-3 text-[12.5px]" style={{ color: "var(--text-medium)" }}>
-          <span className="font-semibold" style={{ color: "var(--text-dark)" }}>Only agent {id}&apos;s cold key can nominate a passkey.</span>{" "}
+          <span className="font-semibold" style={{ color: "var(--text-dark)" }}>Only agent {id}&apos;s owner can nominate a passkey.</span>{" "}
           {info.coldKey && <>The switch says that key is <span className="mono">{short(info.coldKey)}</span>. </>}
           {w.who
             ? <>This browser is connected as <span className="mono">{short(w.who.address)}</span>, so this agent is not yours to nominate for.</>
@@ -166,14 +166,14 @@ export default function Passkey({ initialId }: { initialId?: string }) {
         )}
       </div>
 
-      {/* step two: the cold key writes it to the switch. */}
+      {/* step two: the owner writes it to the switch. */}
       {/* receded with colour, never with opacity. at 0.5 this card's own
           explanation measured 3.31:1, and it is text somebody reads BEFORE
           they have done step one, which is exactly when it is dimmed. */}
       <div className="sheet px-4 py-4 mt-3">
         <div className="text-sm font-semibold" style={{ color: made ? "var(--text-dark)" : "var(--text-medium)" }}>2. Nominate it on the switch</div>
         <p className="text-[12.5px] mt-1" style={{ color: "var(--text-medium)" }}>
-          <Tip text="It cannot resume the agent, end it, move its limits or touch its keys.">Signed by the cold key. It can pause, nothing else.</Tip>
+          <Tip text="It cannot resume the agent, end it, move its limits or touch its keys.">Signed by the owner. It can pause, nothing else.</Tip>
           {mine && " Your wallet holds that key."}
         </p>
         <div className="flex flex-wrap items-center gap-2 mt-3">

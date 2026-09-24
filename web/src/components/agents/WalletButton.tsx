@@ -43,7 +43,7 @@ export default function WalletButton({ address, kind, onConnect, onDisconnect, a
               room on one line. on a phone the line scrolls sideways inside
               the card rather than breaking. a chopped last character is not
               a layout. */}
-          <div className="eyebrow mb-1.5">{kind === "email" ? <>Signed in{signedInAs ? <> as <span className="normal-case tracking-normal">{signedInAs}</span></> : null} · the cold key</> : "Connected as the cold key"}</div>
+          <div className="eyebrow mb-1.5">{kind === "email" ? <>Signed in{signedInAs ? <> as <span className="normal-case tracking-normal">{signedInAs}</span></> : null} · the owner</> : "Connected as the owner"}</div>
           <div className="mono text-[12.5px] whitespace-nowrap overflow-x-auto select-all leading-relaxed no-scrollbar">{address}</div>
           <div className="flex flex-wrap gap-2 mt-3">
             <button type="button" className="drawn-btn btn-gold" style={{ padding: "6px 12px", fontSize: "0.75rem" }}
@@ -92,7 +92,7 @@ export default function WalletButton({ address, kind, onConnect, onDisconnect, a
 }
 
 /* two steps, one field at a time: the address, then the code Dynamic sends to
-   it. the wallet is made on the first sign-in and becomes the cold key. */
+   it. the wallet is made on the first sign-in and becomes the owner. */
 function EmailSignIn({ email, onDone }: { email: { send: (a: string) => Promise<void>; verify: (c: string) => Promise<void> }; onDone: () => void }) {
   const [step, setStep] = useState<"address" | "code">("address");
   const [value, setValue] = useState("");
@@ -118,7 +118,7 @@ function EmailSignIn({ email, onDone }: { email: { send: (a: string) => Promise<
       <div className="eyebrow">{step === "address" ? "Continue with email" : "Check your email"}</div>
       <p className="text-[12px]" style={{ color: "var(--text-medium)" }}>
         {step === "address"
-          ? "A wallet is made for you on first sign-in, through Dynamic. It becomes the cold key for your agents."
+          ? "A wallet is made for you on first sign-in, through Dynamic. It becomes the owner for your agents."
           : <>We sent a code to <span style={{ color: "var(--text-dark)" }}>{sentTo}</span>.</>}
       </p>
       <input autoFocus value={value} onChange={e => setValue(e.target.value)} disabled={busy}

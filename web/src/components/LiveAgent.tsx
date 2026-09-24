@@ -134,7 +134,7 @@ export default function LiveAgent({ compact = false, lead = null }: { compact?: 
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: off ? "var(--orange)" : "var(--sage)" }} />
         </span>
         <h2 className={`${compact ? "text-[13px]" : "text-[15px]"} font-semibold whitespace-nowrap`}>{headline}</h2>
-        <span className="text-[12px]"><Term tip={compact && s && !s.holdsColdKey ? `${WHAT_IS_THIS} This server does not hold the cold key and cannot switch off the agent it runs, which is the point of a cold key.` : WHAT_IS_THIS}>what is this?</Term></span>
+        <span className="text-[12px]"><Term tip={compact && s && !s.holdsColdKey ? `${WHAT_IS_THIS} This server is not the owner and cannot switch off the agent it runs, which is the point of an owner.` : WHAT_IS_THIS}>what is this?</Term></span>
 
         <span className="hidden lg:block w-px h-4 shrink-0" style={{ background: "var(--hairline)" }} />
 
@@ -157,9 +157,9 @@ export default function LiveAgent({ compact = false, lead = null }: { compact?: 
             {!s ? "…" : s.chain.trusted ? "isTrusted → true" : "isTrusted → false"}
           </b>
           {s && <span>, {s.chain.status === 0 ? "no agent with that id on this switch"
-            : s.chain.status === 3 ? "stopped for good by its cold key"
+            : s.chain.status === 3 ? "stopped for good by its owner"
             : s.chain.status === 4 ? "retired in favour of a successor"
-            : s.chain.status === 2 ? `paused by its cold key${s.chain.lapsed ? " and gone quiet" : ""}`
+            : s.chain.status === 2 ? `paused by its owner${s.chain.lapsed ? " and gone quiet" : ""}`
             : s.chain.expired ? "its end date passed"
             : s.chain.lapsed ? "it missed its heartbeat"
             : "active, inside its dates, keeping its heartbeat"}</span>}
@@ -207,7 +207,7 @@ export default function LiveAgent({ compact = false, lead = null }: { compact?: 
       ) : s ? (
         <div className="mt-2.5 text-[12px]" style={{ color: "var(--text-medium)", display: compact ? "none" : undefined }}>
           <span className="font-semibold" style={{ color: "var(--text-dark)" }}>This server cannot switch off the agent it runs.</span>{" "}
-          It does not hold the cold key, which is the point of a cold key.
+          Its owner is a different wallet, which is the point of an owner.
           {s.handoverAt ? <> The key is being handed to it under the contract&apos;s one day delay, and lands {new Date(s.handoverAt * 1000).toLocaleString()}, after which a control appears here.</> : null}
         </div>
       ) : null}

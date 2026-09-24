@@ -16,8 +16,8 @@ type Kind = "all" | "status" | "trades" | "beats";
 const PAGE = 50;
 const VERB: Record<string, string> = {
   TradeAccepted: "trade accepted", Beat: "heartbeat", GuardianVoted: "guardian voted to pause", LimitsSet: "limits set", Labelled: "named",
-  Linked8004: "claimed by ERC-8004", AgentRegistered: "registered", RevocationKeyChangeProposed: "cold key change proposed",
-  RevocationKeyChanged: "cold key changed", Rotated: "rotated to a successor",
+  Linked8004: "claimed by ERC-8004", AgentRegistered: "registered", RevocationKeyChangeProposed: "owner change proposed",
+  RevocationKeyChanged: "owner changed", Rotated: "rotated to a successor",
 };
 const quiet = { color: "var(--text-medium)" } as const;
 

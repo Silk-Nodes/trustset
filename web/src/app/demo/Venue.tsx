@@ -188,7 +188,7 @@ export default function Venue() {
   async function flip(to: 1 | 2, act?: Act) {
     if (!s) return;
     /* the chain, not the store, decides whose agent this is. */
-    if (s.mismatch) { setNote(`This agent's cold key is ${short(s.mismatch.actualColdKey)}, not your wallet, so it cannot be switched from here.`); return; }
+    if (s.mismatch) { setNote(`This agent's owner is ${short(s.mismatch.actualColdKey)}, not your wallet, so it cannot be switched from here.`); return; }
     if (!s.owned) return post(to === 2 ? "pause" : "resume", to === 2 ? "paused" : "resumed", act);
     const c = w.conn, signer = w.who?.signer;
     if (!c || !signer) { setNote("Connect your wallet first"); return; }
@@ -221,7 +221,7 @@ export default function Venue() {
    * reader signs for their own. same call either way. */
   async function limits(seconds: number, act?: Act) {
     if (!s) return;
-    if (s.mismatch) { setNote(`This agent's cold key is ${short(s.mismatch.actualColdKey)}, not your wallet, so its end date cannot be set from here.`); return; }
+    if (s.mismatch) { setNote(`This agent's owner is ${short(s.mismatch.actualColdKey)}, not your wallet, so its end date cannot be set from here.`); return; }
     const kind: Kind = seconds ? "limits" : "cleared";
     const action = seconds ? "limits" : "clearLimits";
     if (!s.owned) return post(action, kind, act);
@@ -283,11 +283,11 @@ export default function Venue() {
         </summary>
         <p className="text-[12.5px] mt-3" style={{ color: "var(--text-medium)" }}>
           {s?.owned
-            ? <>Your wallet is this agent&apos;s <Term k="cold key">cold key</Term>, so every switch here is yours to sign.</>
-            : <>A shared agent, ours while you are not connected. Connect a wallet and the page registers one whose <Term k="cold key">cold key</Term> is yours, which puts your address <Term k="on chain forever">on chain forever</Term>.</>}
+            ? <>Your wallet is this agent&apos;s <Term k="owner">owner</Term>, so every switch here is yours to sign.</>
+            : <>A shared agent, ours while you are not connected. Connect a wallet and the page registers one whose <Term k="owner">owner</Term> is yours, which puts your address <Term k="on chain forever">on chain forever</Term>.</>}
         </p>
         <dl className="mt-4 grid gap-2.5 text-[12px]">
-          <Key label="Agent key" v={s?.agentKey} cfg={cfg} note="Signs the trades. Held by this server, because a browser cannot sign as the agent." />
+          <Key label="Agent address" v={s?.agentKey} cfg={cfg} note="Signs the trades. Held by this server, because a browser cannot sign as the agent." />
           <Key label="Guardian" v={s?.guardian} cfg={cfg} note="Can vote to pause. Never spends." />
           <Key label="Venue" v={s?.venue} cfg={cfg} note="Checks the switch inside its own call." />
         </dl>
@@ -330,7 +330,7 @@ export default function Venue() {
         <div className="sheet px-5 py-4 lg:col-span-2" style={{ borderColor: "var(--orange)" }}>
           <div className="text-[15px] font-semibold">This agent is not your wallet&apos;s.</div>
           <p className="text-[13px] mt-1.5" style={{ color: "var(--text-medium)" }}>
-            The switch says agent {s.agentId}&apos;s cold key is <span className="mono">{short(s.mismatch.actualColdKey)}</span>, and you are connected as <span className="mono">{short(s.mismatch.storedFor)}</span>. The steps that need the cold key are off here, because pressing them would only revert.
+            The switch says agent {s.agentId}&apos;s owner is <span className="mono">{short(s.mismatch.actualColdKey)}</span>, and you are connected as <span className="mono">{short(s.mismatch.storedFor)}</span>. The steps that need the owner are off here, because pressing them would only revert.
           </p>
           {/* the way out, not just the instruction. disconnecting drops the
               page back to the shared agent, which every step can drive, and it
@@ -374,7 +374,7 @@ export default function Venue() {
                 ? "This agent is shared, and whoever came before left it switched off. A trade sent now would be refused, which is step two. Bring it back to start from the beginning."
                 : s?.expired
                   ? (s.owned
-                      ? "The end date on this agent has run out, so no app will serve it and a trade sent now would be refused. Your wallet holds the cold key, so clearing it is yours to sign."
+                      ? "The end date on this agent has run out, so no app will serve it and a trade sent now would be refused. Your wallet is the owner, so clearing it is yours to sign."
                       : "This agent is shared, and whoever came before gave it an end date that has since run out, which is step five. A trade sent now would be refused. Clear the date to start from the beginning.")
                   : s?.lapsed
                     ? "This agent was given a heartbeat to keep and has missed it, so trust lapsed on its own and a trade sent now would be refused. Clearing the heartbeat starts it again."
@@ -409,7 +409,7 @@ export default function Venue() {
           <Aside>
             {!paused
               ? "This agent has one guardian and needs one vote. Yours would have as many as you name and the threshold you set."
-              : "The guardian paused it. Your cold key overrules a guardian, which is why they can never lock you out."}
+              : "The guardian paused it. Your wallet overrules a guardian, which is why they can never lock you out."}
           </Aside>
         </Step>
 
@@ -424,7 +424,7 @@ export default function Venue() {
             </Aside>
           )}
           {!!s?.expiresAt && <Do label="Clear the end date" busy={busy === "clearLimits"} tone="quiet" disabled={!s || !!s.mismatch} onClick={() => limits(0)} />}
-          {s?.owned && <Aside>Your wallet holds the cold key, so this one is yours to sign.</Aside>}
+          {s?.owned && <Aside>Your wallet is the owner, so this one is yours to sign.</Aside>}
         </Step>
 
         <Step n={6} stage={stage("human")} onToggle={() => toggle("human")} title="A switch you can reach without a wallet"
@@ -434,7 +434,7 @@ export default function Venue() {
               lost their place. */}
           <a href={`/panic?id=${s?.agentId ?? ""}`} target="_blank" rel="noreferrer" className="drawn-btn btn-gold" style={{ padding: "9px 16px", fontSize: "0.85rem" }} onClick={() => done("human")}>Open the panic page</a>
           <Do label="I have no passkey, carry on" tone="quiet" onClick={() => done("human")} />
-          <Aside>Needs a phone and an https address, so it will not work over a bare IP. Nominating a passkey needs the cold key, so it lives in the console beside your own agents, not here. Or skip: the last step does not depend on it.</Aside>
+          <Aside>Needs a phone and an https address, so it will not work over a bare IP. Nominating a passkey needs the owner, so it lives in the console beside your own agents, not here. Or skip: the last step does not depend on it.</Aside>
         </Step>
 
         <Step n={7} stage={stage("record")} onToggle={() => toggle("record")} title="And it is all on the record" last
@@ -484,7 +484,7 @@ function AgentCard({ s, off, refusedAt, reduced, resetting, compact = false }: {
       {/* what this agent is, in one line, because the page has two: the real
           one at the top and this one, which the steps act on */}
       {!compact && <p className="text-[12px] mt-2" style={{ color: "var(--text-medium)" }}>
-        {!s ? "\u00a0" : s.owned ? "Your agent. Your wallet is its cold key." : "Shared by visitors. Press anything."}
+        {!s ? "\u00a0" : s.owned ? "Your agent. Your wallet is its owner." : "Shared by visitors. Press anything."}
       </p>}
 
       {!compact && <div className="mt-4 grid grid-cols-2 gap-3">
