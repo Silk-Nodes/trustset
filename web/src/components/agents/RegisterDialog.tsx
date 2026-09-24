@@ -204,7 +204,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
           {/* the mechanics live in the two dotted terms, one tap away. the one
               thing that is not in a tooltip, that the wallet you are holding
               right now is about to be named on chain, is one line, not a box. */}
-          <p className="text-sm text-ink/70 mb-1">An agent signs with an <Term k="agent key">agent key</Term> of its own. Your wallet becomes its <Term k="cold key">cold key</Term>.</p>
+          <p className="text-sm text-ink/70 mb-1">An agent signs from an <Term k="agent address">address</Term> of its own. Your wallet becomes its <Term k="owner">owner</Term>.</p>
           <p className="text-[12.5px] mb-4" style={{ color: "var(--text-medium)" }}>That names this wallet <Term k="on chain forever">on chain</Term>. Use one that holds nothing; it only ever needs gas.</p>
           <div role="radiogroup" aria-label="The agent's key" className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
             {(["paste", "generate"] as Mode[]).map(k => (
@@ -243,7 +243,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
                 <input value={consent} onChange={e => setConsent(e.target.value)} placeholder="0x… signature, 65 bytes" spellCheck={false} autoComplete="off"
                   className="mono text-sm w-full rounded-xl px-3 py-2.5 outline-none" style={inputStyle(!!consent.trim() && !consentValid(conn, ethers.getAddress(pastedTrim), coldKey, consent.trim()))} />
                 <div className="text-[11px] mt-1.5 min-h-[16px]" style={{ color: consent.trim() && consentValid(conn, ethers.getAddress(pastedTrim), coldKey, consent.trim()) ? "var(--sage-text)" : "var(--orange-text)" }}>
-                  {consent.trim() ? (consentValid(conn, ethers.getAddress(pastedTrim), coldKey, consent.trim()) ? "Signed by that agent key, for this cold key." : "That signature is not from this agent key for this cold key.") : ""}
+                  {consent.trim() ? (consentValid(conn, ethers.getAddress(pastedTrim), coldKey, consent.trim()) ? "Signed by that agent, for this owner." : "That signature is not from this agent address for this owner.") : ""}
                 </div>
               </Field>
             )}
@@ -319,7 +319,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
                   className="mono text-sm flex-1 min-w-0 rounded-xl px-3 py-2.5 outline-none" style={inputStyle(!!gTrim && (!gValid || gDup))} />
                 <button type="button" className="drawn-btn btn-gold" disabled={!gValid || gDup || guardians.length >= 5} onClick={add}>Add</button>
               </div>
-              <div className="text-[11px] mt-1.5 min-h-[16px]" style={{ color: "var(--orange-text)" }}>{gTrim && !gValid ? "That is not an address." : gDup ? "Already listed, or it is the cold key or the agent key." : ""}</div>
+              <div className="text-[11px] mt-1.5 min-h-[16px]" style={{ color: "var(--orange-text)" }}>{gTrim && !gValid ? "That is not an address." : gDup ? "Already listed, or it is the owner or the agent address." : ""}</div>
             </Field>
             {guardians.length === 0 && (
               <div className="mb-4">
@@ -361,13 +361,13 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
             {([
               ["Name", name.trim()],
               purpose.trim() ? ["What it does", purpose.trim()] : null,
-              ["Agent key", agentKey],
-              ["Cold key", coldKey],
+              ["Agent address", agentKey],
+              ["Owner", coldKey],
               ["Consent", wallet ? "Signed here by the generated key" : "Signed by the agent, verified"],
               ["Guardians", guardians.length ? `${threshold} of ${guardians.length}: ${guardians.map(g => g.slice(0, 6) + "…" + g.slice(-4)).join(", ")}` : "None"],
             ] as ([string, string] | null)[]).filter(Boolean).map(r => r as [string, string]).map(([k, v], i) => (
               <div key={k} className={`grid grid-cols-[110px_1fr] gap-3 py-2.5 ${i ? "rule-top" : ""}`}>
-                <dt style={{ color: "var(--text-medium)" }}>{k === "Agent key" ? <Term k="agent key">{k}</Term> : k === "Cold key" ? <Term k="cold key">{k}</Term> : k === "Guardians" ? <Term k="guardians">{k}</Term> : k}</dt>
+                <dt style={{ color: "var(--text-medium)" }}>{k === "Agent address" ? <Term k="agent address">{k}</Term> : k === "Owner" ? <Term k="owner">{k}</Term> : k === "Guardians" ? <Term k="guardians">{k}</Term> : k}</dt>
                 <dd className={`${k.includes("key") ? "mono text-xs" : ""} break-all min-w-0`}>{v}</dd>
               </div>
             ))}
@@ -380,7 +380,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
     }
   };
 
-  const title: Record<Step, string> = { about: "What is this agent?", key: "Which key does it sign with?", save: "Save the private key", verify: "Confirm you saved it", guardians: "Who else can pause it, for good?", review: "Register on chain" };
+  const title: Record<Step, string> = { about: "What is this agent?", key: "Which address does your agent sign with?", save: "Save the private key", verify: "Confirm you saved it", guardians: "Who else can pause it, for good?", review: "Register on chain" };
 
   return (
     <AnimatePresence>

@@ -129,7 +129,7 @@ export default function Inspector(p: InspectorProps) {
               {p.extra.erc8004 ? <span className="text-[11px]" style={quiet}>claimed by ERC-8004 agent {p.extra.erc8004}</span> : null}
             </div>
           )
-          : l.key === "human" ? (p.proof ?? <p className="text-xs" style={quiet}>Connect the cold key to prove you were the one who stopped it.</p>)
+          : l.key === "human" ? (p.proof ?? <p className="text-xs" style={quiet}>Connect the owner wallet to prove you were the one who stopped it.</p>)
           : l.key === "refunds" ? <Link href="/agents/refunds" className="drawn-btn btn-gold" style={sm}>Open the refunds page</Link>
           : undefined))}
 
@@ -140,19 +140,19 @@ export default function Inspector(p: InspectorProps) {
         <li className="eyebrow px-2 pt-4 pb-1.5">keys</li>
         {row("keys", <KeyMark />, "Keys", agent.guardians.length ? `${agent.guardians.length} guardians` : "agent, cold", true, true,
           <dl className="grid grid-cols-[72px_1fr] gap-y-1.5 text-xs">
-            <dt style={quiet}><Term k="agent key">Agent key</Term></dt><dd className="mono truncate">{a(agent.key)}</dd>
-            <dt style={quiet}><Term k="cold key">Cold key</Term></dt><dd className="mono truncate">{a(agent.coldKey)}</dd>
+            <dt style={quiet}><Term k="agent address">Agent address</Term></dt><dd className="mono truncate">{a(agent.key)}</dd>
+            <dt style={quiet}><Term k="owner">Owner</Term></dt><dd className="mono truncate">{a(agent.coldKey)}</dd>
             <dt style={quiet}>Guardians</dt><dd className="mono min-w-0">{agent.guardians.length ? agent.guardians.map(g => <div key={g} className="truncate">{a(g)}</div>) : "none"}</dd>
             {agent.successor > 0n && <><dt style={quiet}>Successor</dt><dd className="mono">agent {agent.successor.toString()}</dd></>}
           </dl>)}
-        {row("owner", <OwnerMark />, "Ownership", pending ? (canApply ? "change ready" : `change in ${Math.floor(left / 3600)}h`) : terminal ? "closed" : "cold key, successor", !terminal, true,
+        {row("owner", <OwnerMark />, "Ownership", pending ? (canApply ? "change ready" : `change in ${Math.floor(left / 3600)}h`) : terminal ? "closed" : "owner, successor", !terminal, true,
           terminal ? <p className="text-xs" style={quiet}>Closed.</p> : (
             <div className="flex flex-col gap-3">
               <div>
-                <div className="text-[12px] font-semibold">Change the cold key <span className="font-normal" style={quiet}>· {p.delayDays} day delay</span></div>
+                <div className="text-[12px] font-semibold">Change the owner <span className="font-normal" style={quiet}>· {p.delayDays} day delay</span></div>
                 {pending && <div className="text-xs mt-1" style={quiet}>proposed <span className="mono">{short(agent.pendingColdKey!)}</span> · {canApply ? "ready" : `lands in ${Math.floor(left / 3600)}h ${Math.floor((left % 3600) / 60)}m`}{canApply && <button type="button" className="drawn-btn btn-orange ml-2" style={sm} disabled={!p.canSign || busy === "key"} onClick={p.onApplyKey}>{busy === "key" ? "Applying…" : "Apply"}</button>}</div>}
                 <div className="flex gap-2 mt-1.5">
-                  <input value={addr} onChange={e => setAddr(e.target.value)} placeholder="New cold key 0x…" spellCheck={false} className={`${input} mono`} style={{ ...field, borderColor: addr.trim() && !addrOk ? "var(--orange)" : "var(--hairline)" }} />
+                  <input value={addr} onChange={e => setAddr(e.target.value)} placeholder="New owner 0x…" spellCheck={false} className={`${input} mono`} style={{ ...field, borderColor: addr.trim() && !addrOk ? "var(--orange)" : "var(--hairline)" }} />
                   <button type="button" className="drawn-btn btn-gold shrink-0" style={sm} disabled={!p.canSign || !addrOk || busy === "key"} onClick={() => p.onProposeKey(ethers.getAddress(addr.trim()))}>{busy === "key" ? "…" : "Propose"}</button>
                 </div>
               </div>

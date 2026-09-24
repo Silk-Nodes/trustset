@@ -31,14 +31,14 @@ const EASE = [0.23, 1, 0.32, 1] as const;
 const NAV = 64;
 
 const HOURS = [
-  { at: "03:00", k: "The switch", Icon: ZapIcon, lit: "It is 3am and the key has leaked.", dim: "One transaction. Off from the next block.", accent: "next block", body: "Your cold key pauses or stops it, and every app that checks refuses that key.", Visual: TripVisual },
+  { at: "03:00", k: "The switch", Icon: ZapIcon, lit: "It is 3am and the key has leaked.", dim: "One transaction. Off from the next block.", accent: "next block", body: "Your wallet pauses or stops it, and every app that checks refuses that key.", Visual: TripVisual },
   { at: "03:40", k: "Human proof", Icon: FingerprintIcon, lit: "A transfer just went out.", dim: "Was it you, or the agent?", accent: "you, or the agent", body: "A passkey signs that exact action, so anyone can later ask whether a person was there.", Visual: HumanVisual },
   { at: "07:00", k: "Limits", Icon: RefreshCWIcon, lit: "You forgot the agent was still running.", dim: "Trust that ends by itself.", accent: "by itself", body: "An end date, or a heartbeat it has to keep. Miss either and trust lapses on its own.", Visual: LimitsVisual },
   { at: "08:10", k: "Identity", Icon: TagIcon, lit: "A venue meets a key it has never seen.", dim: "It can still ask whose agent that is.", accent: "whose agent", body: "Its ERC-8004 identity points back at the switch, so any app can ask whether it was stopped.", Visual: IdentityVisual },
   { at: "14:35", k: "Past signatures", Icon: HandCoinsIcon, lit: "An order arrives, signed before the stop.", dim: "Judged by when it was signed.", accent: "when it was signed", body: "A stop at 14:32 voids the 14:35 order and honours the 14:30 one.", Visual: WhenVisual },
   { at: "19:40", k: "Panic button", Icon: IdCardIcon, lit: "You need it stopped, not signed.", dim: "A fingerprint is enough.", accent: "fingerprint", body: "A passkey on your phone pauses it, and can do nothing else.", Visual: PanicVisual },
   { at: "21:15", k: "Refunds", Icon: UndoIcon, lit: "It was mid-payment when you stopped it.", dim: "The money comes back.", accent: "comes back", body: "A payment still unsettled when its window closes goes back to the payer, and anyone may send it.", Visual: RefundVisual },
-  { at: "23:50", k: "Guardians", Icon: LayersIcon, lit: "You are asleep and something is going wrong.", dim: "The people you chose can stop it.", accent: "people you chose", body: "Guardians pause it by vote. They can never spend from it, and your cold key overrules them.", Visual: GuardianVisual },
+  { at: "23:50", k: "Guardians", Icon: LayersIcon, lit: "You are asleep and something is going wrong.", dim: "The people you chose can stop it.", accent: "people you chose", body: "Guardians pause it by vote. They can never spend from it, and your wallet overrules them.", Visual: GuardianVisual },
 ];
 
 function Dim({ text, accent }: { text: string; accent: string }) {

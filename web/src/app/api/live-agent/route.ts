@@ -231,7 +231,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: rc?.status === 1, hash: tx.hash, block: rc?.blockNumber ?? null, explorer: c.explorer });
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: /NotRevocationKey/.test(m) ? "This server does not hold that agent's cold key." : m.slice(0, 200) }, { status: 400 });
+    return NextResponse.json({ error: /NotRevocationKey/.test(m) ? "This server is not that agent's owner." : m.slice(0, 200) }, { status: 400 });
   } finally {
     /* the status just moved, so the kept read is behind the chain. */
     forget();

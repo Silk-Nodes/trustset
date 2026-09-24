@@ -9,10 +9,10 @@ function Head({ title, note }: { title: string; note?: string }) {
 /* 3. what trustset stops, what it does not. the no rows are the point, so the
    table gets no container: it is reference, read on the page itself. */
 const THREATS: [string, string, string, string][] = [
-  ["Agent key leaks", "Yes, one transaction from the cold key", "Nobody, it is chain state", ""],
+  ["Agent's key leaks", "Yes, one transaction from the owner", "Nobody, it is chain state", ""],
   ["Runaway loop, agent keeps trading", "Yes, next block refuses it", "Nobody", ""],
   ["Prompt injection makes the agent act", "Yes, if the owner notices", "Nobody", "Detection is not trustset's job"],
-  ["Cold key stolen", "Attacker can only stop the agent", "Nobody", "Key change is time locked, spending is impossible"],
+  ["Owner wallet stolen", "Attacker can only stop the agent", "Nobody", "Key change is time locked, spending is impossible"],
   ["App that never checks the switch", "No", "The app", "The notice still exists, the app chose to ignore it"],
   ["Trade already mined before the stop", "No", "Nobody", "Nothing reverses a mined block"],
 ];

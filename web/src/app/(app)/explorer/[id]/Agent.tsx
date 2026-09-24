@@ -82,9 +82,9 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
     : lapsed ? "Gone quiet"
     : live ? "Trusted" : "Not trusted";
   const why = live ? "Active, inside its dates, and keeping its heartbeat."
-    : a.status === "revoked" ? "Stopped for good by its cold key. This is terminal and cannot be undone."
+    : a.status === "revoked" ? "Stopped for good by its owner. This is terminal and cannot be undone."
     : a.status === "rotated" ? `Retired in favour of agent ${a.successor_id ?? "a successor"}. Terminal for this id.`
-    : a.status === "paused" ? "Paused. Its cold key can bring it back at any time."
+    : a.status === "paused" ? "Paused. Its owner can bring it back at any time."
     : expired ? "Its end date has passed. Nobody had to send anything for this to happen."
     : lapsed ? "It stopped reporting inside its heartbeat window. Nobody had to send anything for this to happen."
     : "Not trusted.";
@@ -100,11 +100,11 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
 
         <dl className="mt-5 grid gap-3.5 text-sm">
           <Field k="Agent id" v={String(a.id)} />
-          <Field k="Agent key" v={a.agent_key} explorer={explorer} addr />
-          <Field k="Cold key" v={a.cold_key} explorer={explorer} addr tip={<>The only key that can pause or stop it, and one that can never spend. {TERMS["public keys"]}</>} />
+          <Field k="Agent address" v={a.agent_key} explorer={explorer} addr />
+          <Field k="Owner" v={a.cold_key} explorer={explorer} addr tip={<>The wallet that can pause or stop this agent, and never spend its money. {TERMS["public keys"]}</>} />
           <Field k="Guardians" v={a.guardians?.length ? `${a.threshold} of ${a.guardians.length} to pause` : "None"} tip="Wallets the owner chose to pause it by vote if the owner cannot. They can never spend from it." />
           <Field k="End date" v={ex ? new Date(ex * 1000).toLocaleString() : "None"} note={expired ? "ran out" : undefined} tip={expired ? "It stopped being trusted at that moment. No transaction was needed." : undefined} />
-          <Field k="Heartbeat" v={hb ? `every ${every(hb)}` : "None"} note={lapsed ? "went quiet" : hb ? `last ${ago(new Date(lb * 1000).toISOString())}` : undefined} tip={lapsed ? "It missed a beat, so it stopped being trusted. Only the cold key can start a new window." : undefined} />
+          <Field k="Heartbeat" v={hb ? `every ${every(hb)}` : "None"} note={lapsed ? "went quiet" : hb ? `last ${ago(new Date(lb * 1000).toISOString())}` : undefined} tip={lapsed ? "It missed a beat, so it stopped being trusted. Only the owner can start a new window." : undefined} />
           {a.erc8004_id ? (
             <Field k="ERC-8004 identity" v={`Agent ${a.erc8004_id}`}
               tip="Its owner published a pointer from that registry to this switch. The identity says who the agent is; the switch says whether it may act." />

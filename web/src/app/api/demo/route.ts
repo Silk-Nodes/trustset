@@ -88,7 +88,7 @@ export async function POST(req: Request) {
        d.coldKey is who the chain says owns it. those are the same until they
        are not, and under a mismatch looking up by the chain's answer found
        nothing, so every action returned "no demo agent" including trade and
-       the guardian vote, neither of which needs the cold key at all. */
+       the guardian vote, neither of which needs the owner at all. */
     const found = await agentWallet(d.mismatch?.storedFor ?? d.coldKey);
     if (!found) throw new Error("no demo agent");
     const { w, id, c } = found;
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
        own with nobody sending anything. the only place this is measured in
        seconds rather than days. */
     if (action === "limits" || action === "clearLimits") {
-      if (d.owned) return NextResponse.json({ error: "your wallet is the cold key" }, { status: 403 });
+      if (d.owned) return NextResponse.json({ error: "your wallet is the owner" }, { status: 403 });
       const p = provider(c);
       const boss = await payer(c, p);
       const ks = new ethers.Contract(c.killSwitch, KS, boss);
@@ -143,7 +143,7 @@ export async function POST(req: Request) {
      * fresher is answered with busy, and the page says another visitor is
      * using it. never for an agent the visitor owns. */
     if (action === "reset") {
-      if (d.owned) return NextResponse.json({ error: "your wallet is the cold key" }, { status: 403 });
+      if (d.owned) return NextResponse.json({ error: "your wallet is the owner" }, { status: 403 });
       const p = provider(c);
       const boss = await payer(c, p);
       const ks = new ethers.Contract(c.killSwitch, KS, boss);
@@ -171,7 +171,7 @@ export async function POST(req: Request) {
     if (action === "pause" || action === "resume") {
       /* only when the deployer is the cold key. if the visitor's wallet holds
          it, the stop is theirs to sign and the server must not be able to. */
-      if (d.owned) return NextResponse.json({ error: "your wallet is the cold key" }, { status: 403 });
+      if (d.owned) return NextResponse.json({ error: "your wallet is the owner" }, { status: 403 });
       const p = provider(c);
       const boss = await payer(c, p);
       const ks = new ethers.Contract(c.killSwitch, KS, boss);
@@ -221,7 +221,7 @@ async function state(agentId: string) {
  * selector here and the raw message is only ever the last resort, shortened. */
 const SELECTORS: Record<string, string> = {
   "0x8944fae3": "The venue refused that trade. The switch says this agent may not act.",
-  "0x99b97774": "This server does not hold that agent's cold key.",
+  "0x99b97774": "This server is not that agent's owner.",
   "0x55f0afcd": "That agent is not in a state where this can happen.",
   "0x523437db": "That agent has been stopped for good.",
   "0xef6d0f02": "That address is not a guardian of this agent.",

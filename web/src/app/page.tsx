@@ -11,7 +11,7 @@ const jsonLd = {
   name: "trustset",
   applicationCategory: "DeveloperApplication",
   description:
-    "An off switch for AI agents, on chain. One transaction from a cold key and every app that checks refuses the agent in the next block. Eight primitives, each an immutable contract with no admin.",
+    "An off switch for AI agents, on chain. One transaction from its owner and every app that checks refuses the agent in the next block. Eight primitives, each an immutable contract with no admin.",
   url: "https://trustset.silknodes.io",
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   operatingSystem: "Any",

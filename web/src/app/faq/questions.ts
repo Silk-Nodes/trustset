@@ -28,12 +28,12 @@ export const GROUPS: Group[] = [
       {
         id: "what-is-trustset",
         q: "What is trustset?",
-        a: "An off switch for AI agents, on chain. Your agent has a key it signs with; trustset gives you a separate cold key that can stop it, and gives every app it talks to one call to check before acting. Eight primitives, each an immutable contract with no admin.",
+        a: "An off switch for AI agents, on chain. Your agent signs with its own key; trustset makes your wallet its owner, the one wallet that can stop it, and gives every app it talks to one call to check before acting. Eight primitives, each an immutable contract with no admin.",
       },
       {
         id: "what-happens-on-stop",
         q: "What actually happens when I press stop?",
-        a: "One transaction from your cold key writes a new status into the KillSwitch contract. From the next block, isTrusted(agentId) returns false to everyone who asks. Pausing is reversible, stopping for good is not.",
+        a: "One transaction from your wallet writes a new status into the KillSwitch contract. From the next block, isTrusted(agentId) returns false to everyone who asks. Pausing is reversible, stopping for good is not.",
       },
       {
         id: "how-fast",
@@ -59,12 +59,12 @@ export const GROUPS: Group[] = [
       {
         id: "no-wallet",
         q: "Do I need a crypto wallet?",
-        a: "No. On the console you can sign in with an email instead. Dynamic sends you a code and makes an embedded wallet for you on your first sign-in, and that wallet becomes the cold key for your agents: it registers them, pauses them and stops them, exactly as a browser wallet would. A new email wallet gets a small, one-time amount of testnet gas so your first registration goes through.",
+        a: "No. On the console you can sign in with an email instead. Dynamic sends you a code and makes an embedded wallet for you on your first sign-in, and that wallet becomes the owner for your agents: it registers them, pauses them and stops them, exactly as a browser wallet would. A new email wallet gets a small, one-time amount of testnet gas so your first registration goes through.",
       },
       {
         id: "register-my-agent",
         q: "Could someone register my agent without me?",
-        a: "No. Registration requires the agent key's own consent: either it sends the transaction, or it signs a message naming the exact cold key. Without that signature the contract reverts with BadAgentSignature. That signature names which cold key, so it cannot be replayed to put your agent under somebody else's wallet.",
+        a: "No. Registration requires the agent's own consent: either it sends the transaction, or it signs a message naming the exact owner. Without that signature the contract reverts with BadAgentSignature. That signature names which owner, so it cannot be replayed to put your agent under somebody else's wallet.",
       },
       {
         id: "change-my-code",
@@ -73,13 +73,13 @@ export const GROUPS: Group[] = [
       },
       {
         id: "cold-key",
-        q: "What is a cold key, and why can it not spend?",
-        a: "It is the wallet you register with, and it is the only key that can pause, stop or rotate the agent. It has no power to move the agent's money, because the contract gives it none. That is the point: you can keep it somewhere inconvenient and safe.",
+        q: "Who owns an agent, and why can the owner not spend?",
+        a: "The owner is the wallet you register with (the contract calls it the revocation key), and it is the only wallet that can pause, stop or rotate the agent. It has no power to move the agent's money, because the contract gives it none. That is the point: you can keep it somewhere inconvenient and safe.",
       },
       {
         id: "lost-cold-key",
-        q: "What if I lose my cold key?",
-        a: "If you named guardians, they can vote to pause the agent, and if you do nothing for the escalation delay they can stop it for good. They can also replace the cold key after a delay you are able to cancel. If you registered with no guardians, nobody can stop that agent, which is why the register dialog calls that choice permanent.",
+        q: "What if I lose the owner wallet?",
+        a: "If you named guardians, they can vote to pause the agent, and if you do nothing for the escalation delay they can stop it for good. They can also replace the owner after a delay you are able to cancel. If you registered with no guardians, nobody can stop that agent, which is why the register dialog calls that choice permanent.",
       },
       {
         id: "sealed-runbook",
@@ -89,7 +89,7 @@ export const GROUPS: Group[] = [
       {
         id: "registered-elsewhere",
         q: "My agent was registered by a script or another tool. Will trustset see it?",
-        a: "Yes. Agents are found by key and by cold key, not by anything stored in our app. If it is already registered, the register dialog tells you which agent id it is. If your wallet is its cold key, it simply appears in your fleet with no registration step at all.",
+        a: "Yes. Agents are found by their address and their owner, not by anything stored in our app. If it is already registered, the register dialog tells you which agent id it is. If your wallet is its owner, it simply appears in your fleet with no registration step at all.",
       },
     ],
   },
@@ -105,7 +105,7 @@ export const GROUPS: Group[] = [
       {
         id: "upgradeable",
         q: "Can you change the contract?",
-        a: "No. It is immutable, which means the deployed bytecode is fixed. The three delays are immutable variables set once at deployment and baked into the code: a 24 hour cold key change, and 10 minutes each for guardian escalation and guardian recovery. We cannot change a line of it or one of those numbers.",
+        a: "No. It is immutable, which means the deployed bytecode is fixed. The three delays are immutable variables set once at deployment and baked into the code: a 24 hour owner change, and 10 minutes each for guardian escalation and guardian recovery. We cannot change a line of it or one of those numbers.",
       },
       {
         id: "bug",
@@ -115,7 +115,7 @@ export const GROUPS: Group[] = [
       {
         id: "live-agent-key",
         q: "Who holds the live agent's key?",
-        a: "Not our server alone. The agent on /demo signs every trade through a Dynamic 2-of-2 MPC server wallet: the key is split between Dynamic and us, and neither half can sign by itself. Our half is backed up to Dynamic encrypted under a password only our server knows. It still asks the switch before every action, so it stops the moment its cold key, which it never touches, says so.",
+        a: "Not our server alone. The agent on /demo signs every trade through a Dynamic 2-of-2 MPC server wallet: the key is split between Dynamic and us, and neither half can sign by itself. Our half is backed up to Dynamic encrypted under a password only our server knows. It still asks the switch before every action, so it stops the moment its owner, which it never touches, says so.",
       },
       {
         id: "custody",

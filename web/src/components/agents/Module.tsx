@@ -55,7 +55,7 @@ export default function Module({ agent, name, events, extra, now, busy, onToggle
   /* what the word means, on the word. it used to be a line under the switch
      that said the state a second time. */
   const caption = ended ? (agent.status === "revoked" ? "Stopped for good. Nothing can bring it back." : "Rotated. Trust moved to its successor.")
-    : sw === "tripped" ? "A guardian paused it. Your cold key brings it back."
+    : sw === "tripped" ? "A guardian paused it. Your wallet brings it back."
     : sw === "off" ? "You paused it. The switch brings it back."
     : live ? "Every app that checks will serve it."
     : `The switch is on, but it is ${word.toLowerCase()}. Clear its limits to be trusted again.`;

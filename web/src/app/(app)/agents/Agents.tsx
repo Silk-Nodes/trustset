@@ -204,7 +204,7 @@ export default function Agents() {
       try { const lrc = await ownerTx(() => labelOnChain(c, s, id, label.name, label.purpose ?? "")); setNote(<>{label.name} registered as agent {id.toString()} <TxLink cfg={c.cfg} hash={regHash} label="registration" />, and named on chain <TxLink cfg={c.cfg} hash={lrc?.hash} label="label" />.</>); }
       catch (e) { setNote(<>{label.name} registered as agent {id.toString()} <TxLink cfg={c.cfg} hash={regHash} />. {explain(e, c)}. Its name is only in this browser until you put it on chain from its panel.</>); }
     } else {
-      said(`${label.name} registered as agent ${id} under your wallet as its cold key.`, regHash);
+      said(`${label.name} registered as agent ${id}, owned by your wallet.`, regHash);
     }
     /* the registration and the label are both behind the executed block by now;
        wait for it rather than showing a list without the new agent */
@@ -282,8 +282,8 @@ export default function Agents() {
   const clearStopKey = (a: Agent) => withAct("panic", async () =>
     (await (conn!.ks.connect(ownerSigner(conn!)!) as ethers.Contract).setStopKey(a.id, 0, 0, ethers.ZeroHash)).wait(2),
     `Agent ${a.id} has no passkey now.`);
-  const proposeKey = (a: Agent, addr: string) => withAct("key", async () => (await (conn!.ks.connect(ownerSigner(conn!)!) as ethers.Contract).proposeRevocationKey(a.id, addr)).wait(2), `Cold key change proposed for agent ${a.id}. It lands after the delay.`);
-  const applyKey = (a: Agent) => withAct("key", async () => (await (conn!.ks.connect(ownerSigner(conn!)!) as ethers.Contract).applyRevocationKey(a.id)).wait(2), `Agent ${a.id} now belongs to its new cold key, and has left this list.`);
+  const proposeKey = (a: Agent, addr: string) => withAct("key", async () => (await (conn!.ks.connect(ownerSigner(conn!)!) as ethers.Contract).proposeRevocationKey(a.id, addr)).wait(2), `Owner change proposed for agent ${a.id}. It lands after the delay.`);
+  const applyKey = (a: Agent) => withAct("key", async () => (await (conn!.ks.connect(ownerSigner(conn!)!) as ethers.Contract).applyRevocationKey(a.id)).wait(2), `Agent ${a.id} now belongs to its new owner, and has left this list.`);
   const rotate = (a: Agent, succ: bigint) => withAct("rotate", async () => (await (conn!.ks.connect(ownerSigner(conn!)!) as ethers.Contract).rotate(a.id, succ, ethers.id("owner rotated"))).wait(2), `Agent ${a.id} rotated to agent ${succ}.`);
 
   async function stop(a: Agent) {
@@ -539,11 +539,11 @@ export default function Agents() {
          the dialog on its own once somebody is. this used to call the browser
          wallet directly, which with no extension installed did nothing at all. */
       wantRegister.current = true;
-      askSignIn("Sign in to register. That wallet becomes its cold key.");
+      askSignIn("Sign in to register. That wallet becomes its owner.");
     }}><span className="sm:hidden">Register</span><span className="hidden sm:inline">Register agent</span></button>;
 
   const samplePill = (
-    <Tip text={<>{guardingRoute ? `${guardedShown.length} agents somebody else owns, to show what a guardian does.` : `${all.length} made-up agents, to show the console working.`} Sign in with the wallet that is your agents&apos; cold key to see yours.</>}>
+    <Tip text={<>{guardingRoute ? `${guardedShown.length} agents somebody else owns, to show what a guardian does.` : `${all.length} made-up agents, to show the console working.`} Sign in with the wallet that owns your agents to see them.</>}>
       <span className="mono text-[10px] uppercase tracking-[0.12em] rounded-full px-2 py-0.5 whitespace-nowrap" style={{ border: "1px solid var(--hairline)", color: "var(--text-dark)" }}>sample</span>
     </Tip>
   );
@@ -570,7 +570,7 @@ export default function Agents() {
             saying so. an empty card with the word connect showed a visitor
             nothing about what any of this does. */}
         {conn && signedIn && !guardingRoute && !loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>Reading your agents from {conn.cfg.chain}…</div>}
-        {conn && signedIn && !guardingRoute && loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm text-ink/70">Nothing under {short(ownerAddr(conn)!)} yet. <Term k="register">Register</Term> the <Term k="agent key">agent key</Term> of an agent you already run, and this wallet becomes the one that can stop it. <span className="ml-2">{register}</span></div>}
+        {conn && signedIn && !guardingRoute && loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm text-ink/70">Nothing under {short(ownerAddr(conn)!)} yet. <Term k="register">Register</Term> the <Term k="agent address">agent address</Term> of an agent you already run, and this wallet becomes the one that can stop it. <span className="ml-2">{register}</span></div>}
         {conn && (signedIn || sampleOn) && guardingRoute && (
           <div className="min-w-0">{guardedShown.length ? guardingPanel : <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>Nobody has named this wallet as a guardian yet.</div>}</div>
         )}

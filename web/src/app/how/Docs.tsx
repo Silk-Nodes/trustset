@@ -37,10 +37,10 @@ const NAV = [
    the contract it lives in, because a stack that cannot be traced to code is a
    diagram, and the point of this page is that everything here can be read. */
 const LAYERS: [string, string, string][] = [
-  ["Identity", "An agent id, a human label, its cold key, and an ERC-8004 identity that points back at the switch.", "KillSwitch, AgentLabels"],
-  ["The switch", "Pause or stop from the cold key. Every app that checks refuses it from the next block.", "KillSwitch"],
+  ["Identity", "An agent id, a human label, its owner, and an ERC-8004 identity that points back at the switch.", "KillSwitch, AgentLabels"],
+  ["The switch", "The owner pauses or stops it. Every app that checks refuses it from the next block.", "KillSwitch"],
   ["Panic button", "A passkey on a phone that can pause and nothing else, verified on chain by the P256 precompile.", "KillSwitch"],
-  ["Guardians", "People you chose pause by vote, and recover a lost cold key through a delay you can cancel.", "KillSwitch"],
+  ["Guardians", "People you chose pause by vote, and replace a lost owner wallet through a delay you can cancel.", "KillSwitch"],
   ["Limits", "An end date, or a heartbeat it has to keep. When either lapses it stops being trusted with nobody awake.", "KillSwitch"],
   ["Past signatures", "isTrustedAt(id, at), so a venue judges an order by when it was signed rather than by now.", "KillSwitch"],
   ["Human proof", "A passkey assertion recorded against an action, so anyone can later ask whether a person was present.", "HumanTouch"],
@@ -217,11 +217,11 @@ export default function Docs() {
               </div>
             ))}
           </div>
-          <p>Changing the cold key is timelocked, so an owner sees a takeover coming before it lands. Guardians can never spend, and never stop an agent instantly.</p>
+          <p>Changing the owner is timelocked, so an owner sees a takeover coming before it lands. Guardians can never spend, and never stop an agent instantly.</p>
         </Section>
 
         <Section id="guardians" title="Guardians">
-          <p>Only the cold key can stop an agent, which leaves a hole: lose that key and a misbehaving agent has nobody left who can stop it. Guardians exist for that case and no other.</p>
+          <p>Only the owner can stop an agent, which leaves a hole: lose that wallet and a misbehaving agent has nobody left who can stop it. Guardians exist for that case and no other.</p>
           <ol className="grid gap-3 not-prose">
             {[
               ["They can pause", "Pause is reversible and cheap to hand out. If they were wrong, the owner resumes."],
@@ -234,7 +234,7 @@ export default function Docs() {
               </li>
             ))}
           </ol>
-          <p>Only a pause the guardians made can be escalated; an owner&apos;s own pause never can. On this testnet the delay is ten minutes so the path can be watched, and mainnet would use days. Guardians can also vote to move the cold key to a new one, which takes a threshold plus a delay in which the current cold key can refuse it.</p>
+          <p>Only a pause the guardians made can be escalated; an owner&apos;s own pause never can. On this testnet the delay is ten minutes so the path can be watched, and mainnet would use days. Guardians can also vote to move the owner to a new one, which takes a threshold plus a delay in which the current owner can refuse it.</p>
         </Section>
 
         <Section id="passkey" title="Passkey and refunds">
@@ -255,7 +255,7 @@ export default function Docs() {
             <Fact n="128,000" k="fuzzed calls a run" />
             <Fact n="0" k="audits" />
           </div>
-          <p>The invariants are the properties the product rests on: that revoked is terminal, that the cold key moves through exactly two timelocked doors and no other, that nothing skips its delay, that guardians cannot pause below their threshold. Each was checked by deleting the guard it depends on from the contract and confirming the suite goes red. One was removed rather than kept, because the handler cannot forge a WebAuthn assertion and the property could never have failed.</p>
+          <p>The invariants are the properties the product rests on: that revoked is terminal, that ownership moves through exactly two timelocked doors and no other, that nothing skips its delay, that guardians cannot pause below their threshold. Each was checked by deleting the guard it depends on from the contract and confirming the suite goes red. One was removed rather than kept, because the handler cannot forge a WebAuthn assertion and the property could never have failed.</p>
           <p>Proved on chain, not only in tests: a passkey nominated from a phone and used to pause the live agent, guardian recovery run from proposal through to execution, and an order signed before a stop honoured while one signed after it was refused.</p>
           <p><b style={{ color: "var(--text-dark)" }}>Deployed to Monad testnet, never to mainnet. Nothing here is audited by anyone but its author.</b></p>
           <div className="flex flex-wrap gap-2 pt-1 not-prose">

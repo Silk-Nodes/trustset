@@ -48,7 +48,7 @@ export async function GET(req: Request) {
       agentId: id, set: k.set, x: k.x.toString(), y: k.y.toString(), rpIdHash: k.rpIdHash,
       nonce: Number(k.nonce), status: Number(a.status), holdsColdKey, explorer: c.explorer,
       /* who the chain says may nominate. the page compares a connected wallet
-         against this, so a reader who holds the cold key signs it themselves
+         against this, so a reader who holds the owner signs it themselves
          rather than being told the server cannot. */
       coldKey: ethers.getAddress(a.revocationKey as string),
       expiresAt: Number(a.expiresAt), heartbeatWindow: Number(a.heartbeatWindow), lastBeat: Number(a.lastBeat),
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: rc?.status === 1, hash: tx.hash, block: rc?.blockNumber ?? null, explorer: c.explorer });
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);
-    const named = /NotRevocationKey/.test(m) ? "This server does not hold that agent's cold key, so it cannot nominate a passkey for it."
+    const named = /NotRevocationKey/.test(m) ? "This server is not that agent's owner, so it cannot nominate a passkey for it."
       : /Terminal/.test(m) ? "That agent has been stopped for good. Nothing can be nominated for it."
       : m.slice(0, 200);
     return NextResponse.json({ error: named }, { status: 400 });

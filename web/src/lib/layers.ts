@@ -78,7 +78,7 @@ export function nextClock(a: Agent, now = Date.now() / 1000): Clock | null {
 const VERB: Record<string, string> = {
   TradeAccepted: "traded", Beat: "said it is alive", GuardianVoted: "a guardian voted", LimitsSet: "limits set",
   Labelled: "named", Linked8004: "claimed by ERC-8004", AgentRegistered: "registered",
-  RevocationKeyChangeProposed: "key change proposed", RevocationKeyChanged: "cold key changed", Rotated: "rotated",
+  RevocationKeyChangeProposed: "owner change proposed", RevocationKeyChanged: "owner changed", Rotated: "rotated",
 };
 export function lastActivity(events: PulseEvent[], a: Agent): { text: string; at: number } {
   const e = events[0];
@@ -91,7 +91,7 @@ export function lastActivity(events: PulseEvent[], a: Agent): { text: string; at
 }
 
 /* which way the switch is thrown, and by whom. a breaker is on, off, or
-   tripped; here tripped means a guardian threw it, which the cold key can
+   tripped; here tripped means a guardian threw it, which the owner can
    undo and a guardian cannot. ended is the one position with no way back. */
 export type SwitchState = "on" | "off" | "tripped" | "ended";
 export function switchState(a: Agent, events: PulseEvent[]): SwitchState {
