@@ -63,7 +63,7 @@ guardian; harmless, and the page prevents it.
 ### HumanTouch
 
 **M4. A registered agent could stamp anyone's action as "agent" first.** Fixed.
-`originOf` was keyed by action hash alone. Anyone holding any registered agent
+`originOf` was keyed by action hash alone. Anyone holding any registered agent's
 key could call `attestAgent(txHash)` on somebody else's stop transaction before
 the human proof, and the proof would then revert `AlreadyAttested`. Origin is
 now keyed by account and action hash together, so an agent can only speak for
@@ -175,8 +175,8 @@ it, but nobody could replace the key, and the only ending was a stop. Guardians
 can now agree on a new owner, and after `guardianRecoveryDelay` any of them
 may execute it. Notes from designing it:
 
-- **It is for a key that was lost, not one that was stolen.** The current cold
-  key can cancel any recovery, so a thief holding it cancels every attempt
+- **It is for a key that was lost, not one that was stolen.** The current owner
+  can cancel any recovery, so a thief holding it cancels every attempt
   forever. That is deliberate: the alternative, a recovery the owner cannot
   refuse, lets a threshold of guardians take an agent from an owner who is
   standing right there. For a stolen key the answer is the path that already

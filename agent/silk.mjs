@@ -120,7 +120,7 @@ async function status() {
   const { trustset, p, address, id, staking } = await setup(false);
   const g = await gate(trustset, id);
   const l = await trustset.limits(id);
-  log(`agent ${id} · key ${address} · ${g.why}`);
+  log(`agent ${id} · address ${address} · ${g.why}`);
   log(`wallet ${mon(await p.getBalance(address))}`);
   if (l.expiresAt) log(`trusted until ${new Date(l.expiresAt * 1000).toISOString()}`);
   if (l.nextBeatBy) log(`next heartbeat due by ${new Date(l.nextBeatBy * 1000).toISOString()}`);
@@ -158,7 +158,7 @@ async function main() {
   }
   const ctx = await setup(true);
   const vid = () => BigInt(need("VALIDATOR_ID"));
-  log(`agent ${ctx.id} · key ${ctx.address}${DRY ? " · dry run" : ""}`);
+  log(`agent ${ctx.id} · address ${ctx.address}${DRY ? " · dry run" : ""}`);
 
   if (cmd === "stake") {
     const amount = ethers.parseEther(rest[0] ?? need("STAKE_MON"));

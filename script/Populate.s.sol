@@ -123,8 +123,8 @@ contract Populate is Script {
             ks.setStatus(ids[5], KillSwitch.Status.Paused, keccak256("scheduled maintenance"));
         }
 
-        /* paused by a guardian instead, which is a different thing: the cold
-           key can undo it and the guardian cannot. threshold one, so a single
+        /* paused by a guardian instead, which is a different thing: the owner
+           can undo it and the guardian cannot. threshold one, so a single
            vote carries. the guardian needs gas of its own to vote. */
         if (_status(ids[6]) == KillSwitch.Status.Active) {
             address g1 = vm.addr(_pk("ts:guardian-1"));

@@ -137,9 +137,9 @@ export default function Inspector(p: InspectorProps) {
           <li className="eyebrow px-2 pt-4 pb-1.5">sealed</li>
           {row("runbook", <LockMark />, "Runbook", "passkey only", true, true, p.runbook)}
         </>}
-        <li className="eyebrow px-2 pt-4 pb-1.5">keys</li>
-        {row("keys", <KeyMark />, "Keys", agent.guardians.length ? `${agent.guardians.length} guardians` : "agent, cold", true, true,
-          <dl className="grid grid-cols-[72px_1fr] gap-y-1.5 text-xs">
+        <li className="eyebrow px-2 pt-4 pb-1.5">ownership</li>
+        {row("keys", <AddressMark />, "Addresses", agent.guardians.length ? `agent, owner, ${agent.guardians.length} guardians` : "agent, owner", true, true,
+          <dl className="grid grid-cols-[96px_1fr] gap-x-2 gap-y-1.5 text-xs">
             <dt style={quiet}><Term k="agent address">Agent address</Term></dt><dd className="mono truncate">{a(agent.key)}</dd>
             <dt style={quiet}><Term k="owner">Owner</Term></dt><dd className="mono truncate">{a(agent.coldKey)}</dd>
             <dt style={quiet}>Guardians</dt><dd className="mono min-w-0">{agent.guardians.length ? agent.guardians.map(g => <div key={g} className="truncate">{a(g)}</div>) : "none"}</dd>
@@ -173,5 +173,7 @@ export default function Inspector(p: InspectorProps) {
 }
 
 const LockMark = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
-const KeyMark = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="8" cy="12" r="4.5" /><path d="M12.5 12H21M18 12v3M15 12v2.5" /></svg>;
+/* public addresses, drawn as a card with lines, not a key: nothing in this
+   row can be imported or used by whoever reads it */
+const AddressMark = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="M7 10h6M7 14h10" /></svg>;
 const OwnerMark = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 17l6-6 4 4 6-6" /><path d="M14 9h6v6" /></svg>;

@@ -58,7 +58,7 @@ async function main() {
   const address = await wallet.getAddress();
   const id = await trustset.idForKey(address);
   if (id === 0n) throw new Error(`${address} is not registered on ${d.killSwitch}`);
-  log(`agent ${id} · key ${address} · signs with ${signerWord} · acting every ${ACT_MS / 1000}s while trusted`);
+  log(`agent ${id} · address ${address} · signs with ${signerWord} · acting every ${ACT_MS / 1000}s while trusted`);
 
   let lastAct = 0, lastWhy = "";
   for (;;) {

@@ -7,6 +7,9 @@ import History from "./History";
 import Inspector, { type InspectorProps } from "./Inspector";
 import { LOW_GAS, monText, short } from "@/lib/chain";
 import CopyButton from "@/components/app/CopyButton";
+import Link from "next/link";
+import { say, type Ev } from "@/app/(app)/explorer/words";
+import { span } from "@/lib/layers";
 
 /* one agent. the canvas in the middle, its settings at the right.
  *
@@ -27,6 +30,9 @@ export type AgentPageProps = {
   panel?: boolean;
   /* the agent's own wallet: what it pays gas with, and where to top it up */
   balance?: bigint; faucet?: string;
+  /* the public record of this agent, where its whole history lives. absent
+     for the sample, which has no public page */
+  recordHref?: string;
 };
 
 export default function AgentPage(p: AgentPageProps) {
@@ -67,6 +73,7 @@ export default function AgentPage(p: AgentPageProps) {
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-5">
         <Module bare slim headless agent={p.agent} name={p.name} now={p.now} events={p.events} indexed={p.indexed} extra={p.extra} explorer={p.explorer} busy={p.busy} onToggle={p.onToggle} onStop={p.onStop} />
+        <Recent events={p.history.events} loading={p.history.loading} now={p.now} href={p.recordHref} />
         {/* the agent's gas: it signs with its own key, so it pays from its own
             wallet. low is said in orange, and the faucet is one press away */}
         {p.balance !== undefined && p.agent.status !== "revoked" && p.agent.status !== "rotated" && (
@@ -79,7 +86,6 @@ export default function AgentPage(p: AgentPageProps) {
           </div>
         )}
         <div>{inspector}</div>
-        <History agent={p.agent} events={p.history.events} total={p.history.total} more={p.history.more} loading={p.history.loading} indexed={p.indexed} now={p.now} explorer={p.explorer} />
       </div>
     </div>
   );
@@ -106,3 +112,39 @@ export default function AgentPage(p: AgentPageProps) {
     </div>
   );
 }
+
+/* what the agent did last, in words.
+ *
+ * the panel used to carry the explorer's whole history, with its tabs and its
+ * paging, below ten settings rows where nobody scrolled. the panel is where an
+ * owner acts, and for that the last few things the agent did are enough; the
+ * whole record is one press away on the explorer, which is where it is kept.
+ * a registration's own status change is implied by it and left out. */
+function Recent({ events, loading, now, href }: { events: PulseEvent[]; loading?: boolean; now: number; href?: string }) {
+  const regAt = new Set(events.filter(e => e.kind === "AgentRegistered").map(e => e.at));
+  const rows = events.filter(e => !(e.kind === "StatusChanged" && regAt.has(e.at))).slice().sort((a, b) => b.at - a.at).slice(0, 3);
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="eyebrow">recent</span>
+        <span className="flex-1" />
+        {href && <Link href={href} className="mono text-[11px] hover:underline whitespace-nowrap" style={{ color: "var(--text-medium)" }}>full history →</Link>}
+      </div>
+      {rows.length === 0
+        ? <p className="text-[12px]" style={{ color: "var(--text-medium)" }}>{loading ? "reading…" : "nothing yet"}</p>
+        : <ul className="flex flex-col">
+            {rows.map((e, i) => {
+              const w = say({ kind: e.kind, data: e.data ?? {} } as Ev);
+              return (
+                <li key={i} className="flex items-center gap-2.5 min-w-0 py-1.5 text-[12.5px]" style={{ borderTop: i ? "1px solid var(--hairline)" : undefined }}>
+                  <span aria-hidden className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TONE[w.tone] }} />
+                  <span className="truncate min-w-0 flex-1">{w.text}</span>
+                  <span className="mono text-[11px] tabular whitespace-nowrap" style={{ color: "var(--text-medium)" }}>{span(Math.max(0, now - e.at))} ago</span>
+                </li>
+              );
+            })}
+          </ul>}
+    </div>
+  );
+}
+const TONE = { live: "var(--sage)", off: "var(--orange)", quiet: "var(--terra)", plain: "var(--text-light)" } as const;

@@ -100,7 +100,7 @@ export default function Runbook({ conn, signer, id, sample, readOnly }: { conn: 
             ))}
           </div>
           <textarea value={text} onChange={e => setText(e.target.value)} rows={4} maxLength={2000}
-            placeholder={kind === "runbook" ? "Where it runs, how to restart it, which keys it uses" : "Why you stopped it"}
+            placeholder={kind === "runbook" ? "Where it runs, how to restart it, which wallet it signs with" : "Why you stopped it"}
             className="text-[13px] w-full rounded-lg px-2.5 py-1.5 outline-none focus-visible:ring-2 resize-y" style={field} />
           <div className="flex items-center gap-2">
             <button type="button" className="drawn-btn btn-orange" style={sm} disabled={!signer || !text.trim() || !!busy} onClick={seal}>{busy === "seal" ? "Sealing…" : "Seal with passkey"}</button>
