@@ -82,13 +82,13 @@ async function main() {
 
 /* one unit of work, and a heartbeat when one is due. the heartbeat is skipped
    unless the agent actually has a window, and never sent once it has lapsed:
-   only the cold key can start a new one. */
+   only the owner can start a new one. */
 async function act(trustset, wallet, venue, id) {
   const l = await trustset.limits(id);
 
   /* the trade and the heartbeat are separate jobs. a trade that failed used to
      throw before the heartbeat was reached, so one bad trade also cost the
-     beat, and a missed beat is a lapse only the cold key can undo. */
+     beat, and a missed beat is a lapse only the owner can undo. */
   try {
     const tx = await venue.trade(id, { gasLimit: await limitFor(venue.trade, [id], TRADE_GAS) });
     /* logged from the receipt, not from the send. a hash is not a trade: this
@@ -103,7 +103,7 @@ async function act(trustset, wallet, venue, id) {
     /* beat with room to spare: while less than one and a half action
        intervals remain. "less than an hour" with an hourly action could fall
        a few seconds either side of the boundary and skip the beat that
-       mattered, and a lapse needs the cold key to undo. */
+       mattered, and a lapse needs the owner to undo. */
     if (due < (ACT_MS / 1000) * 1.5) {
       const b = await trustset.beat(id, wallet, { gasLimit: BEAT_GAS });
       const br = await wallet.provider.waitForTransaction(b.hash);

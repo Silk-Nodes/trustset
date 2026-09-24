@@ -3,7 +3,7 @@ import Tip from "./Tip";
 
 /* a word with its meaning attached.
  *
- * three words carry all the meaning on the agents page: agent key, cold key
+ * three words carry all the meaning on the agents page: agent address, owner
  * and register. everything that was confusing about the product came down to
  * one of them being read the wrong way. so each one is underlined, and
  * hovering or tapping it says exactly what it means, in the same words every

@@ -29,7 +29,7 @@ contract Handler is Test {
 
     /* ---------- ghosts ---------- */
 
-    /// The cold key each agent SHOULD have, moved only by the two doors that may move it.
+    /// The owner each agent SHOULD have, moved only by the two doors that may move it.
     mapping(uint256 => address) public expectedCold;
     /// Once true, never false again, and the invariant says the status agrees.
     mapping(uint256 => bool) public wasTerminal;
@@ -98,7 +98,7 @@ contract Handler is Test {
         return guardians[k - 2];
     }
 
-    /// The agent's cold key RIGHT NOW, which is not the same as the key it was registered with:
+    /// The agent's owner RIGHT NOW, which is not the same as the key it was registered with:
     /// a recovery moves it, and a handler that kept pranking the original owner would spend the
     /// rest of the run locked out of its own agent.
     function _cold(uint256 id) internal view returns (address) { return ks.getAgent(id).revocationKey; }
@@ -199,7 +199,7 @@ contract Handler is Test {
         _observe(id);
     }
 
-    /// One of the two doors a cold key may move through, so it is one of the two that updates the ghost.
+    /// One of the two doors an owner may move through, so it is one of the two that updates the ghost.
     function applyRevocationKey(uint256 idSeed, uint256 whoSeed) external {
         attempts++;
         uint256 id = _id(idSeed);
@@ -339,7 +339,7 @@ contract Handler is Test {
         _observe(id);
     }
 
-    /// The other door a cold key may move through.
+    /// The other door an owner may move through.
     function executeRecovery(uint256 idSeed, uint256 whoSeed) external {
         attempts++;
         uint256 id = _id(idSeed);
@@ -442,12 +442,12 @@ contract InvariantsTest is StdInvariant, Test {
         }
     }
 
-    /// The cold key moves through exactly two doors, both of which take a delay, and through nothing
+    /// The owner moves through exactly two doors, both of which take a delay, and through nothing
     /// else. No ordering of the other eleven calls may move it.
     function invariant_coldKeyMovesOnlyThroughItsTwoDoors() public view {
         for (uint256 i = 0; i < handler.idCount(); i++) {
             uint256 id = handler.ids(i);
-            assertEq(ks.getAgent(id).revocationKey, handler.expectedCold(id), "the cold key moved by some other route");
+            assertEq(ks.getAgent(id).revocationKey, handler.expectedCold(id), "the owner moved by some other route");
         }
     }
 
@@ -496,7 +496,7 @@ contract InvariantsTest is StdInvariant, Test {
 
     /// Every delay is waited out. A key handover that can be rushed is not a timelock.
     function invariant_nothingSkipsItsDelay() public view {
-        assertFalse(handler.keyChangedEarly(), "a cold key changed before its delay was up");
+        assertFalse(handler.keyChangedEarly(), "an owner changed before its delay was up");
         assertFalse(handler.recoveryRanEarly(), "a recovery executed before its clock, or below its threshold");
         assertFalse(handler.escalatedEarly(), "guardians escalated before the escalation delay");
     }
@@ -575,10 +575,10 @@ contract InvariantsTest is StdInvariant, Test {
         handler.warp(uint256(ks.revocationKeyChangeDelay()) + 1);
         handler.applyRevocationKey(0, 0);
 
-        /* key B, not A: A is the cold key by now, and proposing the key that already holds the
+        /* key B, not A: A is the owner by now, and proposing the key that already holds the
            agent is refused, which is what made this step silently do nothing the first time. */
         handler.proposeRecovery(0, 0, 1);           // one guardian is not a threshold
-        handler.cancelRecovery(0, 0);               // and the cold key refuses it
+        handler.cancelRecovery(0, 0);               // and the owner refuses it
         handler.guardiansCompleteARecovery(0, 1);   // agreement, a week, then execution
 
         handler.guardianPause(0, 0);                // one vote

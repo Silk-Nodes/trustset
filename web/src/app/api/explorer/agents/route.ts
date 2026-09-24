@@ -13,10 +13,10 @@ export const dynamic = "force-dynamic";
  * so the line is drawn here, in the server, not only in the page:
  * - no query, no rows. only the size of the fleet.
  * - no filter by state or by what an agent lacks.
- * - an address matches an agent key only, never a cold key. the cold key is
+ * - an address matches an agent address only, never an owner. the owner is
  *   the one key worth phishing, and matching it would return its whole fleet.
  * - a hit carries its verdict and nothing an attacker would sort by: no
- *   guardians, no limits, no cold key. the agent's own page shows its details,
+ *   guardians, no limits, no owner. the agent's own page shows its details,
  *   one agent at a time, to somebody who asked for that agent.
  *
  * `trusted` is the three conditions the contract checks, written once. */

@@ -118,7 +118,7 @@ because they adopt without asking anybody's permission.
 the specific thing they get is the case the passkey exists for: something is
 wrong and the wallet is on a laptop in another room. a phone and a fingerprint
 pause the agent, with no wallet, no seed phrase and no gas. plus guardians, so a
-lost cold key is not a lost agent.
+lost owner wallet is not a lost agent.
 
 ## why not roll your own, in general
 

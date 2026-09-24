@@ -7,7 +7,7 @@
  * contract is immutable and the agents cannot be removed, so they say what they
  * are instead: a demo, whose, and which state it is there to show.
  *
- * only agents whose cold key is the deployer can be relabelled from here. the
+ * only agents whose owner is the deployer can be relabelled from here. the
  * live agent keeps its name, and agents registered from other wallets are left
  * for their owners. testnet only. */
 import { readFileSync } from "fs";
@@ -27,9 +27,9 @@ const LABELS = {
   16: ["demo: payments relay", "Active with an end date, a heartbeat and three guardians."],
   17: ["demo: rebalancer", "Its end date passed, so it stopped being trusted on its own."],
   18: ["demo: bridge watcher", "Missed its heartbeat window and went quiet."],
-  19: ["demo: treasury ops", "Paused by its cold key. Reversible."],
-  20: ["demo: collateral bot", "Paused by a guardian vote. Its cold key can undo that."],
-  21: ["demo: nft sweeper", "Stopped for good by its cold key. Terminal."],
+  19: ["demo: treasury ops", "Paused by its owner. Reversible."],
+  20: ["demo: collateral bot", "Paused by a guardian vote. Its owner can undo that."],
+  21: ["demo: nft sweeper", "Stopped for good by its owner. Terminal."],
   22: ["demo: old market maker", "Retired in favour of agent 14, so its trust moved rather than died."],
 };
 

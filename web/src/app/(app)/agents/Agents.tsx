@@ -30,7 +30,7 @@ const span = (sec: number) => sec >= 172800 ? `${Math.round(sec / 86400)} days` 
 /* the product. your agents, their status, one control per row.
  *
  * on Monad testnet nothing here can act until a wallet is connected, because
- * this page holds no key: the cold key is the reader's. the local anvil demo
+ * this page holds no key: the owner is the reader's. the local anvil demo
  * is the one exception, and it carries anvil's published default key so the
  * thing can be run with no wallet installed at all. */
 export default function Agents() {
@@ -101,7 +101,7 @@ export default function Agents() {
     if (me) loadGuarded(c, me).then(setGuarded).catch(() => {});
     return list;
   }
-  /* the name is the owner's. from the chain when the cold key wrote it there,
+  /* the name is the owner's. from the chain when the owner wrote it there,
      from this browser while it is still on its way, and the id when there is
      nothing, because the id is the truth. */
   const labelFor = (a: Agent): { name: string; purpose?: string; where: "chain" | "local" | "none" } => {
@@ -172,9 +172,9 @@ export default function Agents() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conn, who, asOwner]);
 
-  /* register an agent key under this wallet as the cold key. the key is an
+  /* register an agent address under this wallet as the owner. the key is an
      address the caller already has, or one generated here for evaluation. */
-  /* register, then label. two writes from the same cold key.
+  /* register, then label. two writes from the same owner.
    *
    * the id comes from the receipt, never from a rescan. and once the register
    * transaction is mined this function does not throw: a label that fails or

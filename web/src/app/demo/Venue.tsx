@@ -183,7 +183,7 @@ export default function Venue() {
     finally { setBusy(null); }
   }
 
-  /* when the reader holds the cold key, the switch is theirs to sign and the
+  /* when the reader holds the owner, the switch is theirs to sign and the
      server is refused if it tries. same call the console makes. */
   async function flip(to: 1 | 2, act?: Act) {
     if (!s) return;
@@ -207,7 +207,7 @@ export default function Venue() {
     finally { setBusy(null); }
   }
 
-  /* an end date, set by whoever actually holds the cold key.
+  /* an end date, set by whoever actually holds the owner.
    *
    * this used to be server only, so connecting a wallet disabled it: the page
    * owned the agent, the server could not sign for it, and the step pointed at
@@ -216,7 +216,7 @@ export default function Venue() {
    * the walkthrough refusing to finish for the people most likely to be
    * evaluating it.
    *
-   * setLimits wants the cold key and nothing else, exactly like the stop does,
+   * setLimits wants the owner and nothing else, exactly like the stop does,
    * so it takes the same road: the server signs for the shared agent, and the
    * reader signs for their own. same call either way. */
   async function limits(seconds: number, act?: Act) {

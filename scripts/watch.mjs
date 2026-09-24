@@ -14,7 +14,7 @@
  *
  *     if (block.timestamp > lastBeat + heartbeatWindow) revert Lapsed();
  *
- * so a lapsed agent stays lapsed until somebody sends a cold key transaction.
+ * so a lapsed agent stays lapsed until somebody sends an owner transaction.
  * that is the whole reason this exists: there is an hour to notice, and after
  * it the fix needs a human and a key.
  *
@@ -128,7 +128,7 @@ async function main() {
       /* past saving from here. say exactly what fixes it rather than just
          that something is wrong. */
       fail(`agent ${AGENT_ID} HAS LAPSED. beat() reverts now, so restarting the agent will not fix it. ` +
-           `the cold key must call setLimits to open a new window.`);
+           `the owner must call setLimits to open a new window.`);
     } else if (!c.trusted) {
       fail(`agent ${AGENT_ID} is not trusted. the switch says: ${c.why}`);
     } else {

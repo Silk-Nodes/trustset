@@ -14,7 +14,7 @@ contract KillSwitchTest is Test {
     address g3 = address(0x63);
     uint256 id;
 
-    /* the agent key's consent to its registration, signed with its own key */
+    /* the agent address's consent to its registration, signed with its own key */
     function _consent(uint256 agentPk, address cold) internal view returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s_) = vm.sign(agentPk, ks.registrationDigest(vm.addr(agentPk), cold));
         return abi.encodePacked(r, s_, v);
@@ -278,13 +278,13 @@ contract KillSwitchTest is Test {
         assertEq(ks.getAgent(id).successorId, mine);
     }
 
-    // ---------- audit: the agent key consents ----------
+    // ---------- audit: the agent address consents ----------
 
     function test_registerWithoutConsentReverts() public {
         address[] memory none;
         vm.expectRevert(KillSwitch.BadAgentSignature.selector);
         ks.register(vm.addr(0xA7), owner, none, 0, "");
-        // a consent for a different cold key is not consent for this one
+        // a consent for a different owner is not consent for this one
         bytes memory wrong = _consent(0xA7, address(0xC0FFEE));
         vm.expectRevert(KillSwitch.BadAgentSignature.selector);
         ks.register(vm.addr(0xA7), owner, none, 0, wrong);

@@ -30,17 +30,17 @@ built for monad metropolis, track 04: trust, identity and ai infrastructure.
 
 ## what trustset does
 
-an agent key is a standing authorisation. nothing about it expires, nothing about it can be
+an agent's key is a standing authorisation. nothing about it expires, nothing about it can be
 withdrawn, and the only way to take it back today is to drain the wallet it holds or hope every
 venue it talks to happens to notice. trustset is the set of primitives that makes that
 authorisation revocable, recoverable and accountable. eight layers, each its own contract:
 
 | layer | what it gives you | contract |
 | --- | --- | --- |
-| identity | an agent id, a human label, its cold key, and an erc-8004 identity that points back at the switch | `KillSwitch`, `AgentLabels` |
-| the switch | pause or stop from the cold key, and every app that checks refuses it from the next block | `KillSwitch` |
+| identity | an agent id, a human label, its owner, and an erc-8004 identity that points back at the switch | `KillSwitch`, `AgentLabels` |
+| the switch | the owner pauses or stops it, and every app that checks refuses it from the next block | `KillSwitch` |
 | panic button | a passkey on a phone that can pause and nothing else, verified on chain by the p256 precompile | `KillSwitch` |
-| guardians | people you chose can pause by vote, and recover a lost cold key through a delay you can cancel | `KillSwitch` |
+| guardians | people you chose can pause by vote, and replace a lost owner wallet through a delay you can cancel | `KillSwitch` |
 | limits | an end date, or a heartbeat it has to keep. when either lapses it stops being trusted with nobody awake | `KillSwitch` |
 | past signatures | `isTrustedAt(id, at)`, so a venue judges an order by when it was signed rather than by now | `KillSwitch` |
 | human proof | a passkey assertion recorded against an action, so anyone can later ask whether a person was present | `HumanTouch` |
@@ -105,7 +105,7 @@ if (!killSwitch.isTrusted(agentId)) revert AgentNotTrusted(agentId);
 - **refund rail** for x402 style payments, with a permissionless refund anybody can trigger
 - **an explorer** derived from logs rather than from anything we assert, built as a lookup:
   there is no ranked list of the least protected agents to hand an attacker
-- **sign in with an email**, through a Dynamic embedded wallet that becomes the cold key
+- **sign in with an email**, through a Dynamic embedded wallet that becomes the owner
 - **a live agent whose key no one machine holds**, signing through a Dynamic MPC server wallet
 - **a sealed runbook** per agent, encrypted with a key the owner's passkey derives through Mera
 - **147 tests**, including 128,000 fuzzed calls per run asserting eleven invariants
@@ -121,13 +121,13 @@ every trade and heartbeat through a Dynamic 2-of-2 MPC server wallet: the key is
 Dynamic and our server, our share is backed up to Dynamic under a password only the box knows, and
 neither half signs alone. it registered itself with its own consent signature, produced by Dynamic
 and checked against the contract's digest before anything was sent. the agent still asks the
-switch before every action, so a Dynamic-held key stops the moment a cold key it never touches
+switch before every action, so a Dynamic-held key stops the moment an owner it never touches
 says so.
 code: [`agent/dynamic.mjs`](agent/dynamic.mjs), [`agent/dynamic-setup.mjs`](agent/dynamic-setup.mjs).
 
 **the owner side, an embedded wallet.** an operator without a browser wallet signs in with an
 email. Dynamic sends a code, makes an embedded wallet on first sign-in, and that wallet becomes the
-cold key that registers, pauses and stops agents. the console sees one ethers signer either way. a
+owner that registers, pauses and stops agents. the console sees one ethers signer either way. a
 new email wallet gets one signed, capped drip of testnet gas so its first registration does not
 dead-end. the SDK loads only when email sign-in is used.
 code: [`web/src/lib/dynamic.ts`](web/src/lib/dynamic.ts), [`web/src/app/api/gas/route.ts`](web/src/app/api/gas/route.ts).
@@ -182,8 +182,8 @@ two of them need somebody to send a transaction and two do not.
 
 | | who | reversible |
 | --- | --- | --- |
-| pause | the cold key, or a nominated passkey | yes |
-| stop for good | the cold key | no, revoked is terminal |
+| pause | the owner, or a nominated passkey | yes |
+| stop for good | the owner | no, revoked is terminal |
 | the end date passes | nobody, it is a timestamp | only by moving the date |
 | a heartbeat is missed | nobody, the agent stopped calling `beat()` | yes, by beating again |
 
@@ -210,10 +210,10 @@ rekey. so a stolen phone costs its owner an interruption.
 proved on testnet: [`0x391f1ad4…237f34b6`](https://testnet.monadexplorer.com/tx/0x391f1ad46bece914fd739e6e06fc4c1ce17a3f9bddd7f26906b26761237f34b6)
 paused agent 7 from a phone, with `keccak("paused with a passkey")` as the recorded reason.
 
-## losing the cold key
+## losing the owner wallet
 
 guardians the owner named can vote to move an agent to a new key. the vote needs a threshold, then
-waits out a delay during which the real cold key can cancel it with one call. so guardians cannot
+waits out a delay during which the real owner can cancel it with one call. so guardians cannot
 take an agent quietly, and the owner does not lose one to a lost key.
 
 ## reading the past
@@ -252,9 +252,9 @@ reverse binding, and `AUDIT.md` says so plainly.
 
 | contract | holds funds | what it does |
 | --- | --- | --- |
-| `KillSwitch` | no | the whole product. per agent: hot key, cold key with a change delay, guardians, expiry, heartbeat, passkey, status with history. `isTrustedAt(id, at)` for judging old signatures |
-| `AgentLabels` | no | a human name for an agent id, set by its cold key |
-| `SealedNotes` | no | an agent's runbook and stop reasons as ciphertext, written by its cold key, readable only with the owner's passkey |
+| `KillSwitch` | no | the whole product. per agent: its address, an owner with a change delay, guardians, expiry, heartbeat, passkey, status with history. `isTrustedAt(id, at)` for judging old signatures |
+| `AgentLabels` | no | a human name for an agent id, set by its owner |
+| `SealedNotes` | no | an agent's runbook and stop reasons as ciphertext, written by its owner, readable only with the owner's passkey |
 | `HumanTouch` | no | webauthn assertions as general proof a person was present, beyond the panic button |
 | `RefundRail` | escrow | authorise and capture for x402 style payments, so a stopped agent's in-flight money can come back |
 | `OperatorRegistry` | operator bonds | validators opting in as trust operators, bls aggregate statements, slashing on a contradiction. the original direction, kept because it works and the bls library is tested against monad's own precompiles |
@@ -350,7 +350,7 @@ that matters. `test/Invariants.t.sol` puts the contract under 128,000 fuzzed cal
 whatever order the fuzzer likes, and asserts eleven properties across them, including:
 
 - revoked and rotated are terminal, and `isTrustedAt` still says so about every later moment
-- the cold key moves through exactly two doors, both timelocked, and through nothing else
+- ownership moves through exactly two doors, both timelocked, and through nothing else
 - nothing skips its delay: not a key handover, not a recovery, not an escalation
 - guardians cannot pause below their threshold of DISTINCT votes
 - only a pause the guardians made can be escalated to revoked

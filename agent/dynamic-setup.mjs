@@ -9,7 +9,7 @@
  *   node agent/dynamic-setup.mjs register
  *     registers that address as a new agent on the switch. the wallet signs its
  *     own consent through Dynamic, so nobody can register it under their key but
- *     us. the cold key is the server's demo key (DEMO_PAYER_KEY), the same one
+ *     us. the owner is the server's demo key (DEMO_PAYER_KEY), the same one
  *     that owns agent 7, so the /demo button can switch this one off too. it
  *     copies agent 7's settings, names the agent, and sends it gas.
  *
@@ -72,7 +72,7 @@ async function register() {
       ["address", "uint256", "string", "address", "address"], [d.killSwitch, (await p.getNetwork()).chainId, "trustset:register", key, cold.address]));
     if (ethers.hashMessage(ethers.getBytes(innerHash)) !== digest) throw new Error("consent digest does not match the contract's; refusing to sign");
     const sig = await agent.signMessage(ethers.getBytes(innerHash));
-    if (ethers.recoverAddress(digest, sig).toLowerCase() !== key.toLowerCase()) throw new Error("Dynamic's signature does not recover to the agent key");
+    if (ethers.recoverAddress(digest, sig).toLowerCase() !== key.toLowerCase()) throw new Error("Dynamic's signature does not recover to the agent address");
     console.log("consent signed by Dynamic and checked");
 
     /* the same shape as agent 7: a guardian, and a two hour heartbeat */

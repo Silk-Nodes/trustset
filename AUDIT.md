@@ -22,16 +22,16 @@ threshold, cleared on every other status change, and required by escalation.
 Tests: `test_ownerPauseCannotBeEscalated`, `test_ownerResumeClearsGuardianPauseFlag`,
 `test_guardianPauseEscalatesAfterDelay`.
 
-**M2. A registration could name a cold key nobody holds.** Fixed. `register`
-accepted the zero address as the cold key, which is an agent nobody can ever
-stop, and accepted the agent's own key as its cold key, which is a switch the
+**M2. A registration could name an owner nobody holds.** Fixed. `register`
+accepted the zero address as the owner, which is an agent nobody can ever
+stop, and accepted the agent's own key as its owner, which is a switch the
 agent holds itself. Both now revert with `BadKeys`. Test:
 `test_registerRejectsZeroAndSelfKeys`.
 
-**M3. Anyone could register any agent key.** Fixed. The first registration of
+**M3. Anyone could register any agent address.** Fixed. The first registration of
 a key won, so someone who learned an agent's address before its owner could
-register it under their own cold key and lock the owner out. `register` now
-takes the agent key's consent: an EIP-191 signature by the agent key over
+register it under their own wallet and lock the real owner out. `register` now
+takes the agent's consent: an EIP-191 signature by the agent's key over
 `registrationDigest(agentKey, revocationKey)`, bound to the switch's address
 and the chain, or the agent registers itself as the caller. The page signs the
 consent for a generated key and asks for it when a key is pasted. Tests:
@@ -48,7 +48,7 @@ successor to be active but not to be the same owner's, so "trust moved to X"
 could point at an agent the owner did not control. The successor must now
 belong to the caller. Test: `test_rotateRequiresOwnSuccessor`.
 
-**I1. Proposing the zero address cancels a pending cold key change.** Not a
+**I1. Proposing the zero address cancels a pending owner change.** Not a
 bug; undocumented. `proposeRevocationKey(id, address(0))` leaves nothing to
 apply. This is the cancel path and should be named as such in the page.
 
@@ -57,12 +57,12 @@ pausing and resuming, and `statusAt` scans it linearly. Only that owner's view
 calls get slower. Acceptable.
 
 **I3. Guardian lists are not deduplicated.** A duplicate address counts once,
-since votes are per address. The cold key or the agent key may be listed as a
+since votes are per address. The owner or the agent address may be listed as a
 guardian; harmless, and the page prevents it.
 
 ### HumanTouch
 
-**M4. A registered agent key could stamp anyone's action as "agent" first.** Fixed.
+**M4. A registered agent could stamp anyone's action as "agent" first.** Fixed.
 `originOf` was keyed by action hash alone. Anyone holding any registered agent
 key could call `attestAgent(txHash)` on somebody else's stop transaction before
 the human proof, and the proof would then revert `AlreadyAttested`. Origin is
@@ -106,8 +106,8 @@ handled: the payer refunds after the window.
 
 ### AgentLabels
 
-No findings. Only the current cold key may write, so a label follows control
-when the cold key changes, and the tests cover that.
+No findings. Only the current owner may write, so a label follows control
+when the owner changes, and the tests cover that.
 
 ### Counterparty
 
@@ -138,13 +138,13 @@ changes and land with the redeploy.
 Two ways for trust to end with nobody sending a transaction. `expiresAt` is a
 timestamp after which `isTrusted` is false; `heartbeatWindow` is how long the
 agent may go silent before the same happens, refreshed by the agent calling
-`beat`. Both are set by the cold key alone, both are off by default, and both
+`beat`. Both are set by the owner alone, both are off by default, and both
 only ever narrow what an agent may do. Notes from reviewing them:
 
 - **A lapsed heartbeat cannot be cleared by the agent.** `beat` reverts once the
   window has passed. If it did not, a key that went quiet because somebody else
   took it would be revived by that somebody at the moment they were ready to use
-  it. Coming back is the cold key's decision. Test: `test_agentCannotReviveItself`.
+  it. Coming back is the owner's decision. Test: `test_agentCannotReviveItself`.
 - **Resuming a paused agent starts a fresh window.** Otherwise an agent paused
   for a week with a one day window would be lapsed the instant it was resumed,
   and the owner would have no way to resume it at all. Test:
@@ -168,11 +168,11 @@ only ever narrow what an agent may do. Notes from reviewing them:
 
 20 tests cover these, in `test/Limits.t.sol`. 114 pass in total.
 
-## Added after the audit: guardian recovery of a cold key
+## Added after the audit: guardian recovery of an owner
 
-Until now a cold key that was lost meant losing the agent: guardians could pause
+Until now an owner that was lost meant losing the agent: guardians could pause
 it, but nobody could replace the key, and the only ending was a stop. Guardians
-can now agree on a new cold key, and after `guardianRecoveryDelay` any of them
+can now agree on a new owner, and after `guardianRecoveryDelay` any of them
 may execute it. Notes from designing it:
 
 - **It is for a key that was lost, not one that was stolen.** The current cold
@@ -189,7 +189,7 @@ may execute it. Notes from designing it:
   a fresh round rather than accumulating votes across targets, which would let
   two guardians who want different things add up to a threshold. Test:
   `test_namingADifferentKeyStartsOver`.
-- **Executing clears the old owner's pending handover.** Otherwise a cold key
+- **Executing clears the old owner's pending handover.** Otherwise an owner
   change the previous owner proposed before losing the agent would land
   afterwards and take it straight back out. Test:
   `test_recoveryKillsTheOldOwnersPendingHandover`.
@@ -242,7 +242,7 @@ vacuous by deleting the `nonce++` from the contract and watching it stay green, 
 
 two design choices in the handler bound what the fuzzer explores. it drives three agents with a
 fixed set of five actors, so nothing is said about many agents, many guardians, or a guardian who
-is also an agent key. and reaching a guardian agreement plus its delay is too unlikely to be found
+is also an agent address. and reaching a guardian agreement plus its delay is too unlikely to be found
 by a uniform fuzzer, so the handler offers those sequences as single actions. every call inside
 them goes through the real contract with real authorisation and the threshold is counted rather
 than assumed, but the fuzzer is being helped to the door rather than finding it.

@@ -15,7 +15,7 @@ import {Counterparty} from "../src/demo/Counterparty.sol";
 ///         indexer, the sdk, or anybody's bookmark.
 ///
 ///         Every agent here is owned by the deployer, which the explorer prints
-///         in its owner column. Ten agents sharing one cold key reads as one
+///         in its owner column. Ten agents sharing one owner reads as one
 ///         operator's fleet, which is what it is. Nothing about this is meant
 ///         to look like adoption.
 ///
@@ -62,7 +62,7 @@ contract Populate is Script {
         ks = KillSwitch(vm.parseJsonAddress(dep, ".killSwitch"));
         labels = AgentLabels(vm.parseJsonAddress(dep, ".labels"));
         venue = Counterparty(vm.parseJsonAddress(dep, ".venue"));
-        require(vm.parseJsonAddress(dep, ".owner") == cold, "DEPLOYER_PK is not the cold key in deployments");
+        require(vm.parseJsonAddress(dep, ".owner") == cold, "DEPLOYER_PK is not the owner in deployments");
 
         Spec[10] memory specs = [
             Spec("ts:usd-market-maker", "usd-market-maker", "Quotes both sides of the USDC book", 3, 30 days, 1 hours, 6, 2),
@@ -117,7 +117,7 @@ contract Populate is Script {
             ks.setLimits(ids[4], 0, SHORT);                           // goes quiet on its own
         }
 
-        /* paused by its own cold key: reversible, and the console says so */
+        /* paused by its own owner: reversible, and the console says so */
         if (_status(ids[5]) == KillSwitch.Status.Active) {
             vm.broadcast(coldPk);
             ks.setStatus(ids[5], KillSwitch.Status.Paused, keccak256("scheduled maintenance"));
@@ -154,7 +154,7 @@ contract Populate is Script {
     }
 
     /// @dev registers one agent, labels it, and funds its key so it can act.
-    ///      re-runnable: an agent key already in the registry is reused rather
+    ///      re-runnable: an agent address already in the registry is reused rather
     ///      than registered again, which would revert with AgentKeyInUse and
     ///      take the rest of the run down with it. the first attempt at this
     ///      script died a third of the way through, and a populate script that
@@ -170,7 +170,7 @@ contract Populate is Script {
 
             /* the agent consents to its own registration. without this signature
                whoever learned an agent's address first could register it under
-               their own cold key and lock the real owner out. */
+               their own owner and lock the real owner out. */
             (uint8 v, bytes32 r, bytes32 ss) = vm.sign(pk, ks.registrationDigest(key, cold));
             bytes memory sig = abi.encodePacked(r, ss, v);
             uint8 threshold = s.guardians == 0 ? 0 : (s.guardians > 1 ? 2 : 1);
@@ -198,7 +198,7 @@ contract Populate is Script {
         if ((s.trades > 0 || s.beats > 0) && key.balance < FUND / 2) {
             vm.broadcast(coldPk);
             (bool ok,) = key.call{value: FUND}("");
-            require(ok, "funding the agent key failed");
+            require(ok, "funding the agent address failed");
         }
     }
 

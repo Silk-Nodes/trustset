@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {KillSwitch} from "../src/KillSwitch.sol";
 
-/// Guardians replacing a cold key its owner can no longer use.
+/// Guardians replacing an owner its owner can no longer use.
 ///
 /// The distinction this suite is built around: recovery is for a key that was LOST. For a key that
 /// was STOLEN it does not help, because the thief can cancel every attempt, and the honest answer
@@ -118,7 +118,7 @@ contract RecoveryTest is Test {
 
     /// This is the case recovery does NOT solve, and the test says so out loud.
     function test_aStolenColdKeyCancelsForever() public {
-        address thief = owner; // the thief holds the cold key
+        address thief = owner; // the thief holds the owner
         _agree();
         vm.prank(thief); ks.cancelRecovery(id);
         _agree();
@@ -135,7 +135,7 @@ contract RecoveryTest is Test {
         assertEq(uint8(ks.getAgent(id).status), uint8(KillSwitch.Status.Revoked));
     }
 
-    /// A cold key change the old owner set in motion must not land after they lose the agent.
+    /// An owner change the old owner set in motion must not land after they lose the agent.
     function test_recoveryKillsTheOldOwnersPendingHandover() public {
         vm.prank(owner); ks.proposeRevocationKey(id, stranger);
         _agree();

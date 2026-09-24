@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * the worst it could do with a forged body is nominate a key nobody holds,
  * which is why it is still gated: that would quietly disarm the panic button.
  *
- * it signs with the cold key, because setStopKey is an owner call. the same
+ * it signs with the owner, because setStopKey is an owner call. the same
  * operator token as the live agent control, for the same reason. */
 const ABI = [
   "function setStopKey(uint256 agentId, uint256 x, uint256 y, bytes32 rpIdHash)",
