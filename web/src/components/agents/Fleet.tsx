@@ -7,6 +7,8 @@ import LayerIcon from "./LayerIcon";
 import Pulse from "./Pulse";
 import StatusDot from "./StatusDot";
 import Switch from "./Switch";
+import TrustLine from "./TrustLine";
+import Mains from "./Mains";
 
 /* the fleet. every agent this wallet owns, at the density the reader chose.
  *
@@ -38,7 +40,14 @@ export type BulkKind = "pause" | "resume" | "stop" | "limits";
 export type FleetProps = {
   agents: Agent[]; rows: Row[]; now: number;
   /* the sentence each owner wrote, by agent id, shown where the row had room */
-  purposes?: Record<string, string>; pulses: Record<string, { events: PulseEvent[] } | undefined>;
+  purposes?: Record<string, string>;
+  /* the agent open in the panel beside the list, marked in its row */
+  selected?: string;
+  /* the list shares the width with that panel: the columns fold as they do on
+     a phone, whatever the window's width, because it is the list's own width
+     that ran out. the viewport breakpoints alone laid 700px of columns into
+     600px and state ran into purpose. */
+  narrow?: boolean; pulses: Record<string, { events: PulseEvent[] } | undefined>;
   busy: Set<string>; canSign: boolean;
   onOpen: (id: bigint, open?: LayerKey) => void; onToggle: (a: Agent) => void; onStop: (a: Agent) => void;
   onBulk: (kind: BulkKind, rows: Row[], limits?: { expiresAt: number; window: number }) => void;
@@ -46,9 +55,10 @@ export type FleetProps = {
 
 export default function Fleet(p: FleetProps) {
   const { rows, now } = p;
-  /* density: fleet unless the reader chose otherwise; auto lets the count pick */
-  const [chosen, setChosen] = useState<Density | null>("fleet");
-  useEffect(() => { setChosen(loadDensity() ?? "fleet"); }, []);
+  /* density: the count picks unless the reader chose. up to thirty agents is a
+     breaker panel, past that a table with each agent's day in its row. */
+  const [chosen, setChosen] = useState<Density | null>(null);
+  useEffect(() => { setChosen(loadDensity()); }, []);
   const density: Density = chosen ?? densityFor(p.agents.length);
   const pick = (d: Density | null) => { setChosen(d); saveDensity(d); };
 
@@ -93,6 +103,10 @@ export default function Fleet(p: FleetProps) {
 
   const shown = useMemo(() => apply(rows, f, sort, rev), [rows, f, sort, rev]);
   const buckets = useMemo(() => grouped(shown, group), [shown, group]);
+  /* the breaker panel keeps every module in place and dims the ones a filter
+     leaves out, so filtering never rearranges the panel under the hand */
+  const panel = useMemo(() => grouped(apply(rows, NO_FILTER, sort, rev), group), [rows, sort, rev, group]);
+  const matches = useMemo(() => new Set(shown.map(r => r.id)), [shown]);
   const c = useMemo(() => counts(rows), [rows]);
   const byState = useMemo(() => Object.fromEntries(STATES.map(s => [s, rows.filter(r => r.state === s).length])) as Record<StateKey, number>, [rows]);
 
@@ -134,7 +148,10 @@ export default function Fleet(p: FleetProps) {
   const cards = density === "cards";
   /* a phone gets the same columns folded: the marks under the name, the state
      word at the right, and the filters behind one chip */
-  const [phone, setPhone] = useState(false);
+  const [phoneMQ, setPhone] = useState(false);
+  const phone = phoneMQ || !!p.narrow;
+  const md = p.narrow ? "hidden" : "hidden md:block";
+  const xlShow = p.narrow ? "hidden" : "hidden xl:block";
   useEffect(() => { const m = matchMedia("(max-width: 767px)"); const f = () => setPhone(m.matches); f(); m.addEventListener("change", f); return () => m.removeEventListener("change", f); }, []);
   const h = phone ? (density === "cards" ? 80 : 68) : HEIGHT[density];
   const scroller = useRef<HTMLDivElement>(null);
@@ -161,7 +178,9 @@ export default function Fleet(p: FleetProps) {
 
   /* grid columns are the same at every density; cards add a switch and a
      pulse, rows and fleet add a quick-action column at the end */
-  const cols = cards
+  const cols = p.narrow
+    ? (cards ? "grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-[24px_minmax(0,1fr)_auto]")
+    : cards
     ? "grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1.2fr)_132px_minmax(100px,1fr)_64px_172px_84px]"
     : "grid-cols-[24px_minmax(0,1fr)_auto] md:grid-cols-[24px_minmax(0,1fr)_190px_92px_88px_84px_172px]";
 
@@ -223,13 +242,62 @@ export default function Fleet(p: FleetProps) {
   const last = (r: Row) => r.last === null ? <span data-tip="the index is not reachable" style={faint}>index away</span> : <span style={quiet}>{span(r.last)}</span>;
   /* the quick actions at a row's end: pause or bring back in one press,
      stop with a held one. shown on hover and focus so the table stays quiet. */
+  /* the column shows the agent's day at rest and its controls under the
+     pointer. it used to sit empty until hovered, which was 190px of every row
+     spent on nothing. */
   const quick = (r: Row) => {
     const ended = r.state === "stopped";
     const paused = r.a.status === "paused";
     return (
-      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity whitespace-nowrap" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+      <div className="relative">
+      <div className="group-hover:opacity-0 group-focus-within:opacity-0 transition-opacity" aria-hidden><TrustLine agent={r.a} now={now} events={p.pulses[r.id]?.events ?? []} height={8} /></div>
+      <div className="absolute inset-y-0 left-0 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity whitespace-nowrap" style={{ top: "50%", transform: "translateY(-50%)", height: 28 }} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
         {!ended && <button type="button" className="drawn-btn btn-gold" style={btn} disabled={!p.canSign || p.busy.has("p" + r.id)} onClick={() => p.onToggle(r.a)}>{p.busy.has("p" + r.id) ? "…" : paused ? "bring back" : "pause"}</button>}
         {!ended && <Hold small disabled={!p.canSign || p.busy.has(r.id)} onHeld={() => p.onStop(r.a)} />}
+      </div>
+      </div>
+    );
+  };
+
+  /* one module in the breaker panel. the breaker itself pauses and resumes;
+     the rest of the module opens the agent. a stopped agent is an empty slot:
+     the module is gone and only its outline and name remain. */
+  const breakerEl = (r: Row) => {
+    const ev = p.pulses[r.id]?.events ?? [];
+    const sw = switchState(r.a, ev);
+    const stopped = r.state === "stopped";
+    const dim = !matches.has(r.id);
+    const lit = r.state === "trusted" ? "var(--sage)" : stopped ? "var(--text-light)" : r.state === "paused" ? "var(--orange)" : "var(--terra)";
+    return (
+      <div key={r.id} data-breaker role="button" tabIndex={0} onClick={() => p.onOpen(r.a.id)} onKeyDown={e => { if (e.key === "Enter") p.onOpen(r.a.id); }}
+        className={`group relative rounded-[12px] p-3.5 flex flex-col gap-3 cursor-pointer outline-none focus-visible:ring-2 transition-[opacity,transform] duration-200 active:scale-[0.99] ${stopped ? "" : "module"}`}
+        style={{
+          border: stopped ? "1.5px dashed var(--hairline)" : undefined,
+          boxShadow: !stopped && p.selected === r.id ? "var(--module-shadow), 0 0 0 1.5px var(--orange)" : undefined,
+          opacity: dim ? 0.3 : 1,
+        }}>
+        <div className="flex items-start gap-2 min-w-0">
+          <div className="min-w-0 flex-1">
+            <div className="text-[13.5px] font-semibold truncate" style={{ color: stopped ? "var(--text-medium)" : "var(--text-dark)" }}>{r.name}</div>
+            <div className="mono text-[10px] uppercase tracking-[0.12em] truncate mt-0.5" style={quiet}>agent {r.id}{r.tag ? ` · ${r.tag}` : ""}</div>
+          </div>
+          <Lamp state={r.state} color={lit} />
+        </div>
+        <div className="relative flex items-center gap-3">
+          <Switch state={sw} live={r.state === "trusted"} size="md" caption="none" busy={p.busy.has("p" + r.id)} disabled={!p.canSign}
+            onToggle={() => p.onToggle(r.a)} label={sw === "on" ? `pause ${r.name}` : `bring ${r.name} back`} />
+          <div className="min-w-0 flex-1 flex flex-col gap-1">
+            {stateWord(r)}
+            <span className="mono text-[10.5px] tabular whitespace-nowrap" style={{ color: "var(--text-medium)" }}>{r.last === null ? "index away" : `seen ${span(r.last)} ago`}</span>
+          </div>
+        </div>
+        {/* the module's foot: the agent's day at rest, the held stop under the
+            pointer, in the same 26px either way. the stop used to float over
+            the right end of the switch row and covered "seen 3h 1m ago". */}
+        <div className="relative h-[26px] flex items-center">
+          <div className={`w-full ${stopped ? "" : "group-hover:opacity-0 group-focus-within:opacity-0"} transition-opacity duration-150`}><TrustLine agent={r.a} now={now} events={ev} height={6} /></div>
+          {!stopped && <div className="absolute inset-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150" onClick={e => e.stopPropagation()}><Hold small wide disabled={!p.canSign || p.busy.has(r.id)} onHeld={() => p.onStop(r.a)} /></div>}
+        </div>
       </div>
     );
   };
@@ -247,7 +315,7 @@ export default function Fleet(p: FleetProps) {
       <div key={r.id} role="row" aria-selected={isSel} data-cursor={on || undefined}
         onClick={() => { setCursor(i); p.onOpen(r.a.id); }} onKeyDown={e => { if (e.key === "Enter") p.onOpen(r.a.id); }} tabIndex={0}
         className={`group grid ${cols} items-center gap-3 px-3 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset transition-colors`}
-        style={{ height: h, borderBottom: "1px solid var(--hairline)", background: isSel ? "color-mix(in srgb, var(--orange) 8%, transparent)" : on ? "color-mix(in srgb, var(--text-dark) 4%, transparent)" : "transparent" }}>
+        style={{ height: h, borderBottom: "1px solid var(--hairline)", background: isSel ? "color-mix(in srgb, var(--orange) 8%, transparent)" : p.selected === r.id ? "color-mix(in srgb, var(--text-dark) 7%, transparent)" : on ? "color-mix(in srgb, var(--text-dark) 4%, transparent)" : "transparent", boxShadow: p.selected === r.id ? "inset 2px 0 0 var(--orange)" : undefined }}>
         {!cards && (
           <span role="gridcell" onClick={e => { e.stopPropagation(); if (e.target === e.currentTarget) toggleSel(r.id); }} className="inline-flex items-center justify-center w-6 h-6 -ml-1">
             <input type="checkbox" checked={isSel} onChange={() => toggleSel(r.id)} aria-label={`select ${r.name}`} className="w-3.5 h-3.5 accent-[var(--orange)]" />
@@ -255,23 +323,23 @@ export default function Fleet(p: FleetProps) {
         )}
         <div role="gridcell" className="flex items-center gap-2.5 min-w-0">
           <StatusDot status={r.a.status} size={8} live={r.state === "trusted"} />
-          <div className="min-w-0 leading-tight xl:w-[240px] xl:shrink-0">
+          <div className={`min-w-0 leading-tight ${p.narrow ? "" : "xl:w-[240px] xl:shrink-0"}`}>
             <div className={`truncate ${cards ? "text-[14px]" : "text-[13px]"} font-semibold`}>{r.name}</div>
             <div className="mono text-[10.5px] truncate" style={quiet}>agent {r.id} · {short(r.a.key)}{r.tag ? ` · ${r.tag}` : ""}</div>
             {phone && <div className="mt-1">{dots(r)}</div>}
           </div>
-          {!cards && <span className="hidden xl:block min-w-0 truncate text-[12.5px]" style={p.purposes?.[r.id] ? quiet : faint}>{p.purposes?.[r.id] || "no purpose given"}</span>}
+          {!cards && <span className={`${xlShow} min-w-0 truncate text-[12.5px]`} style={p.purposes?.[r.id] ? quiet : faint}>{p.purposes?.[r.id] || "no purpose given"}</span>}
         </div>
-        {!cards && !phone && <div role="gridcell" className="hidden md:block">{quick(r)}</div>}
+        {!cards && !phone && <div role="gridcell" className={md}>{quick(r)}</div>}
         {cards
-          ? <div role="gridcell" className="hidden md:block" onClick={e => e.stopPropagation()}><Switch state={sw} live={r.state === "trusted"} busy={p.busy.has("p" + r.id)} disabled={!p.canSign} onToggle={() => p.onToggle(r.a)} label={sw === "on" ? `pause ${r.name}` : `bring ${r.name} back`} /></div>
-          : <div role="gridcell" className="hidden md:block">{stateWord(r)}</div>}
+          ? <div role="gridcell" className={md} onClick={e => e.stopPropagation()}><Switch state={sw} live={r.state === "trusted"} busy={p.busy.has("p" + r.id)} disabled={!p.canSign} onToggle={() => p.onToggle(r.a)} label={sw === "on" ? `pause ${r.name}` : `bring ${r.name} back`} /></div>
+          : <div role="gridcell" className={md}>{stateWord(r)}</div>}
         {cards
-          ? <div role="gridcell" className="hidden md:block min-w-0"><Pulse events={ev} now={now} height={22} /></div>
-          : <div role="gridcell" className="hidden md:block mono text-[11.5px] tabular">{expires(r)}</div>}
-        <div role="gridcell" className="hidden md:block mono text-[11.5px] tabular">{last(r)}</div>
+          ? <div role="gridcell" className={`${md} min-w-0`}><Pulse events={ev} now={now} height={22} /></div>
+          : <div role="gridcell" className={`${md} mono text-[11.5px] tabular`}>{expires(r)}</div>}
+        <div role="gridcell" className={`${md} mono text-[11.5px] tabular`}>{last(r)}</div>
         <div role="gridcell">{phone ? stateWord(r) : dots(r)}</div>
-        {cards && !phone && <div role="gridcell" className="hidden md:block"><div className="flex justify-end opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>{r.state !== "stopped" && <Hold small disabled={!p.canSign || p.busy.has(r.id)} onHeld={() => p.onStop(r.a)} />}</div></div>}
+        {cards && !phone && <div role="gridcell" className={md}><div className="flex justify-end opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>{r.state !== "stopped" && <Hold small disabled={!p.canSign || p.busy.has(r.id)} onHeld={() => p.onStop(r.a)} />}</div></div>}
       </div>
     );
   };
@@ -282,71 +350,76 @@ export default function Fleet(p: FleetProps) {
           carry the counts, which is what the four stat cards and the views rail
           used to say twice over, and everything rarer sits behind one menu. */}
       <div className="flex-1 min-h-0 flex flex-col min-w-0">
-          <div className="relative z-[3] flex flex-wrap items-center gap-2 mb-3">
-            <label className="relative">
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 mono text-[11px]" style={faint}>/</span>
-              <input ref={search} value={f.q} onChange={e => setF(x => ({ ...x, q: e.target.value }))} placeholder="name, id, key" spellCheck={false}
-                className="h-7 w-[150px] sm:w-[180px] rounded-full pl-7 pr-3 text-[12.5px] outline-none focus-visible:ring-2" style={{ background: "var(--surface)", border: "1px solid var(--hairline)", color: "var(--text-dark)" }} />
-            </label>
-            <span className="hidden sm:block w-px h-4 mx-1" style={{ background: "var(--hairline)" }} />
-            {STATES.map(st => (
-              <button key={st} type="button" onClick={() => setState(st)} className={chipCls} style={chip(f.states.includes(st))}>
-                {STATE_WORD[st]}
-                <span className="mono text-[11px] tabular" style={{ color: f.states.includes(st) ? "inherit" : "var(--text-light)" }}>{byState[st]}</span>
-              </button>
-            ))}
-            <Menu label={current && !current.builtIn ? current.name : f.missing.length || f.within || f.active24 ? `more filters · ${f.missing.length + (f.within ? 1 : 0) + (f.active24 ? 1 : 0)}` : "more filters"}
-              on={(!!current && !current.builtIn) || f.missing.length > 0 || f.within > 0 || f.active24}>
-              <div className="eyebrow px-2.5 pt-1.5 pb-1">missing layer</div>
-              {LAYERS.filter(l => l.k !== "switch" && l.k !== "past").map(l => <Check key={l.k} on={f.missing.includes(l.k)} onClick={() => setMissing(l.k)}><LayerIcon k={l.k} size={13} />{l.name}</Check>)}
-              <div className="eyebrow px-2.5 pt-2 pb-1">expires in</div>
-              {([["off", 0], ["a day", DAY], ["a week", 7 * DAY], ["30 days", 30 * DAY]] as [string, number][]).map(([w, v]) => <Check key={v} on={f.within === v} onClick={() => setF(x => ({ ...x, within: v }))}>{w}</Check>)}
-              <Check on={f.active24} onClick={() => setF(x => ({ ...x, active24: !x.active24 }))}>active in the last 24h</Check>
-              {(saved.length > 0 || dirty) && <div className="eyebrow px-2.5 pt-2 pb-1">your views</div>}
-              {viewList(true)}
-            </Menu>
-            {isFiltered(f) && <button type="button" onClick={() => openView(BUILT_IN[0])} className={chipCls} style={{ ...chip(false), border: "1px solid transparent" }}>clear</button>}
+          <div className="mb-3 shrink-0">
+            <Mains rows={rows} now={now} pulses={p.pulses} on={f.states} onState={setState} narrow={p.narrow}
+              filtered={isFiltered(f)} onClear={() => openView(BUILT_IN[0])} />
           </div>
 
           {/* sized by its rows, not stretched to the window: eight agents in a
               frame the height of the screen read as a table with a hole in it.
               past the window it caps and scrolls inside. */}
-          <div className="sheet min-h-0 flex flex-col overflow-clip">
+          <div className={`${cards ? "enclosure" : "sheet"} min-h-0 flex flex-col overflow-clip ${p.narrow ? "flex-1" : ""}`}>
             {!cards && (
               <div role="row" className={`grid ${cols} items-center gap-3 px-3 h-9 shrink-0`} style={{ borderBottom: "1px solid var(--hairline)", background: "color-mix(in srgb, var(--surface) 94%, var(--text-dark))" }}>
                 <span className="inline-flex items-center justify-center w-6 h-6 -ml-1"><input type="checkbox" aria-label="select all shown" checked={flat.length > 0 && selected.length === flat.length} onChange={() => setSel(selected.length === flat.length ? new Set() : new Set(flat.map(r => r.id)))} className="w-3.5 h-3.5 accent-[var(--orange)]" /></span>
                 <span className="flex items-center min-w-0">
-                  <span className="xl:w-[268px] shrink-0">{th("name", "agent")}</span>
-                  <span className="hidden xl:inline eyebrow">purpose</span>
+                  <span className={p.narrow ? "shrink-0" : "xl:w-[268px] shrink-0"}>{th("name", "agent")}</span>
+                  <span className={`${p.narrow ? "hidden" : "hidden xl:inline"} eyebrow`}>purpose</span>
                 </span>
-                {!phone && <span className="hidden md:block" />}
-                <span className="hidden md:block">{th("attention", "state")}</span>
-                <span className="hidden md:block">{th("expiry", "expires")}</span>
-                <span className="hidden md:block">{th("last", "last")}</span>
+                {!phone && <span className={`${md} eyebrow`} data-tip="Trusted is solid, a pause orange, silence or a lapsed end date hatched, stopped grey. Blank means no record that far back.">last 24 hours</span>}
+                <span className={md}>{th("attention", "state")}</span>
+                <span className={md}>{th("expiry", "expires")}</span>
+                <span className={md}>{th("last", "last")}</span>
                 {phone ? <span className="eyebrow">state</span> : <span className="flex items-center gap-1">{LAYERS.map(l => <span key={l.k} data-tip={l.name} className="inline-flex w-[18px] h-[18px] items-center justify-center" style={quiet}><LayerIcon k={l.k} size={12} /></span>)}</span>}
               </div>
             )}
-            <div ref={scroller} onScroll={e => setTop((e.target as HTMLDivElement).scrollTop)} className="flex-1 min-h-0 overflow-y-auto max-h-[calc(100dvh-280px)]" role="grid" aria-rowcount={flat.length}>
-              {items.length === 0 && (
+            <div ref={scroller} onScroll={e => setTop((e.target as HTMLDivElement).scrollTop)} className="flex-1 min-h-0 overflow-y-auto max-h-[calc(100dvh-280px)] lg:max-h-none" role="grid" aria-rowcount={flat.length}>
+              {items.length === 0 && (!cards || rows.length === 0) && (
                 <div className="px-4 py-10 text-[13px] text-center flex flex-col items-center gap-3" style={quiet}>
                   <span>{rows.length ? "nothing matches" : "no agents yet"}</span>
                   {rows.length > 0 && isFiltered(f) && <button type="button" onClick={() => openView(BUILT_IN[0])} className="drawn-btn btn-gold" style={btn}>clear filters</button>}
                 </div>
               )}
+              {cards ? (
+                <div className="p-3 sm:p-4 flex flex-col gap-4">
+                  {panel.map(b => (
+                    <div key={b.key}>
+                      {b.label && <div className="eyebrow mb-2 flex gap-2"><span style={{ color: "var(--text-dark)" }}>{b.label}</span><span className="mono tabular">{b.rows.length}</span></div>}
+                      <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(236px,1fr))]">{b.rows.map(breakerEl)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : <>
               {windowed && start > 0 && <div style={{ height: start * h }} />}
               {items.slice(start, end).map(it => it.kind === "group"
                 ? <div key={"g" + it.b.key} className="flex items-center gap-2 px-3 eyebrow sticky top-0 z-[1]" style={{ height: h, background: "var(--surface)", borderBottom: "1px solid var(--hairline)" }}><span style={{ color: "var(--text-dark)" }}>{it.b.label}</span><span className="mono tabular">{it.b.rows.length}</span></div>
                 : rowEl(it.r, it.i))}
               {windowed && end < items.length && <div style={{ height: (items.length - end) * h }} />}
+              </>}
             </div>
             {selected.length === 0 && (
               <div className="shrink-0 flex flex-wrap items-center gap-2 px-3 py-2" style={{ borderTop: items.length ? "1px solid var(--hairline)" : undefined }}>
+                <label className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 mono text-[11px]" style={quiet}>/</span>
+                  <input ref={search} value={f.q} onChange={e => setF(x => ({ ...x, q: e.target.value }))} placeholder="find" spellCheck={false} aria-label="Find an agent by name, id or key"
+                    className="h-7 w-[112px] focus:w-[170px] transition-[width] duration-200 rounded-full pl-7 pr-3 text-[12.5px] outline-none focus-visible:ring-2" style={{ background: "var(--surface)", border: "1px solid var(--hairline)", color: "var(--text-dark)" }} />
+                </label>
+                <Menu label={current && !current.builtIn ? current.name : f.missing.length || f.within || f.active24 ? `filters · ${f.missing.length + (f.within ? 1 : 0) + (f.active24 ? 1 : 0)}` : "filters"} up
+                  on={(!!current && !current.builtIn) || f.missing.length > 0 || f.within > 0 || f.active24}>
+                  <div className="eyebrow px-2.5 pt-1.5 pb-1">missing layer</div>
+                  {LAYERS.filter(l => l.k !== "switch" && l.k !== "past").map(l => <Check key={l.k} on={f.missing.includes(l.k)} onClick={() => setMissing(l.k)}><LayerIcon k={l.k} size={13} />{l.name}</Check>)}
+                  <div className="eyebrow px-2.5 pt-2 pb-1">expires in</div>
+                  {([["off", 0], ["a day", DAY], ["a week", 7 * DAY], ["30 days", 30 * DAY]] as [string, number][]).map(([w, v]) => <Check key={v} on={f.within === v} onClick={() => setF(x => ({ ...x, within: v }))}>{w}</Check>)}
+                  <Check on={f.active24} onClick={() => setF(x => ({ ...x, active24: !x.active24 }))}>active in the last 24h</Check>
+                  {(saved.length > 0 || dirty) && <div className="eyebrow px-2.5 pt-2 pb-1">your views</div>}
+                  {viewList(true)}
+                </Menu>
                 <span className="mono text-[11.5px] tabular" style={quiet}>{flat.length === rows.length ? `${rows.length} agent${rows.length === 1 ? "" : "s"}` : `${flat.length} of ${rows.length}`}</span>
-                {!phone && <span className="hidden lg:inline mono text-[10.5px]" style={faint}>j k move · x select · / find</span>}
+                
                 <span className="flex-1" />
                 <Menu label={GROUP_WORD[group]} on={group !== "none"} align="right" up>{(Object.keys(GROUP_WORD) as Group[]).map(g => <Check key={g} on={group === g} onClick={() => setGroup(g)}>{GROUP_WORD[g]}</Check>)}</Menu>
-                {!phone && <Menu label={`${density}${chosen ? "" : " · auto"}`} on={false} align="right" up>
-                  {(["cards", "rows", "fleet"] as Density[]).map(d => <Check key={d} on={chosen === d} onClick={() => pick(d)}>{d}</Check>)}
+                {!phone && <Menu label={`${density === "cards" ? "breakers" : density}${chosen ? "" : " · auto"}`} on={false} align="right" up>
+                  {(["cards", "rows", "fleet"] as Density[]).map(d => <Check key={d} on={chosen === d} onClick={() => pick(d)}>{d === "cards" ? "breakers" : d}</Check>)}
                   <Check on={chosen === null} onClick={() => pick(null)}>auto by count</Check>
                 </Menu>}
               </div>
@@ -377,6 +450,16 @@ export default function Fleet(p: FleetProps) {
       </div>
     </div>
   );
+}
+
+/* the indicator lamp. it flickers once when the state it shows changes while
+   the page is open, the way a real indicator settles, and never on first draw:
+   a reader opening the page has not seen anything change. */
+function Lamp({ state, color }: { state: StateKey; color: string }) {
+  const first = useRef(state);
+  const changed = state !== first.current;
+  return <span key={state} aria-hidden className={`mt-1 w-2 h-2 rounded-full shrink-0 ${changed ? "lamp-settle" : ""}`}
+    style={{ background: color, boxShadow: state === "trusted" ? "0 0 0 3px color-mix(in srgb, var(--sage) 22%, transparent), 0 0 8px color-mix(in srgb, var(--sage) 45%, transparent)" : state === "paused" ? "0 0 8px color-mix(in srgb, var(--orange) 50%, transparent)" : undefined }} />;
 }
 
 /* a chip that opens a small list. closes on outside click and escape. */
@@ -410,7 +493,7 @@ function Check({ on, onClick, children }: { on: boolean; onClick: () => void; ch
 }
 
 /* the held press. same 1500ms clock as the module's. */
-export function Hold({ disabled, onHeld, small }: { disabled: boolean; onHeld: () => void; small?: boolean }) {
+export function Hold({ disabled, onHeld, small, wide }: { disabled: boolean; onHeld: () => void; small?: boolean; wide?: boolean }) {
   const [holding, setHolding] = useState(false);
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
   const begin = () => { if (disabled) return; setHolding(true); t.current = setTimeout(() => { t.current = null; setHolding(false); onHeld(); }, 1500); };
@@ -418,7 +501,7 @@ export function Hold({ disabled, onHeld, small }: { disabled: boolean; onHeld: (
   return (
     <button type="button" disabled={disabled} onPointerDown={e => { e.preventDefault(); begin(); }} onPointerUp={end} onPointerLeave={end} onPointerCancel={end}
       onKeyDown={e => { if (e.key === " " && !e.repeat) { e.preventDefault(); begin(); } }} onKeyUp={e => { if (e.key === " ") end(); }}
-      className={`relative overflow-hidden rounded-full mono tracking-[0.08em] select-none outline-none focus-visible:ring-2 disabled:opacity-45 ${small ? "text-[10px] px-2.5 h-[26px]" : "text-[11px] px-3.5 h-[30px]"}`}
+      className={`relative overflow-hidden rounded-full mono tracking-[0.08em] select-none ${wide ? "w-full" : ""} outline-none focus-visible:ring-2 disabled:opacity-45 ${small ? "text-[10px] px-2.5 h-[26px]" : "text-[11px] px-3.5 h-[30px]"}`}
       style={{ border: "1.5px solid var(--orange)", color: "var(--orange-text)", touchAction: "none" }}>
       <span aria-hidden className="absolute inset-0" style={{ background: "var(--orange)", clipPath: holding ? "inset(0 0 0 0)" : "inset(0 100% 0 0)", transition: holding ? "clip-path 1500ms linear" : "clip-path 180ms cubic-bezier(0.23, 1, 0.32, 1)" }} />
       <span className="relative" style={{ color: holding ? "#160A06" : undefined }}>{holding ? "keep holding" : "hold to stop"}</span>

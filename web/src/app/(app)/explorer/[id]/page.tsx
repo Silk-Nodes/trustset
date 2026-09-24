@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Agent from "./Agent";
-import Footer from "@/components/Footer";
+import { TopBar } from "@/components/app/AppShell";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Agent" };
@@ -11,14 +11,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return (
     <>
       {/* wide, like the explorer it came from */}
-      <main className="w-full px-4 sm:px-5 pt-10 sm:pt-12 pb-16 min-w-0">
-        <Link href="/explorer" className="text-sm hover:underline" style={{ color: "var(--text-medium)" }}>← Explorer</Link>
-        <h1 className="text-[32px] sm:text-[44px] font-semibold tracking-[-0.03em] leading-[1.05] mt-3 mb-8">
-          Agent {id}
-        </h1>
+      <TopBar title={<><Link href="/explorer" className="hover:underline" style={{ color: "var(--text-medium)", fontWeight: 500 }}>Explorer</Link><span className="mx-1.5" style={{ color: "var(--text-light)" }}>/</span>Agent {id}</>} />
+      <main className="w-full px-4 sm:px-5 pt-6 pb-12 min-w-0">
         <Agent id={Number(id)} explorer="https://testnet.monadexplorer.com" />
       </main>
-      <Footer />
     </>
   );
 }

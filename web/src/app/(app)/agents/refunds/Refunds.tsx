@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import Footer from "@/components/Footer";
 import Shell from "@/components/agents/Shell";
 import TxLink from "@/components/agents/TxLink";
 import RefundReplay from "@/components/agents/RefundReplay";
@@ -171,7 +170,6 @@ export default function Refunds() {
           </div>
         )}
       </Shell>
-      <Footer />
     </>
   );
 }
