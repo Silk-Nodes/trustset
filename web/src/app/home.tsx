@@ -31,7 +31,7 @@ export default function Home() {
           The trust stack<br /><span style={{ color: "var(--dim)" }}>for AI agents.</span>
         </motion.h1>
         <motion.p initial={m.reduced ? { opacity: 0 } : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={m.reduced ? { duration: 0.2 } : { duration: 0.7, ease: [0.23, 1, 0.32, 1], delay: 0.1 }}
-          className="text-xl sm:text-2xl text-ink/70 mt-6 max-w-[40ch]">Your agent, on your switch. Like freezing a card from your phone: the card is your agent, and every shop on Monad that checks refuses it next block.</motion.p>
+          className="text-xl sm:text-2xl text-ink/70 mt-6 max-w-[40ch]">Like the controls on your bank card, for an AI agent. Freeze it, give it an end date, choose who else can freeze it, and see every move it made. Apps on Monad that check follow your settings from the next block.</motion.p>
         <motion.div initial={m.reduced ? { opacity: 0 } : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={m.reduced ? { duration: 0.2 } : { duration: 0.7, ease: [0.23, 1, 0.32, 1], delay: 0.18 }} className="flex gap-2 mt-8">
           {/* the walkthrough explains the product better than this page does, so
               it takes the accented button. somebody who already has agents knows
