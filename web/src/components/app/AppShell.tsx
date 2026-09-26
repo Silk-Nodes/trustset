@@ -160,7 +160,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="hidden lg:flex shrink-0 h-7 items-center gap-4 px-4 mono text-[10.5px] app-material" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
             <span className="tabular">{block ? `block ${block.toLocaleString("en-US")}` : "reading the chain"}</span>
-            <span className="ml-auto">⌘K search · {"⌘\\"} sidebar · j k move · enter open · esc close</span>
           </div>
         </div>
 

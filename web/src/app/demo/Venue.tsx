@@ -1,4 +1,5 @@
 "use client";
+import Mark from "@/components/Mark";
 import Tip, { InfoTip } from "@/components/Tip";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ethers } from "ethers";
@@ -463,20 +464,16 @@ export default function Venue() {
 /* the agent, as a thing on the page rather than a row of addresses. */
 function AgentCard({ s, off, refusedAt, reduced, resetting, compact = false }: { s: State | null; off: boolean; refusedAt: number | null; reduced: boolean; resetting?: boolean; compact?: boolean }) {
   const word = !s ? "reading the chain" : resetting ? "getting ready" : s.trusted ? "trusted" : s.expired ? "expired" : s.status === 2 ? "switched off" : "not trusted";
-  const tone = off ? "var(--orange)" : "var(--sage)";
   return (
     <div className={`sheet ${compact ? "px-4 py-3" : "p-5"} relative overflow-hidden`} style={{
       background: off ? "color-mix(in srgb, var(--orange) 7%, var(--surface))" : "var(--surface)",
       transition: reduced ? "none" : "background .45s ease",
     }}>
       <div className="flex items-center gap-3">
-        <span className="relative inline-flex w-3 h-3 shrink-0">
-          {!off && s && !reduced && (
-            <motion.span aria-hidden className="absolute inset-0 rounded-full" style={{ background: tone }}
-              animate={{ scale: [1, 2.6], opacity: [0.45, 0] }} transition={{ duration: 1.9, repeat: Infinity, ease: "easeOut" }} />
-          )}
-          <span className="relative w-3 h-3 rounded-full" style={{ background: s ? tone : "var(--hairline)", transition: reduced ? "none" : "background .3s" }} />
-        </span>
+        {/* the trustset face, wearing this agent's state: awake while it is
+            trusted, eyes half closed when it is off, a flat line once it is
+            stopped for good. it looks at the pointer like every other mark. */}
+        <Mark size={compact ? 24 : 34} mood={!s || resetting ? "awake" : s.trusted ? "awake" : s.status >= 3 ? "stopped" : "paused"} />
         <span className={`${compact ? "text-[18px]" : "text-[22px]"} font-semibold tracking-[-0.02em] leading-none`}>{word}</span>
         {compact && s && <span className="mono text-[11px] tabular" style={{ color: "var(--text-medium)" }}>{s.trades} trades</span>}
         <span className="ml-auto mono text-[11px]" style={{ color: "var(--text-medium)" }}>agent {s?.agentId ?? "…"}</span>
