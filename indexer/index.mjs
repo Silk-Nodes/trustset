@@ -75,6 +75,21 @@ const STAKING_FROM = (() => { const i = process.argv.indexOf("--staking-from"); 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
+/* anyone can emit these logs with values we did not choose, so every number
+   and string from a log is made safe for postgres before it gets near a query.
+   one hostile row used to fail the window, roll it back, keep the cursor where
+   it was, and crash the process on the same row after every restart. */
+/* a uint for a bigint column, capped at 2^53-1. that is still "never" for a
+   time in seconds (285 million years), it stays an exact js number, and the
+   explorer's last_beat + heartbeat_window cannot overflow a bigint the way a
+   cap at the bigint maximum would. */
+const CAP = BigInt(Number.MAX_SAFE_INTEGER);
+const big = x => { const v = BigInt(x); return Number(v > CAP ? CAP : v); };
+/* an id we can join on: a positive safe integer, or null and the row is dropped */
+const idOf = x => { const v = BigInt(x); return v > 0n && v <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(v) : null; };
+/* text that postgres will store: bad utf-8 becomes U+FFFD, NUL is removed */
+const txt = b => ethers.toUtf8String(b, ethers.Utf8ErrorFuncs.replace).replace(/\u0000/g, "");
+
 /* a plain token bucket. the rpc's own error body says fifteen per second, and
    it answers a burst with a revert that ethers reports as missing data, which
    is a confusing way to learn you are going too fast. */
@@ -169,7 +184,7 @@ async function pull(p, d, ks, labels, venue, erc8004, from, to) {
   for (const l of a) out.push(decode(ks, l, stamps.get(l.blockNumber)));
   for (const l of b) out.push(decode(labels, l, stamps.get(l.blockNumber)));
   for (const l of c) out.push(decode(venue, l, stamps.get(l.blockNumber)));
-  for (const l of e) out.push(link8004(erc8004, l, stamps.get(l.blockNumber)));
+  for (const l of e) out.push(link8004(erc8004, l, stamps.get(l.blockNumber), d.killSwitch));
   return out.filter(Boolean);
 }
 
@@ -204,16 +219,22 @@ async function stakes(p, iface, keys, from, to) {
 /* an 8004 owner saying where their switch is. the value is
    abi.encode(chainId, killSwitch, agentId); a pointer at another chain or
    another switch is somebody else's business and is dropped. */
-function link8004(iface, l, ts) {
+function link8004(iface, l, ts, ours) {
   let ev;
   try { ev = iface.parseLog({ topics: [...l.topics], data: l.data }); } catch { return null; }
   if (!ev) return null;
   try {
     const [chainId, killSwitch, agentId] = ethers.AbiCoder.defaultAbiCoder().decode(["uint256", "address", "uint256"], ev.args[3]);
+    /* only a pointer at this chain and this switch. the registry is public,
+       so anything else is a claim somebody made about an agent that is not
+       theirs to make here. */
+    if (chainId !== 10143n || killSwitch.toLowerCase() !== String(ours).toLowerCase()) return null;
+    const id = idOf(agentId), token = idOf(ev.args[0]);
+    if (id == null || token == null) return null;
     return {
       block: l.blockNumber, tx: l.transactionHash, index: l.index, at: new Date(ts * 1000).toISOString(),
-      kind: "Linked8004", agentId: Number(agentId), actor: null,
-      data: { erc8004Id: Number(ev.args[0]), chainId: Number(chainId), killSwitch },
+      kind: "Linked8004", agentId: id, actor: null,
+      data: { erc8004Id: token, chainId: 10143, killSwitch },
     };
   } catch { return null; }
 }
@@ -228,32 +249,49 @@ function decode(iface, l, ts) {
      called "at" resolves to Array.prototype.at and Number(that) is NaN, which
      postgres then refuses as a bigint. the index is the only unambiguous key. */
   const n = ev.args;
+  try {
+  /* every event here carries the agent id first */
+  const id = idOf(n[0]);
+  if (id == null) return null;
   switch (ev.name) {
     case "AgentRegistered":
-      return { ...base, agentId: Number(n[0]), actor: n[2],
+      return { ...base, agentId: id, actor: n[2],
         data: { agentKey: n[1], coldKey: n[2], guardians: [...n[3]], threshold: Number(n[4]) } };
     case "StatusChanged":
-      return { ...base, agentId: Number(n[0]), actor: n[3], data: { status: STATUS[Number(n[1])] || "none", reasonHash: n[2] } };
+      return { ...base, agentId: id, actor: n[3], data: { status: STATUS[Number(n[1])] || "none", reasonHash: n[2] } };
     case "Rotated":
-      return { ...base, agentId: Number(n[0]), actor: null, data: { successorId: Number(n[1]) } };
+      return { ...base, agentId: id, actor: null, data: { successorId: big(n[1]) } };
     case "RevocationKeyChangeProposed":
-      return { ...base, agentId: Number(n[0]), actor: null, data: { newKey: n[1], applyAt: Number(n[2]) } };
+      return { ...base, agentId: id, actor: null, data: { newKey: n[1], applyAt: big(n[2]) } };
     case "RevocationKeyChanged":
-      return { ...base, agentId: Number(n[0]), actor: n[1], data: { newKey: n[1] } };
+      return { ...base, agentId: id, actor: n[1], data: { newKey: n[1] } };
     case "GuardianVoted":
-      return { ...base, agentId: Number(n[0]), actor: n[1], data: { votes: Number(n[2]), threshold: Number(n[3]) } };
+      return { ...base, agentId: id, actor: n[1], data: { votes: Number(n[2]), threshold: Number(n[3]) } };
     case "LimitsSet":
-      return { ...base, agentId: Number(n[0]), actor: null, data: { expiresAt: Number(n[1]), heartbeatWindow: Number(n[2]) } };
+      return { ...base, agentId: id, actor: null, data: { expiresAt: big(n[1]), heartbeatWindow: big(n[2]) } };
     case "Beat":
-      return { ...base, agentId: Number(n[0]), actor: null, data: { beatAt: Number(n[1]) } };
+      return { ...base, agentId: id, actor: null, data: { beatAt: big(n[1]) } };
     case "Labelled":
-      return { ...base, agentId: Number(n[0]), actor: n[1], data: { name: n[2], purpose: n[3] } };
+      return { ...base, agentId: id, actor: n[1], data: labelText(l) };
     case "TradeAccepted":
-      return { ...base, agentId: Number(n[0]), actor: null, data: { n: Number(n[1]) } };
+      return { ...base, agentId: id, actor: null, data: { n: big(n[1]) } };
     case "MetadataSet":
       return null; // handled by link8004, which knows how to read the value
     default: return null;
   }
+  } catch (e) {
+    /* a log we cannot read is skipped and named, never allowed to stop the index */
+    log("skipped unreadable log", ev.name, "tx", l.transactionHash, "index", l.index, e?.message || e);
+    return null;
+  }
+}
+
+/* a label's two strings, read as raw bytes so invalid utf-8 cannot throw later
+   when the value is first touched. (string, string) and (bytes, bytes) share
+   one abi layout. */
+function labelText(l) {
+  const [name, purpose] = ethers.AbiCoder.defaultAbiCoder().decode(["bytes", "bytes"], l.data);
+  return { name: txt(name), purpose: txt(purpose) };
 }
 
 /* one transaction per window: the feed rows, then the fold into current state.
@@ -263,16 +301,22 @@ async function write(db, rows) {
   try {
     await c.query("BEGIN");
     for (const r of rows) {
+      await c.query("SAVEPOINT row");
       try {
       await c.query(
         `INSERT INTO events (block, tx_hash, log_index, at, kind, agent_id, actor, data)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (tx_hash, log_index) DO NOTHING`,
         [r.block, r.tx, r.index, r.at, r.kind, r.agentId ?? null, r.actor ?? null, JSON.stringify(r.data)]);
       await fold(c, r);
+      await c.query("RELEASE SAVEPOINT row");
       } catch (e) {
-        /* one bad row should name itself rather than take the window down. */
-        log("row failed", r.kind, "block", r.block, JSON.stringify(r.data), e?.message || e);
-        throw e;
+        /* one bad row names itself and is skipped, so it cannot hold the
+           cursor and freeze the index. a data error (class 22) is the row's
+           fault; anything else, a lost connection say, still fails the window
+           so it runs again. */
+        log("row failed", r.kind, "block", r.block, "tx", r.tx, JSON.stringify(r.data), e?.message || e);
+        if (!String(e?.code || "").startsWith("22")) throw e;
+        await c.query("ROLLBACK TO SAVEPOINT row");
       }
     }
     await c.query("COMMIT");
@@ -319,9 +363,7 @@ async function fold(c, r) {
         [id, r.data.name, r.data.purpose, r.at]);
       return;
     case "Linked8004":
-      /* only a pointer at this chain and this switch. anything else is a claim
-         about somebody else's deployment and not ours to record. */
-      if (r.data.chainId !== 10143) return;
+      /* link8004 already dropped pointers at another chain or switch */
       await c.query("UPDATE agents SET erc8004_id = $2 WHERE id = $1", [id, r.data.erc8004Id]);
       return;
   }
