@@ -162,7 +162,7 @@ export default function Docs() {
 
       <div className="min-w-0">
         <Section id="stack" title="The stack">
-          <p>trustset is the trust stack for AI agents: eight primitives that make an agent&apos;s standing authorisation revocable, recoverable and accountable. Each is its own immutable contract with no admin, no owner and no funds, except the escrow, which only ever moves money back to whoever put it in. A set an app picks from, not a platform it joins.</p>
+          <p>trustset is the trust stack for AI agents: eight primitives that make an agent&apos;s standing authorisation revocable, recoverable and accountable. Each is its own immutable contract with no admin, no owner and no funds, except the escrow, which pays the service on the payer&apos;s receipt and otherwise returns the money to the payer. A set an app picks from, not a platform it joins.</p>
           <div className="drawn-box overflow-clip not-prose">
             {LAYERS.map(([name, what, where], i) => (
               <div key={name} className="grid sm:grid-cols-[132px_minmax(0,1fr)_auto] gap-x-4 gap-y-1 items-baseline px-4 sm:px-5 py-3.5"

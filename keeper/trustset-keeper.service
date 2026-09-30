@@ -1,5 +1,5 @@
 # a template. copy to /etc/systemd/system/trustset-keeper.service and fill in
-# the three paths and the user for the machine it runs on. no host, no account
+# the REPLACE_WITH_ paths and the user for the machine it runs on. no host, no account
 # name and no directory layout belongs in a repository: it is an inventory of
 # where to log in, handed to whoever reads it.
 [Unit]
@@ -8,19 +8,20 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=%h/trustset/keeper
+WorkingDirectory=REPLACE_WITH_CHECKOUT/keeper
 Environment=NODE_ENV=production
-Environment=TRUSTSET_ROOT=%h/trustset
-Environment=KEEPER_STATE=%h/trustset-state/.keeper-state.json
+Environment=TRUSTSET_ROOT=REPLACE_WITH_CHECKOUT
+Environment=KEEPER_STATE=REPLACE_WITH_STATE_DIR/.keeper-state.json
 # reading is free, so it looks every minute. it only sends when a window has
 # actually closed, so an idle rail costs nothing at all.
 Environment=SWEEP_SECONDS=60
 # holds KEEPER_KEY. generate it on the machine, mode 600, never in the repo.
-EnvironmentFile=%h/trustset-state/keeper.env
+EnvironmentFile=REPLACE_WITH_STATE_DIR/keeper.env
 ExecStart=/usr/bin/node index.mjs
 Restart=always
 RestartSec=30
-# systemd expands %h to this user's home, so the unit carries no account name.
+# no home specifier: in a system unit it expands to root's home, not this
+# user's, so the paths are filled in by hand like the user is.
 User=REPLACE_WITH_SERVICE_USER
 
 [Install]

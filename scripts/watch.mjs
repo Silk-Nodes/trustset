@@ -61,8 +61,9 @@ const STATE_STALE_MIN = Number(process.env.WATCH_STATE_STALE_MIN || 15);
 
 const KS = [
   "function liveness(uint256) view returns (bool trusted, bool expired, bool lapsed, uint64 expiresAt, uint64 nextBeatBy)",
-  "function why(uint256) view returns (string)",
+  "function getAgent(uint256) view returns (tuple(address agentKey,address revocationKey,address pendingRevocationKey,uint64 revocationKeyChangeAt,uint8 guardianThreshold,uint8 status,uint64 statusSince,uint256 successorId,bytes32 reasonHash,uint64 expiresAt,uint64 heartbeatWindow,uint64 lastBeat,address[] guardians))",
 ];
+const STATUS = ["not registered", "active", "paused", "stopped", "rotated"];
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const problems = [];
@@ -80,7 +81,14 @@ async function chain() {
      booleans. an id that was never registered reads exactly like a paused one
      through liveness alone, and calling that "somebody paused it" sends a
      person hunting for a pause that never happened. */
-  const why = l.trusted ? "trusted" : await ks.why(AGENT_ID).catch(() => "unreadable");
+  /* the contract has no why(); this used to call one, so every alert said
+     "unreadable". the word comes from the status, terminal states first, the
+     same order the sdk uses. */
+  let why = "trusted";
+  if (!l.trusted) {
+    const s = await ks.getAgent(AGENT_ID).then(a => STATUS[Number(a[5])] ?? "unknown").catch(() => "unreadable");
+    why = s === "active" ? (l.expired ? "expired" : l.lapsed ? "silent" : "active") : s;
+  }
   return { trusted: l.trusted, lapsed: l.lapsed, expired: l.expired, marginMin, next, why };
 }
 
@@ -138,9 +146,10 @@ async function main() {
         log(`restarting the agent so it beats: ${because}`);
         if (await restartAgent()) {
           await new Promise(r => setTimeout(r, 45000));
-          const after = await chain();
-          if (after.marginMin > c.marginMin) log(`recovered, margin now ${after.marginMin}min`);
-          else fail(`restarted ${UNIT} but the margin did not move, still ${after.marginMin}min`);
+          /* a failed re-read is a failure to report, not a crash past the alert */
+          const after = await chain().catch(e => { fail(`restarted ${UNIT} but could not confirm it recovered: ${e.shortMessage ?? e.message}`); return null; });
+          if (after && after.marginMin > c.marginMin) log(`recovered, margin now ${after.marginMin}min`);
+          else if (after) fail(`restarted ${UNIT} but the margin did not move, still ${after.marginMin}min`);
         }
       }
     }
@@ -162,6 +171,7 @@ async function main() {
 
   if (problems.length === 0) { log("all clear"); return; }
 
+  if (!WEBHOOK) log("WATCH_WEBHOOK is not set, so these problems reach nobody but this log");
   if (WEBHOOK) {
     /* a plain json body, which slack, discord and most webhook receivers all
        accept as "content" or "text". failing to alert is itself worth logging

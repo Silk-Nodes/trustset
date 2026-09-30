@@ -47,7 +47,8 @@ authorisation revocable, recoverable and accountable. eight layers, each its own
 | refunds | an escrow with a window, and a refund anybody may send that pays the payer named in storage | `RefundRail` |
 
 no server of ours sits in any of those paths. every contract is immutable, has no admin, and holds
-no funds except the escrow, which only ever moves money back to whoever put it in. there is no key
+no funds except the escrow, which pays the service on the payer's receipt and otherwise returns
+the money to the payer when its window closes. there is no key
 anybody could subpoena and no switch we could flip. a stack of primitives an app picks from, not a
 platform an app joins.
 

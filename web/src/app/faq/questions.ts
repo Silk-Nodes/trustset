@@ -120,7 +120,7 @@ export const GROUPS: Group[] = [
       {
         id: "custody",
         q: "Do you hold my money, or sit in the path?",
-        a: "No server of ours is in any path. Only the refund rail holds funds, it is an escrow, and it only ever moves money back to the payer named in storage. The KillSwitch holds no funds at all, so a bug there produces a wrong status, never a lost coin.",
+        a: "Not in the path of the switch: pausing, stopping and checking are calls to the contract, with nothing of ours in between. The passkey page uses a relay we run to pay the gas, but it can only carry an assertion your device signed, and anyone can send that call without it. Only the refund rail holds funds. It is an escrow that pays the service when the payer releases or signs a receipt, and sends the money back to the payer once the window closes. The KillSwitch holds no funds at all, so a bug there produces a wrong status, never a lost coin.",
       },
     ],
   },

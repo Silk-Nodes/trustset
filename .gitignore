@@ -16,9 +16,18 @@ keeper/node_modules/
 out/
 scripts/node_modules/
 sdk/node_modules/
-sdk/package-lock.json
 web/node_modules/
 
 # any env file holds secrets; only the examples are committed
 *.env
 !*.env.example
+
+# every env file holds secrets, whatever its suffix (.env.local, .env.production)
+.env*
+!.env.example
+# keys and state a service writes next to the checkout
+*.key
+.agent-state.json
+.public-pause.json
+.gas-drips.json
+.DS_Store

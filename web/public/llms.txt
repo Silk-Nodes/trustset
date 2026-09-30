@@ -54,9 +54,12 @@ escalation 10 minutes, guardian recovery 10 minutes.
   exists in the source, and there is no proxy, initialize, delegatecall or
   selfdestruct. A fix means a new contract deployed beside the old one.
 - The KillSwitch holds no funds. A bug there produces a wrong status, never a
-  lost coin. Only the refund rail holds money, and it only ever returns it to
-  the payer named in storage.
-- No server of ours sits in any path.
+  lost coin. Only the refund rail holds money. It pays the service when the
+  payer releases or signs a receipt, and returns it to the payer once the
+  window closes.
+- No server of ours sits in the path of a pause, a stop or a check. The
+  passkey page uses a relay we run to pay gas, but it can only carry an
+  assertion the device signed, and anyone can send that call without it.
 - An agent can only be registered with its own consent: registration needs a
   signature from the agent's key naming the exact owner.
 - A stop does NOT protect against an agent that has been taken over and
