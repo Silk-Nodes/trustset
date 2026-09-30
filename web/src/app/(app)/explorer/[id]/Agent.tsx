@@ -30,6 +30,10 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
   const [a, setA] = useState<Row | null>(null);
   const [events, setEvents] = useState<Ev[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "none" | "missing">("loading");
+  /* the chain's own answer, read beside the index. the index can be minutes
+     behind, and this page tells a stranger whether to deal with the agent, so
+     the verdict comes from the chain whenever the chain answers */
+  const [chain, setChain] = useState<{ status: string; trusted: boolean; block: number } | null>(null);
   /* development only, same as the explorer: a laptop has no copy of the index,
      so ?index=https://… reads another deployment's. absent in production. */
   const [indexAt, setIndexAt] = useState("");
@@ -47,7 +51,11 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
       if (!alive) return;
       if (!j.indexed) return setState("none");
       if (!j.agent) return setState("missing");
-      setA(j.agent); setEvents(j.events); setState("ready");
+      const v = await fetch(`/api/verify?agent=${id}`, { cache: "no-store" }).then(x => x.ok ? x.json() : null).catch(() => null);
+      if (!alive) return;
+      setChain(v?.now ? { status: v.now.status, trusted: !!v.now.trusted, block: Number(v.chain?.block ?? 0) } : null);
+      /* the status word from the chain too, so the headline and the verdict agree */
+      setA(v?.now?.status ? { ...j.agent, status: v.now.status } : j.agent); setEvents(j.events); setState("ready");
     };
     pull().catch(() => setState("none"));
     const t = setInterval(() => pull().catch(() => {}), 12_000);
@@ -64,7 +72,7 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
   const ex = Number(a.expires_at), hb = Number(a.heartbeat_window), lb = Number(a.last_beat);
   const expired = ex > 0 && now >= ex;
   const lapsed = hb > 0 && now > lb + hb;
-  const live = a.status === "active" && !expired && !lapsed;
+  const live = chain ? chain.trusted : a.status === "active" && !expired && !lapsed;
 
   /* the verdict, in the words the contract would use. a stranger opening this
      page is deciding whether to deal with this agent, and the old page made
@@ -91,7 +99,7 @@ export default function Agent({ id, explorer }: { id: number; explorer: string }
 
   return (
     <>
-      <Verdict a={a} events={events} word={word} why={why} live={live} />
+      <Verdict a={a} events={events} word={word} why={`${why} ${chain ? `Read from the chain at block ${chain.block}.` : "From the index; the chain did not answer just now."}`} live={live} />
 
     <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-4 items-stretch">
       <div className="sheet p-5 sm:p-7">

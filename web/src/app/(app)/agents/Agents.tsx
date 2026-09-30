@@ -91,14 +91,20 @@ export default function Agents() {
     : agents, [sampleOn, sample, agents, fake]);
   const ownerSigner = (c: Conn): ethers.Signer | null => who?.signer ?? c.owner ?? null;
 
+  /* the owner the page is showing right now. a refresh started for one wallet
+     can finish after the switch to another, and it used to write the old
+     wallet's agents and guardianships over the new one's. */
+  const showing = useRef<string | null>(null);
+  const same = (a: string | null) => (a ?? "").toLowerCase() === (showing.current ?? "").toLowerCase();
   async function refresh(c: Conn) {
     const me = ownerAddr(c);
     const list = me ? await loadAgents(c, me) : [];
+    if (!same(me)) return list;
     /* a label parked at registration time moves onto its id once the agent
        is in the list. */
     adoptParked(c.cfg.chainIdHex, list);
     setAgents(list); setLoaded(true); setAsOf(new Date().toISOString().slice(11, 19) + " UTC");
-    if (me) loadGuarded(c, me).then(setGuarded).catch(() => {});
+    if (me) loadGuarded(c, me).then(g => { if (same(me)) setGuarded(g); }).catch(() => {});
     return list;
   }
   /* the name is the owner's. from the chain when the owner wrote it there,
@@ -120,6 +126,7 @@ export default function Agents() {
      new signer on every wallet event, address unchanged, and keying on it
      emptied the list and put "Reading" back on screen each time. */
   const me = conn ? ownerAddr(conn) : null;
+  showing.current = me;
   useEffect(() => {
     if (!conn) return;
     let alive = true;
@@ -136,6 +143,8 @@ export default function Agents() {
     /* show the last list this browser saw at once, then refresh behind it */
     const cached = me ? cachedAgents(conn, me) : null;
     if (cached) { setAgents(cached); setLoaded(true); } else { setAgents([]); setLoaded(false); }
+    /* another wallet's guardianships are not this one's */
+    setGuarded([]);
     run();
     const t = setInterval(run, 8000);
     return () => { alive = false; clearInterval(t); };
@@ -308,6 +317,7 @@ export default function Agents() {
      latest event, its last day, and its ERC-8004 link. see /api/fleet. the
      human count and the refund rows are one read each and stay here. */
   const [extras, setExtras] = useState<Record<string, Extra>>({});
+  const prevExtras = useRef<Record<string, Extra>>({});
   /* each agent's own wallet, the MON it pays gas with. read four at a time so
      the public rpc's rate limit is not what answers, and again every minute.
      the sample's keys are made up, so the sample carries its own numbers. */
@@ -321,7 +331,18 @@ export default function Agents() {
     const c = conn;
     const pull = async () => {
       const [fleet, refunds, human] = await Promise.all([
-        fetch(`${indexAt}/api/fleet?ids=${idsKey}`, { cache: "no-store" }).then(r => r.json()).catch(() => null) as Promise<null | { stopKeys?: Record<string, { set: boolean; nonce: number }>; indexed?: boolean; last?: Record<string, PulseEvent>; events24?: Record<string, PulseEvent[]>; erc8004?: Record<string, number> }>,
+        /* in chunks of 200, the most one request answers for. merged, so an
+           agent missing from a failed chunk is unknown rather than "none" */
+        (async () => {
+          type F = { stopKeys?: Record<string, { set: boolean; nonce: number }>; indexed?: boolean; last?: Record<string, PulseEvent>; events24?: Record<string, PulseEvent[]>; erc8004?: Record<string, number> };
+          const ids = idsKey.split(","), parts: F[] = [];
+          for (let i = 0; i < ids.length; i += 200) {
+            const f = await fetch(`${indexAt}/api/fleet?ids=${ids.slice(i, i + 200).join(",")}`, { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null) as F | null;
+            if (f) parts.push(f);
+          }
+          if (!parts.length) return null;
+          return parts.reduce<F>((m, f) => ({ stopKeys: { ...m.stopKeys, ...f.stopKeys }, indexed: (m.indexed ?? true) && !!f.indexed, last: { ...m.last, ...f.last }, events24: { ...m.events24, ...f.events24 }, erc8004: { ...m.erc8004, ...f.erc8004 } }), {});
+        })(),
         fetch("/api/refunds").then(r => r.json()).catch(() => ({ rows: [] })) as Promise<{ rows?: { payer: string; service: string }[] }>,
         (async () => { try { return c.touch ? Number(await c.touch.humanCount(all[0].coldKey, READ)) : 0; } catch { return 0; } })(),
       ]);
@@ -332,13 +353,15 @@ export default function Agents() {
         const id = a.id.toString();
         const k = fleet?.stopKeys?.[id];
         const rf = (refunds.rows ?? []).filter(r => r.payer.toLowerCase() === a.key.toLowerCase() || r.service.toLowerCase() === a.key.toLowerCase()).length;
-        ex[id] = { stopKey: k?.set ?? false, humanCount: human, refunds: rf, erc8004: fleet?.erc8004?.[id] ?? null };
+        /* keep what was known when this read did not answer for the agent */
+        ex[id] = { stopKey: k ? k.set : prevExtras.current[id]?.stopKey, humanCount: human, refunds: rf, erc8004: fleet?.erc8004?.[id] ?? prevExtras.current[id]?.erc8004 ?? null };
         if (k) sk[id] = k;
         /* the last day for the pulse, with the latest event first even when it is older than a day */
         const day = fleet?.events24?.[id] ?? [];
         const latest = fleet?.last?.[id];
         pl[id] = { events: latest && !day.some(e => e.at === latest.at && e.kind === latest.kind) ? [...day, latest] : day, indexed: fleet ? !!fleet.indexed : false };
       }
+      prevExtras.current = ex;
       setExtras(ex); setPulses(pl); setStopKeys(p => ({ ...p, ...sk }));
     };
     pull();
@@ -433,23 +456,27 @@ export default function Agents() {
   async function bulk(kind: "pause" | "resume" | "stop" | "limits", list: Row[], lim?: { expiresAt: number; window: number }) {
     if (!conn) return; const s = ownerSigner(conn); if (!s) { setNote("Connect your wallet first"); return; }
     const ks = conn.ks.connect(s) as ethers.Contract;
-    let done = 0;
+    let done = 0, lastBlock: number | undefined;
     for (const r of list) {
       const k = kind === "stop" ? r.id : "p" + r.id;
       setBusy(b => new Set(b).add(k));
       try {
-        if (kind === "limits") await ownerTx(async () => (await ks.setLimits(r.a.id, lim!.expiresAt, lim!.window)).wait(2));
+        let rc: { blockNumber?: number } | null | undefined;
+        if (kind === "limits") rc = await ownerTx(async () => (await ks.setLimits(r.a.id, lim!.expiresAt, lim!.window)).wait(2));
         else {
           const to = kind === "pause" ? 2 : kind === "resume" ? 1 : 3;
-          await ownerTx(async () => (await ks.setStatus(r.a.id, to, ethers.id(kind === "pause" ? "owner paused" : kind === "resume" ? "owner resumed" : "owner pressed stop"))).wait(2));
+          rc = await ownerTx(async () => (await ks.setStatus(r.a.id, to, ethers.id(kind === "pause" ? "owner paused" : kind === "resume" ? "owner resumed" : "owner pressed stop"))).wait(2));
         }
+        if (rc?.blockNumber) lastBlock = rc.blockNumber;
         done++;
         setNote(`${kind === "pause" ? "Paused" : kind === "resume" ? "Brought back" : kind === "limits" ? "Limits set on" : "Stopped"} ${done} of ${list.length}…`);
       } catch (e) { setNote(`${explain(e, conn)}. ${done} of ${list.length} done, stopped at ${r.name}.`); setBusy(b => { const n = new Set(b); n.delete(k); return n; }); return; }
       finally { setBusy(b => { const n = new Set(b); n.delete(k); return n; }); }
     }
     setNote(`${kind === "pause" ? "Paused" : kind === "resume" ? "Brought back" : kind === "limits" ? "Limits set on" : "Stopped"} ${done} agent${done === 1 ? "" : "s"}.`);
-    await refresh(conn);
+    /* reads sit a few blocks behind, so wait for the last one to be readable,
+       or the fleet shows the old statuses until the next poll */
+    await settled(conn, lastBlock); await refresh(conn);
   }
 
   const guardingPanel = (

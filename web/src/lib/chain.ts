@@ -57,7 +57,13 @@ export const KS_ABI = [
  * freshness and removes the whole class of problem. */
 export const READ: { blockTag: string | number } = { blockTag: "finalized" };
 /* pin READ to an executed block before a pass of reads. see lib/readtag. */
-export async function pinRead(c: Conn) { READ.blockTag = await executedBlock(c.p, c.cfg.chainIdHex); }
+/* returns this pass's own copy. every read in a pass uses the copy, so a
+   second pass running at the same time (a poll and a write's refresh) can move
+   READ without tearing the first pass across two blocks. */
+export async function pinRead(c: Conn): Promise<{ blockTag: string | number }> {
+  READ.blockTag = await executedBlock(c.p, c.cfg.chainIdHex);
+  return { blockTag: READ.blockTag };
+}
 
 /* after a transaction: do not read until the block we read at has passed the
    block the receipt is in. reads are pinned a few blocks behind finalised,
@@ -324,15 +330,38 @@ export function connect(): Promise<Conn> {
 const lastList = new Map<string, Agent[]>();
 export const cachedAgents = (c: Conn, owner: string) => lastList.get(c.cfg.chainIdHex + ":" + owner.toLowerCase()) ?? null;
 
-export async function loadAgents(c: Conn, owner: string): Promise<Agent[]> {
-  await pinRead(c);
-  const n = Number(await retry(() => c.ks.agentCount(READ)));
-  /* every read in parallel. this used to walk the registry one agent at a
-     time, then one history entry at a time, each a round trip to the RPC,
-     which is why a page change showed an empty list for several seconds. */
+/* the registry, read whole every five minutes and in between only where it
+ * can matter to this wallet.
+ *
+ * every poll used to read every agent ever registered, so anybody who
+ * registered a few thousand agents slowed every signed-in console. between full
+ * reads a poll now reads the agents this wallet owns, guards or is about to
+ * own, plus any id registered since the last poll. an agent can only become
+ * somebody's through a handover that takes a day, and guardians never change,
+ * so five minutes cannot miss one. */
+const FULL_MS = 300_000;
+let registry: { key: string; count: number; at: number; byId: Map<number, ethers.Result> } | null = null;
+async function scan(c: Conn, R: { blockTag: string | number }, me: string): Promise<{ ids: number[]; all: ethers.Result[] }> {
+  const n = Number(await retry(() => c.ks.agentCount(R)));
+  const key = c.cfg.chainIdHex, m = me.toLowerCase();
+  const full = !registry || registry.key !== key || Date.now() - registry.at > FULL_MS || n < registry.count;
+  if (full) registry = { key, count: 0, at: Date.now(), byId: new Map() };
+  const reg = registry!;
+  const want = full ? [] : [...reg.byId].filter(([, a]) =>
+    String(a.revocationKey).toLowerCase() === m || String(a.pendingRevocationKey).toLowerCase() === m || [...a.guardians].some((g: string) => g.toLowerCase() === m)).map(([i]) => i);
+  for (let i = reg.count + 1; i <= n; i++) want.push(i);
+  /* in parallel: walking one agent at a time was why a page change showed an
+     empty list for several seconds */
+  const got = await Promise.all(want.map(i => retry(() => c.ks.getAgent(i, R))));
+  want.forEach((i, k) => reg.byId.set(i, got[k]));
+  reg.count = n;
   const ids = Array.from({ length: n }, (_, i) => n - i);
-  const all = await Promise.all(ids.map(i => retry(() => c.ks.getAgent(i, READ))));
-  lastScan = { key: c.cfg.chainIdHex, ids, all };
+  return { ids, all: ids.map(i => reg.byId.get(i)!) };
+}
+
+export async function loadAgents(c: Conn, owner: string): Promise<Agent[]> {
+  const R = await pinRead(c);
+  const { ids, all } = await scan(c, R, owner);
   const mine = ids.map((i, k) => ({ i, a: all[k] })).filter(({ a }) => a.revocationKey.toLowerCase() === owner.toLowerCase());
   /* no history here. it is two reads per agent and the list does not show
      it; the panel asks for it when an agent is opened. see loadHistory. */
@@ -345,7 +374,7 @@ export async function loadAgents(c: Conn, owner: string): Promise<Agent[]> {
      Result is an array first, and a field called `name` would be shadowed. */
   if (c.labels && out.length) {
     try {
-      const ls = await retry(() => c.labels!.labelsOf(out.map(a => a.id), READ));
+      const ls = await retry(() => c.labels!.labelsOf(out.map(a => a.id), R));
       out.forEach((a, k) => { const l = ls[k]; if (l && l[0]) a.label = { name: l[0], purpose: l[1], by: l[2], at: Number(l[3]) }; });
     } catch { /* an older deployment without the contract: agents simply carry no label */ }
   }
@@ -353,7 +382,7 @@ export async function loadAgents(c: Conn, owner: string): Promise<Agent[]> {
      each, and only for those, so an agent without guardians costs nothing */
   const guarded = out.filter(a => a.guardians.length && a.status !== "revoked" && a.status !== "rotated");
   if (guarded.length) {
-    const rs = await Promise.all(guarded.map(a => retry(() => c.ks.recoveryOf(a.id, READ)).catch(() => null)));
+    const rs = await Promise.all(guarded.map(a => retry(() => c.ks.recoveryOf(a.id, R)).catch(() => null)));
     guarded.forEach((a, k) => {
       const x = rs[k];
       if (x && x[0] !== ethers.ZeroAddress) a.recovery = { newKey: x[0], readyAt: Number(x[1]), votes: Number(x[2]), threshold: Number(x[3]) };
@@ -366,12 +395,12 @@ export async function loadAgents(c: Conn, owner: string): Promise<Agent[]> {
 /* is this key already somebody's agent? zero means no. read finalised, so a
    registration still settling does not answer "free" for a key that is not. */
 export async function agentIdForKey(c: Conn, key: string): Promise<bigint> {
-  await pinRead(c);
+  const R = await pinRead(c);
   /* a fresh contract from the current ABI, not c.ks. a hot reload can leave a
      Conn built from an older ABI alive in component state, and that object
      answered "agentIdByKey is not a function" once. */
   const ks = new ethers.Contract(c.cfg.killSwitch, KS_ABI, c.p);
-  return BigInt(await retry(() => ks.agentIdByKey(key, READ)));
+  return BigInt(await retry(() => ks.agentIdByKey(key, R)));
 }
 
 /* register, and return the id from the receipt's own event. the earlier
@@ -461,7 +490,15 @@ export function explain(e: unknown, c?: Conn): string {
 
 /* one queue for owner transactions so nothing races on the nonce. */
 let q: Promise<unknown> = Promise.resolve();
-export function ownerTx<T>(fn: () => Promise<T>): Promise<T> { const r = q.then(fn, fn); q = r.catch(() => {}); return r; }
+/* the queue waits for the send before it, but not forever. a wallet prompt
+   left open, or a transaction that never mined, used to hold every later
+   send, a stop included, with nothing on screen saying why. after a minute and
+   a half the next one goes ahead; the one before is not cancelled. */
+const LET_GO_MS = 90_000;
+export function ownerTx<T>(fn: () => Promise<T>): Promise<T> {
+  const before = Promise.race([q, new Promise(res => setTimeout(res, LET_GO_MS))]);
+  const r = before.then(fn, fn); q = r.catch(() => {}); return r;
+}
 
 export const short = (a: string) => a.slice(0, 6) + "…" + a.slice(-4);
 export const ago = (ts: number) => { const s = Math.max(0, Math.floor(Date.now() / 1000 - ts)); return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.floor(s / 60)}m ago` : `${Math.floor(s / 3600)}h ago`; };
@@ -472,35 +509,27 @@ export const ago = (ts: number) => { const s = Math.max(0, Math.floor(Date.now()
 /* guardianPaused: the pause is the guardians' own. only then can it be escalated,
    so an owner's or a passkey's pause must not offer a guardian "Revoke". */
 export type Guarded = Agent & { votes: number; voted: boolean; escalateAt: number; delay: number; guardianPaused: boolean };
-/* the last raw scan of the registry, so the guarded list does not ask the
-   chain for every agent a second time right after the owner list did. */
-let lastScan: { key: string; ids: number[]; all: ethers.Result[] } | null = null;
 
 export async function loadGuarded(c: Conn, me: string): Promise<Guarded[]> {
-  await pinRead(c);
+  const R = await pinRead(c);
   const ks = new ethers.Contract(c.cfg.killSwitch, KS_ABI, c.p);
-  let ids: number[], all: ethers.Result[];
-  if (lastScan && lastScan.key === c.cfg.chainIdHex) ({ ids, all } = lastScan);
-  else {
-    const n = Number(await retry(() => ks.agentCount(READ)));
-    ids = Array.from({ length: n }, (_, i) => n - i);
-    all = await Promise.all(ids.map(i => retry(() => ks.getAgent(i, READ))));
-  }
+  /* the same registry the owner list just read, so this adds no full scan */
+  const { ids, all } = await scan(c, R, me);
   const mine = ids.map((i, k) => ({ i, a: all[k] })).filter(({ a }) => [...a.guardians].some((g: string) => g.toLowerCase() === me.toLowerCase()));
   if (!mine.length) return [];
-  const delay = Number(await retry(() => ks.guardianEscalationDelay(READ)));
+  const delay = Number(await retry(() => ks.guardianEscalationDelay(R)));
   /* names, the same way the owner's list gets them */
   let labels: Record<number, OnChainLabel> = {};
   if (c.labels) {
     try {
-      const ls = await retry(() => c.labels!.labelsOf(mine.map(m => m.i), READ));
+      const ls = await retry(() => c.labels!.labelsOf(mine.map(m => m.i), R));
       mine.forEach((m, k) => { const l = ls[k]; if (l && l[0]) labels[m.i] = { name: l[0], purpose: l[1], by: l[2], at: Number(l[3]) }; });
     } catch { labels = {}; }
   }
   return Promise.all(mine.map(async ({ i, a }) => {
     const [votes, round, my, gp] = await Promise.all([
-      retry(() => ks.guardianVoteCount(i, READ)), retry(() => ks.guardianVoteRound(i, READ)), retry(() => ks.guardianVote(i, me, READ)),
-      retry(() => ks.guardianPaused(i, READ)).catch(() => false),
+      retry(() => ks.guardianVoteCount(i, R)), retry(() => ks.guardianVoteRound(i, R)), retry(() => ks.guardianVote(i, me, R)),
+      retry(() => ks.guardianPaused(i, R)).catch(() => false),
     ]);
     return {
       id: BigInt(i), key: a.agentKey, coldKey: a.revocationKey, guardians: [...a.guardians], threshold: Number(a.guardianThreshold),
@@ -514,16 +543,16 @@ export async function loadGuarded(c: Conn, me: string): Promise<Guarded[]> {
 
 /* the one-day lock on a cold key change, read once from the contract. */
 export async function coldKeyDelay(c: Conn): Promise<number> {
-  await pinRead(c);
+  const R = await pinRead(c);
   const ks = new ethers.Contract(c.cfg.killSwitch, KS_ABI, c.p);
-  return Number(await retry(() => ks.revocationKeyChangeDelay(READ)));
+  return Number(await retry(() => ks.revocationKeyChangeDelay(R)));
 }
 
 /* an agent's status history, for the panel. */
 export async function loadHistory(c: Conn, id: bigint): Promise<{ at: number; status: Status }[]> {
-  await pinRead(c);
-  const hl = Number(await retry(() => c.ks.historyLength(id, READ)));
+  const R = await pinRead(c);
+  const hl = Number(await retry(() => c.ks.historyLength(id, R)));
   /* by index: ethers' Result extends Array, so `.at` is the array method, not the field */
-  const xs = await Promise.all(Array.from({ length: hl }, (_, h) => retry(() => c.ks.historyAt(id, h, READ))));
+  const xs = await Promise.all(Array.from({ length: hl }, (_, h) => retry(() => c.ks.historyAt(id, h, R))));
   return xs.map(x => ({ at: Number(x[0]), status: STATUS[Number(x[1])] }));
 }

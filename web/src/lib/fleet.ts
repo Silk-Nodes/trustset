@@ -87,7 +87,8 @@ export function apply(rows: Row[], f: Filter, sort: Sort, rev = false): Row[] {
   let out = rows.filter(r => {
     if (q && !(r.name.toLowerCase().includes(q) || r.id === q || r.a.key.toLowerCase().includes(q) || r.tag.toLowerCase().includes(q))) return false;
     if (f.states.length && !f.states.includes(r.state)) return false;
-    if (f.missing.length && !f.missing.every(k => !r.layers.find(l => l.key === k)?.set)) return false;
+    /* a layer that is not known yet is not counted as missing */
+    if (f.missing.length && !f.missing.every(k => { const l = r.layers.find(x => x.key === k); return !l?.set && !l?.unknown; })) return false;
     if (f.within > 0 && !(r.expiresIn !== null && r.expiresIn > 0 && r.expiresIn <= f.within)) return false;
     if (f.active24 && (r.last === null || r.last > 86400)) return false;
     if (f.attention && !r.needs) return false;

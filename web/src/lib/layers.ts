@@ -12,7 +12,7 @@ import { type Agent, expired, lapsed, trusted } from "@/lib/chain";
 export type PulseEvent = { kind: string; at: number; actor?: string | null; data?: Record<string, unknown> };
 
 export type LayerKey = "switch" | "panic" | "guardians" | "limits" | "past" | "identity" | "human" | "refunds";
-export type Layer = { key: LayerKey; name: string; set: boolean; value: string };
+export type Layer = { key: LayerKey; name: string; set: boolean; value: string; unknown?: boolean };
 
 /* reads the module needs beyond the agent record itself */
 export type Extra = { stopKey?: boolean; humanCount?: number; refunds?: number; erc8004?: number | null };
@@ -50,7 +50,9 @@ export function layersOf(a: Agent, x: Extra, now = Date.now() / 1000): Layer[] {
   const human = x.humanCount ?? 0, refunds = x.refunds ?? 0;
   return [
     { key: "switch", name: "The switch", set: true, value: livenessWord(a, now).toLowerCase() },
-    { key: "panic", name: "Panic button", set: !!x.stopKey, value: x.stopKey ? "passkey nominated" : "no passkey" },
+    /* undefined is not known yet (the read failed or has not come back), which
+       must not be shown, or filtered, as "no passkey" */
+    { key: "panic", name: "Panic button", set: !!x.stopKey, unknown: x.stopKey === undefined, value: x.stopKey ? "passkey nominated" : x.stopKey === undefined ? "not read yet" : "no passkey" },
     { key: "guardians", name: "Guardians", set: a.guardians.length > 0, value: a.guardians.length ? `${a.threshold} of ${a.guardians.length} to pause` : "none" },
     { key: "limits", name: "Limits", set: ends || beats, value: limits },
     { key: "past", name: "Past signatures", set: true, value: a.history.length > 1 ? `${a.history.length} on record` : "since registration" },
