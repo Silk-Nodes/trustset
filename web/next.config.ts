@@ -28,11 +28,9 @@ const nextConfig: NextConfig = {
       "form-action 'self'",
       "frame-ancestors 'none'",
     ].join("; ");
-    /* report only until the dynamic email sign-in has been seen working under
-       it in production, where it is the one flow local cannot exercise. every
-       page and the rest of the app were checked clean under enforcement.
-       framing is already refused by the proxy's x-frame-options. */
-    return [{ source: "/:path*", headers: [{ key: "Content-Security-Policy-Report-Only", value: csp }] }];
+    /* enforced. it ran report only first, and every page plus the dynamic
+       email sign-in was checked in production with no report. */
+    return [{ source: "/:path*", headers: [{ key: "Content-Security-Policy", value: csp }] }];
   },
   /* the owner's page was /console for a day. links from that day still land. */
   async redirects() {
