@@ -228,7 +228,10 @@ whether that agent may act. an app that cares about ownership has to establish
 it some other way, and should not read a working `from8004` as proof of it.
 
 the reverse binding would need a claim on this side too, agent owner names
-token, and it is not built.
+token, and it is not built in the contract. since sdk 0.3.0, `from8004` checks
+it from the other side instead: the token must be held by the agent's owner on
+the switch or by the agent's own address, and anything else is refused, so a
+pointer can no longer borrow a stranger's trusted agent.
 
 ## what the invariant suite does not reach
 
@@ -248,3 +251,88 @@ them goes through the real contract with real authorisation and the threshold is
 than assumed, but the fuzzer is being helped to the door rather than finding it.
 
 the run is 256 sequences of 500 calls. absence of a counterexample there is not proof.
+## second review, 2026-09-29: known limits of the live deployment
+
+a second pass, this time multi-agent: five hunters, one per area, each finding
+attacked by three independent skeptics (reachability, a proof of concept in a
+scratch copy, and intent against these docs), kept only when two of three
+could not refute it. the off-chain findings are fixed in the web app, the
+indexer, the sdk and the scripts. the contract findings below are not: fixing
+them means new contracts, new addresses and every live agent registered again,
+which is not worth the risk this close to submission. they are listed with
+what already softens each one and the change a redeploy would carry.
+
+### KillSwitch
+
+**K1. the agent's consent does not cover its guardians.** `registrationDigest`
+binds the switch, the chain, the agent address and the owner, not the
+guardians, the threshold or the limits. whoever sees a signed registration in
+the mempool can resend it with their own guardian, and with guardian recovery
+that guardian can later propose itself as owner. softened: the owner sees the
+guardians on the agent page and, since this review, a banner with a cancel
+button whenever a recovery is open. fix: add the guardians, threshold and
+limits to the digest, or require the owner to send a signed registration.
+
+**K2. one guardian can keep resetting an agreed recovery.** `proposeRecovery`
+with a different key wipes the votes and the clock, even after the threshold
+was reached, so a single guardian can stop a lost-key recovery from ever
+completing. fix: refuse a new key while one is pending, or count votes per key.
+
+**K3. a matured recovery survives an owner handover.** a recovery that became
+executable before `applyRevocationKey` can be executed in the same block as the
+handover, so a seller's guardians take the agent back and the buyer never gets
+a cancel window. fix: clear any open recovery in `applyRevocationKey`.
+
+**K4. a thief with the owner key can undo the guardians.** a guardian pause is
+cleared by any owner status change, so a stolen owner key re-pauses (which
+clears `guardianPaused` and restarts the escalation clock) and then resumes.
+the documented answer to a stolen owner key only works against an owner who
+does nothing. fix: while a guardian pause stands, the owner can stop but not
+resume, until the delay passes or the guardians agree.
+
+**K5. same-second blocks.** monad makes several blocks a second and the history
+records seconds. `statusAt` returns the last change in a second, so a statement
+that was true early in a second can read as contradicted after a later change in
+the same second, and an order signed in the gap can verify. softened: the sdk
+now only believes a signed time inside a window before the venue saw it. fix:
+record the block number with each change and answer by block.
+
+**K6. the agent address can be its own guardian, or its own owner through a
+handover.** `_register` rejects it as owner but not as guardian, and
+`proposeRevocationKey` does not reject it at all. with a threshold of one, the
+agent key alone could then take the owner. fix: reject the agent key in both.
+
+**K7. smaller ones.** `liveness()` reverts for a heartbeat window near
+2^64 (uint64 overflow; `isTrusted` is unaffected). `rotate` accepts a successor
+that is active but expired or silent. `beat()` still works on a paused,
+stopped or rotated agent and emits a beat for it. an unspent panic assertion
+does not expire: it survives a pause and resume and a re-nomination of the same
+passkey, so a relay that holds one back can use it later. fixes: compute in
+uint256, require a trusted successor, beat only when active, and bind the
+panic challenge to the status history length.
+
+### HumanTouch
+
+**H1. "human" means holder of a passkey the account registered.** any address,
+an agent included, can register a P256 key it holds in memory and assert with
+the user-verified flag set, so the result proves a key, not a person. the page
+says what it proves; the contract name oversells it. fix: refuse accounts that
+are registered agent addresses, and verify an attestation for a real claim.
+
+### RefundRail
+
+**R1. the payer is trusted for settlement.** the service is paid only on a
+receipt the payer releases or signs, so a payer can take the service and let
+the window run out. this is the design, stated plainly now in the faq: the
+rail protects the payer, not the service.
+
+### OperatorRegistry and BLS (not in the product, not deployed as part of it)
+
+no proof of possession at registration, so a rogue key can make an aggregate
+verify for operators who never signed; no identity or subgroup check on keys;
+one auth address with two operators overwrites the first and locks its bond;
+`verifyAggregate` and `slash` use different digests, so an aggregate cannot be
+slashed; digests carry no chain id; the reward goes to whoever sends the slash
+first; the bitmap addresses 256 operators. all are fixes for the day this is
+wired into anything: a proof of possession, subgroup checks, one digest with
+the chain id, and a commit before a slash.
