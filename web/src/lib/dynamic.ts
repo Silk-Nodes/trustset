@@ -5,7 +5,7 @@ import { ViemSigner } from "@/lib/viemSigner";
 /* signing in with an email, through Dynamic.
  *
  * a Dynamic embedded wallet is created for the address the code was sent to,
- * and that wallet becomes the cold key: it registers agents and can stop them,
+ * and that wallet becomes the owner: it registers agents and can stop them,
  * with no browser extension installed. it is the same role MetaMask plays for
  * a reader who has one, which is why the console never learns the difference.
  *

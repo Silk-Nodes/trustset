@@ -88,6 +88,8 @@ export default function Venue() {
      sign for its own. registering spends the demo key's gas, so it happens on
      a signed request, never on a page load. */
   const [unstarted, setUnstarted] = useState(false);
+  /* today's signature, reused for the one other action that needs the owner */
+  const daySig = useRef<{ day: string; sig: string } | null>(null);
   const pull = useCallback(async (owner: string | null) => {
     const r = await fetch(`/api/demo${owner ? `?owner=${owner}` : ""}`, { cache: "no-store" });
     const j = (await r.json()) as State;
@@ -102,6 +104,7 @@ export default function Venue() {
     try {
       const { demoMessage, gasDay } = await import("@/lib/gas");
       const signature = await w.who.signer.signMessage(demoMessage(me, gasDay()));
+      daySig.current = { day: gasDay(), sig: signature };
       const r = await fetch("/api/demo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "start", owner: me, signature }) });
       const j = await r.json();
       if (!r.ok || j.error) { setNote(j.error ?? "That did not work. Try again."); return; }
@@ -193,7 +196,14 @@ export default function Venue() {
   async function post(action: string, kind: Kind, act?: Act) {
     setBusy(action); setNote(null);
     try {
-      const r = await fetch("/api/demo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, owner: unstarted ? null : me }) });
+      /* a vote on your own agent carries your signature for today */
+      let signature: string | undefined;
+      if (action === "guardianVote" && me && !unstarted && s?.owned) {
+        const { demoMessage, gasDay } = await import("@/lib/gas");
+        if (daySig.current?.day !== gasDay() && w.who?.signer) daySig.current = { day: gasDay(), sig: await w.who.signer.signMessage(demoMessage(me, gasDay())) };
+        signature = daySig.current?.sig;
+      }
+      const r = await fetch("/api/demo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, owner: unstarted ? null : me, signature }) });
       const j = await r.json();
       if (j.error) { setNote(j.error); return; }
       setS(v => (v ? { ...v, ...j } : v));

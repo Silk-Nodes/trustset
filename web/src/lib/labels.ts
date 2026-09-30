@@ -2,14 +2,14 @@
 
 /* what the owner says an agent is.
  *
- * the chain knows an agent as a key, a cold key, guardians and a status, and
+ * the chain knows an agent as an agent address, an owner, guardians and a status, and
  * nothing more. trustset cannot see what an agent does. so a name and a
  * purpose are the owner's own words, and until they live on chain they live
  * here, in this browser, keyed by chain and agent id. the console says so
  * where it shows them rather than passing them off as chain data.
  *
  * the id is only known after the registration is mined, so a label is first
- * parked against the agent key and moved onto the id once the agent shows up
+ * parked against the agent address and moved onto the id once the agent shows up
  * in the owner's list. */
 export type Label = { name: string; purpose?: string };
 
@@ -57,3 +57,8 @@ export const utf8Len = (s: string) => new TextEncoder().encode(s).length;
 export const visible = (s: string) => s.replace(/[​-‏‪-‮⁠-⁤﻿\s]/g, "");
 export const nameFits = (s: string) => visible(s).length >= 2 && utf8Len(s.trim()) <= 40;
 export const purposeFits = (s: string) => utf8Len(s.trim()) <= 200;
+
+/* the key a browser keeps names and groups under: the chain and the switch.
+   by chain alone, a switch deployed afresh reused the ids, and the names kept
+   for the old agent 12 appeared on somebody else's agent 12. */
+export const scopeOf = (cfg: { chainIdHex: string; killSwitch: string }) => `${cfg.chainIdHex}@${cfg.killSwitch.toLowerCase()}`;

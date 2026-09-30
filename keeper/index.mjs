@@ -84,6 +84,10 @@ async function main() {
   if (bal === 0n) log("WARNING: this key holds no MON, so every refund will fail to send");
 
   let { from, failing } = await loadState();
+  /* settled and refunded are for good. one thirty day payment holds the cursor
+     low, and every later id used to be read again every sweep; the ones already
+     finished are remembered and skipped */
+  const finished = new Set();
 
   for (;;) {
     try {
@@ -91,6 +95,7 @@ async function main() {
       let lowestOpen = 0, due = 0, sent = 0;
 
       for (let id = from; id <= count; id++) {
+        if (finished.has(id)) continue;
         let p;
         await sleep(READ_GAP_MS);
         try { p = await rail.get(id); }
@@ -100,7 +105,7 @@ async function main() {
            named `state` or `deadline` can collide with Array.prototype and
            arrive as undefined. this has bitten this codebase three times. */
         const state = Number(p[6]);
-        if (state !== OPEN) continue;      // settled or refunded, terminal
+        if (state !== OPEN) { finished.add(id); continue; }      // settled or refunded, terminal
         lowestOpen ||= id;                 // the first still-open id we saw
 
         const deadline = Number(p[4]);
@@ -151,6 +156,7 @@ async function main() {
       if (next !== from) { from = next; }
       /* ids that are no longer open have nothing left to fail */
       for (const k of Object.keys(failing)) if (Number(k) < from) delete failing[k];
+      for (const k of finished) if (k < from) finished.delete(k);
       await saveState(from, failing, { count, due, sent });
       if (due || sent) log(`swept ${from}..${count} · ${due} due · ${sent} refunded`);
     } catch (e) {

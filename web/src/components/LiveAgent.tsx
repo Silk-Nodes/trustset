@@ -153,7 +153,7 @@ export default function LiveAgent({ compact = false, lead = null }: { compact?: 
             className="font-semibold" style={{ color: off ? "var(--orange-text)" : "var(--text-dark)" }}>{says}</motion.b>
           {heard !== null && <span className="mono text-[11px]"> {heard}s ago</span>}
         </span>
-        <span className="hidden sm:inline text-[13px]" style={{ color: "var(--text-light)" }}>·</span>
+        <span className="hidden sm:inline text-[13px]" style={{ color: "var(--text-faint)" }}>·</span>
         <span className={`text-[13px] min-w-0 ${compact ? "truncate" : ""}`} style={{ color: "var(--text-medium)" }}>
           the chain says{" "}
           <b className="mono font-semibold" style={{ color: off ? "var(--orange-text)" : "var(--sage-text)" }}>

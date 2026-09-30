@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { chainNow } from "@/lib/readtag";
 import { ethers } from "ethers";
 import Shell from "@/components/agents/Shell";
 import TxLink from "@/components/agents/TxLink";
@@ -46,9 +47,9 @@ export default function Refunds() {
   const [bal, setBal] = useState<bigint | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<React.ReactNode>(null);
-  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  const [now, setNow] = useState(() => chainNow());
 
-  useEffect(() => { const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000); return () => clearInterval(t); }, []);
+  useEffect(() => { const t = setInterval(() => setNow(chainNow()), 1000); return () => clearInterval(t); }, []);
 
   const rail = (c: Conn) => new ethers.Contract(c.cfg.refunds!, RAIL_ABI, c.p);
   const usd = (c: Conn) => new ethers.Contract(c.cfg.mockUsd!, USD_ABI, c.p);

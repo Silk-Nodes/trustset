@@ -58,6 +58,14 @@ CREATE TABLE IF NOT EXISTS agents (
 /* the ERC-8004 token that claims this agent, when one has published the pointer.
    nullable, because most agents have no 8004 identity and do not need one. */
 ALTER TABLE agents ADD COLUMN IF NOT EXISTS erc8004_id bigint;
+/* the block each field was last written from. a window read again (a restart,
+   a backfill, a repair) folds its rows a second time, and without these an
+   older row could overwrite a newer one. an update applies only when its block
+   is at least the one the field already came from. */
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS limits_block bigint NOT NULL DEFAULT 0;
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS key_block    bigint NOT NULL DEFAULT 0;
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS label_block  bigint NOT NULL DEFAULT 0;
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS link_block   bigint NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS agents_cold   ON agents (lower(cold_key));
 CREATE INDEX IF NOT EXISTS agents_key    ON agents (lower(agent_key));

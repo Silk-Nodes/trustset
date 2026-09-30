@@ -17,6 +17,10 @@ export type RefundRow = { id: number; payer: string; service: string; amount: st
 
 /* the last few payments through the rail, newest first, read finalised. what
    the landing slide plays is this list, so what it shows is what happened. */
+/* a settled or refunded payment never changes again, so it is read once. the
+   totals used to re-read every payment ever made on every refresh */
+const done = new Map<number, number>();
+
 export async function GET() {
   try {
     const body = await memo("refunds", 6000, load);
@@ -39,8 +43,14 @@ async function load() {
     const got = await Promise.all(ids.map(id => retry(() => rail.get(id, at))));
     const rows: RefundRow[] = got.map((g, k) => ({ id: ids[k], payer: g.payer, service: g.service, amount: ethers.formatUnits(g.amount, 6), deadline: Number(g.deadline), state: STATE[Number(g.state)] }));
     /* totals over everything, not just the page. small numbers, all real. */
-    const all = n <= 12 ? got : await Promise.all(Array.from({ length: n }, (_, i) => retry(() => rail.get(i + 1, at))));
-    const settled = all.filter(g => Number(g.state) === 2).length, refunded = all.filter(g => Number(g.state) === 3).length;
+    got.forEach((g, k) => { const s = Number(g.state); if (s === 2 || s === 3) done.set(ids[k], s); });
+    const open = Array.from({ length: n }, (_, i) => i + 1).filter(i => !done.has(i) && !ids.includes(i));
+    for (let i = 0; i < open.length; i += 10) {
+      const part = open.slice(i, i + 10);
+      const rs = await Promise.all(part.map(id => retry(() => rail.get(id, at))));
+      rs.forEach((g, k) => { const s = Number(g.state); if (s === 2 || s === 3) done.set(part[k], s); });
+    }
+    const settled = [...done.values()].filter(s => s === 2).length, refunded = [...done.values()].filter(s => s === 3).length;
     return { rows, settled, refunded, total: n };
   }
 }

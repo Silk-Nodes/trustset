@@ -1,5 +1,6 @@
 "use client";
 import Tip from "@/components/Tip";
+import { chainNow } from "@/lib/readtag";
 import { nameFits, purposeFits } from "@/lib/labels";
 import { useState } from "react";
 import Link from "next/link";
@@ -79,10 +80,10 @@ export default function Inspector(p: InspectorProps) {
     const is = open === k;
     const head = (
       <div className="grid grid-cols-[20px_minmax(0,1fr)_auto_12px] items-center gap-2.5 h-10 px-2">
-        <span className="inline-flex items-center justify-center" style={{ color: set ? "var(--text-dark)" : "var(--text-light)" }}>{icon}</span>
+        <span className="inline-flex items-center justify-center" style={{ color: set ? "var(--text-dark)" : "var(--text-faint)" }}>{icon}</span>
         <span className="text-[13px] font-medium truncate" style={{ color: "var(--text-dark)" }}>{name}</span>
         <span className="text-[12px] truncate max-w-[130px] text-right" style={{ color: "var(--text-medium)", fontStyle: set ? "normal" : "italic" }}>{value}</span>
-        <span className="mono text-[11px] text-right" style={{ color: "var(--text-light)" }}>{can ? (is ? "×" : "›") : ""}</span>
+        <span className="mono text-[11px] text-right" style={{ color: "var(--text-faint)" }}>{can ? (is ? "×" : "›") : ""}</span>
       </div>
     );
     return (
@@ -122,7 +123,7 @@ export default function Inspector(p: InspectorProps) {
                 <select value={win} onChange={e => setWin(Number(e.target.value))} className={`${input} mt-1`} style={field}>{windows.map(([w, v]) => <option key={v} value={v}>{w}</option>)}</select>
                 <span className="block text-[11px] mt-1 truncate" style={quiet}>{agent.heartbeatWindow ? (lapsed(agent, now) ? "gone quiet" : `next by ${new Date((agent.lastBeat + agent.heartbeatWindow) * 1000).toLocaleTimeString()}`) : "silence is fine"}</span>
               </label>
-              <button type="button" className="drawn-btn btn-orange self-start" style={sm} disabled={!p.canSign || busy === "limits" || (ends === KEEP && expired(agent, now))} onClick={() => p.onLimits(ends === KEEP ? agent.expiresAt : ends === 0 ? 0 : Math.floor(Date.now() / 1000) + ends, win)}>{busy === "limits" ? "Writing…" : "Set both"}</button>
+              <button type="button" className="drawn-btn btn-orange self-start" style={sm} disabled={!p.canSign || busy === "limits" || (ends === KEEP && expired(agent, now))} onClick={() => p.onLimits(ends === KEEP ? agent.expiresAt : ends === 0 ? 0 : chainNow() + ends, win)}>{busy === "limits" ? "Writing…" : "Set both"}</button>
             </div>
           ))
           : l.key === "identity" ? (

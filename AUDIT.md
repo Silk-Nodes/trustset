@@ -311,6 +311,15 @@ passkey, so a relay that holds one back can use it later. fixes: compute in
 uint256, require a trusted successor, beat only when active, and bind the
 panic challenge to the status history length.
 
+**K8. practice agents made before 2026-09-30 keep a guardian anyone can
+compute.** the /demo guardian was derived from a public string and the owner's
+address, so its key could be worked out by anybody, who could then vote to
+pause, or escalate to stop, that visitor's practice agent. guardians cannot be
+changed on chain, so those agents keep it. they hold a few testnet MON and
+nothing else, and their owner can resume a pause at once. practice agents made
+since then get a guardian derived with a server secret. the fleet agents
+registered from `script/` the same way were revoked on 2026-09-30.
+
 ### HumanTouch
 
 **H1. "human" means holder of a passkey the account registered.** any address,

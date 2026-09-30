@@ -22,7 +22,12 @@ export default function Lookup({ base }: { base?: string }) {
   const [hits, setHits] = useState<Hit[] | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [cursor, setCursor] = useState(0);
+  /* the term the hits belong to. typing faster than the answer used to let
+     Enter open a hit for what was typed before */
+  const [hitsFor, setHitsFor] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  /* set once the reader moves through the list, which is a choice */
+  const picked = useRef(false);
   const term = q.trim();
 
   useEffect(() => {
@@ -32,7 +37,7 @@ export default function Lookup({ base }: { base?: string }) {
       if (term) { u.searchParams.set("q", term); u.searchParams.set("per", "10"); }
       fetch(u, { cache: "no-store", signal: ctl.signal })
         .then(r => r.json())
-        .then(j => { if (!j.indexed) return; if (!term) { setTotal(j.fleet ?? 0); setHits(null); } else { setHits(j.agents ?? []); setCursor(0); } })
+        .then(j => { if (!j.indexed) return; if (!term) { setTotal(j.fleet ?? 0); setHits(null); } else { setHits(j.agents ?? []); setHitsFor(term); setCursor(0); } })
         .catch(() => {});
     }, term ? 180 : 0);
     return () => { clearTimeout(t); ctl.abort(); };
@@ -40,9 +45,17 @@ export default function Lookup({ base }: { base?: string }) {
 
   const onKey = (e: React.KeyboardEvent) => {
     if (!hits?.length) return;
-    if (e.key === "ArrowDown") { e.preventDefault(); setCursor(c => Math.min(hits.length - 1, c + 1)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setCursor(c => Math.max(0, c - 1)); }
-    else if (e.key === "Enter") { e.preventDefault(); router.push(`/explorer/${hits[cursor].id}`); }
+    if (e.key === "ArrowDown") { e.preventDefault(); picked.current = true; setCursor(c => Math.min(hits.length - 1, c + 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); picked.current = true; setCursor(c => Math.max(0, c - 1)); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      if (hitsFor !== term) return;
+      /* a name is anybody's to choose. when several agents answer to it, Enter
+         does not pick one: the reader chooses, looking at the addresses */
+      const byName = !/^\d+$/.test(term) && !/^0x/i.test(term);
+      if (byName && hits.length > 1 && !e.nativeEvent.isComposing && document.activeElement === input.current && cursor === 0 && !picked.current) return;
+      router.push(`/explorer/${hits[cursor].id}`);
+    }
   };
 
   return (
@@ -57,13 +70,16 @@ export default function Lookup({ base }: { base?: string }) {
             and left an empty gap at the start of the field on a phone */}
         <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
           className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "var(--text-medium)" }}><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
-        <input ref={input} value={q} onChange={e => setQ(e.target.value)} onKeyDown={onKey} spellCheck={false} autoComplete="off"
+        <input ref={input} value={q} onChange={e => { setQ(e.target.value); picked.current = false; }} onKeyDown={onKey} spellCheck={false} autoComplete="off"
           placeholder="id, address or name" aria-label="Agent id, agent address or name"
           className="w-full h-12 rounded-xl pl-10 pr-4 text-[15px] outline-none focus-visible:ring-2"
           style={{ background: "var(--surface)", border: "1px solid var(--hairline)", color: "var(--text-dark)" }} />
 
         {term && hits !== null && (
           <div className="sheet mt-2 overflow-hidden">
+            {hits.length > 1 && !/^\d+$/.test(term) && !/^0x/i.test(term) && new Set(hits.map(h => (h.name ?? "").toLowerCase())).size < hits.length && (
+              <p className="px-4 py-2 text-[12px]" style={{ ...quiet, borderBottom: "1px solid var(--hairline)" }}>More than one agent uses this name. Check the address before you trust it.</p>
+            )}
             {hits.length === 0 ? (
               <p className="px-4 py-5 text-[13px]" style={quiet}>No agent matches <span className="mono">{term}</span>.</p>
             ) : hits.map((h, i) => (

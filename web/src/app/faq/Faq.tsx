@@ -85,7 +85,7 @@ export default function Faq() {
                   borderLeft: `2px solid ${here === g.id && !needle ? "var(--orange)" : "var(--hairline)"}`,
                 }}>
                 {g.title}
-                <span className="mono text-[10.5px] tabular ml-auto" style={{ color: "var(--text-light)" }}>{g.questions.length}</span>
+                <span className="mono text-[10.5px] tabular ml-auto" style={{ color: "var(--text-faint)" }}>{g.questions.length}</span>
               </a>
             </li>
           ))}
@@ -100,7 +100,7 @@ export default function Faq() {
         {/* the filter. answers are searched too, so a word buried in one still finds it. */}
         <div className="flex flex-wrap items-center gap-3 mb-8">
           <label className="relative flex-1 min-w-[240px]">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 mono text-[12px] pointer-events-none" style={{ color: "var(--text-light)" }}>/</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 mono text-[12px] pointer-events-none" style={{ color: "var(--text-faint)" }}>/</span>
             <input ref={search} value={q} onChange={e => setQ(e.target.value)} placeholder="Search the questions and the answers" spellCheck={false}
               aria-label="Search the questions"
               className="w-full h-11 rounded-full pl-9 pr-4 text-[14px] outline-none focus-visible:ring-2 transition-colors"
@@ -125,7 +125,7 @@ export default function Faq() {
           <section key={g.id} id={g.id} className="scroll-mt-24 mb-12 last:mb-0">
             <div className="flex items-baseline gap-3 pb-3 mb-5" style={{ borderBottom: "1px solid var(--hairline)" }}>
               <h2 className="text-[20px] sm:text-[22px] font-semibold tracking-[-0.02em]">{g.title}</h2>
-              <span className="mono text-[11px] tabular" style={{ color: "var(--text-light)" }}>{g.questions.length}</span>
+              <span className="mono text-[11px] tabular" style={{ color: "var(--text-faint)" }}>{g.questions.length}</span>
             </div>
 
             <div className="grid gap-3">
@@ -151,7 +151,7 @@ export default function Faq() {
                   <button type="button" onClick={() => copy(item.id)}
                     aria-label={`Copy a link to “${item.q}”`}
                     className="absolute top-5 right-4 sm:top-6 sm:right-5 mono text-[11px] rounded-md px-1.5 py-0.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 outline-none focus-visible:ring-2 transition-opacity"
-                    style={{ color: copied === item.id ? "var(--sage-text)" : "var(--text-light)" }}>
+                    style={{ color: copied === item.id ? "var(--sage-text)" : "var(--text-faint)" }}>
                     {copied === item.id ? "copied" : "#"}
                   </button>
                 </motion.article>

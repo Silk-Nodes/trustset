@@ -8,12 +8,12 @@ import { GET as chain, type ChainCfg } from "@/app/api/chain/route";
  *
  * the demo has to make real transactions from two different keys, because that
  * is the whole point: a trade is sent by the agent's own key, and a stop is
- * sent by the cold key. a browser holds neither. so the agent key lives here,
- * on the server, funded by the deployer, and the cold key is whoever is
+ * sent by the owner. a browser holds neither. so the agent's key lives here,
+ * on the server, funded by the deployer, and the owner is whoever is
  * watching: the visitor's wallet when they have one, the deployer when they
  * do not.
  *
- * testnet only, and the keys never leave this file. an agent key here can do
+ * testnet only, and the keys never leave this file. an agent's key here can do
  * exactly one thing, call trade() on a demo venue that counts calls. it holds
  * enough gas for a few hundred of them and nothing else. */
 
@@ -24,7 +24,7 @@ const ROOT = () => process.env.TRUSTSET_ROOT || join(process.cwd(), "..");
 const STORE = () => process.env.DEMO_STORE || join(ROOT(), ".demo-agents.json");
 const FUND = ethers.parseEther("0.05");
 const KEEP = ethers.parseEther("0.01");
-/* what one visitor costs the payer: funding an agent key, plus gas for the
+/* what one visitor costs the payer: funding an agent's key, plus gas for the
    registration and a stop or two. checked before anything is sent so an empty
    payer says so in a sentence instead of through an RPC error. */
 const NEEDED = ethers.parseEther("0.12");
@@ -49,12 +49,12 @@ type Row = { id: string; priv: string; cold: string; guardian?: string };
 import { cfg, provider } from "@/lib/rpc.server";
 export { cfg, provider };
 
-/* who pays for the demo, and who is the cold key for visitors who have not
+/* who pays for the demo, and who is the owner for visitors who have not
    connected a wallet.
  *
  * on a server this is DEMO_PAYER_KEY and it should be its own key holding a few
  * testnet MON, not the key that owns the deployment. the demo funds a fresh
- * agent key per visitor and registers it, so whatever key it is given is spent
+ * agent's key per visitor and registers it, so whatever key it is given is spent
  * from by anyone who loads the page. giving it the deployer's key would put the
  * contracts' owner one bug away from a stranger's reach and drain the balance
  * the next deploy needs.
@@ -137,7 +137,7 @@ async function countNew(): Promise<void> {
   await save(DAYS(), { [day]: (d[day] ?? 0) + 1 });
 }
 
-/* one agent per cold key, kept so a visitor who comes back finds their own
+/* one agent per owner, kept so a visitor who comes back finds their own
    agent rather than registering another one every reload. */
 /* create is false for everything but a signed start. a read, or an action,
    for a wallet with no agent yet throws NeedsStart instead of spending. */

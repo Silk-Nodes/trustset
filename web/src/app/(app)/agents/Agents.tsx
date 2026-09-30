@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { chainNow } from "@/lib/readtag";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { useMotionPrefs } from "@/lib/motion";
@@ -14,7 +15,7 @@ import RegisterDialog from "@/components/agents/RegisterDialog";
 import TxLink, { addrUrl } from "@/components/agents/TxLink";
 import Term from "@/components/Term";
 import Tip, { InfoTip } from "@/components/Tip";
-import { adoptParked, fallbackName, getLabel, parkLabel, setLabel, type Label } from "@/lib/labels";
+import { adoptParked, fallbackName, getLabel, parkLabel, setLabel, type Label, scopeOf } from "@/lib/labels";
 import { CONFIRMS, FAUCET, READ, agentIdForKey, cachedAgents, coldKeyDelay, consentMessage, explain, settled, labelOnChain, loadAgents, loadGuarded, loadHistory, ownerTx, registerOnChain, short, statusWord, trusted, type Agent, type Conn, type Guarded } from "@/lib/chain";
 import { type Extra, type PulseEvent, layersOf } from "@/lib/layers";
 import { type Row, fakeAgents, groupFromPurpose, loadTags, purposeWithGroup, rowsOf, saveTags } from "@/lib/fleet";
@@ -43,8 +44,8 @@ export default function Agents() {
   const [delayDays, setDelayDays] = useState(1);
   const [act, setAct] = useState<string | null>(null);
   useEffect(() => { if (conn) coldKeyDelay(conn).then(d => setDelayDays(Math.max(1, Math.round(d / 86400)))).catch(() => {}); }, [conn]);
-  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
-  useEffect(() => { const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000); return () => clearInterval(t); }, []);
+  const [now, setNow] = useState(() => chainNow());
+  useEffect(() => { const t = setInterval(() => setNow(chainNow()), 1000); return () => clearInterval(t); }, []);
   /* nothing is "empty" until the chain has actually answered once. */
   const [loaded, setLoaded] = useState(false);
   /* the passkey nominated for an agent, read when its panel opens rather than
@@ -102,7 +103,7 @@ export default function Agents() {
     if (!same(me)) return list;
     /* a label parked at registration time moves onto its id once the agent
        is in the list. */
-    adoptParked(c.cfg.chainIdHex, list);
+    adoptParked(scopeOf(c.cfg), list);
     setAgents(list); setLoaded(true); setAsOf(new Date().toISOString().slice(11, 19) + " UTC");
     if (me) loadGuarded(c, me).then(g => { if (same(me)) setGuarded(g); }).catch(() => {});
     return list;
@@ -112,7 +113,7 @@ export default function Agents() {
      nothing, because the id is the truth. */
   const labelFor = (a: Agent): { name: string; purpose?: string; where: "chain" | "local" | "none" } => {
     if (a.label) return { name: a.label.name, purpose: a.label.purpose || undefined, where: "chain" };
-    const l = conn ? getLabel(conn.cfg.chainIdHex, a.id) : null;
+    const l = conn ? getLabel(scopeOf(conn.cfg), a.id) : null;
     return l ? { ...l, where: "local" } : { name: fallbackName(a.id), where: "none" };
   };
 
@@ -195,7 +196,7 @@ export default function Agents() {
     if (!s || !me) throw new Error("Connect your wallet first");
     const taken = await agentIdForKey(c, agentKey);
     if (taken !== 0n) throw new Error(`That key is already registered as agent ${taken}`);
-    parkLabel(c.cfg.chainIdHex, agentKey, label);
+    parkLabel(scopeOf(c.cfg), agentKey, label);
     const { id, hash: regHash } = await ownerTx(async () => {
       if (c.owner && !who) {
         /* pinned nonces: the demo funds the generated key and registers it in
@@ -208,7 +209,7 @@ export default function Agents() {
     });
     /* nothing about a key is ever printed here. the dialog handled the key,
        and once it closes the console holds nothing. */
-    setLabel(c.cfg.chainIdHex, id, label);
+    setLabel(scopeOf(c.cfg), id, label);
     if (c.labels) {
       try { const lrc = await ownerTx(() => labelOnChain(c, s, id, label.name, label.purpose ?? "")); setNote(<>{label.name} registered as agent {id.toString()} <TxLink cfg={c.cfg} hash={regHash} label="registration" />, and named on chain <TxLink cfg={c.cfg} hash={lrc?.hash} label="label" />.</>); }
       catch (e) { setNote(<>{label.name} registered as agent {id.toString()} <TxLink cfg={c.cfg} hash={regHash} />. {explain(e, c)}. Its name is only in this browser until you put it on chain from its panel.</>); }
@@ -225,7 +226,7 @@ export default function Agents() {
   /* put a browser-only label on chain, from the panel. */
   async function publishLabel(a: Agent) {
     if (!conn) return; const s = ownerSigner(conn); if (!s) return;
-    const l = getLabel(conn.cfg.chainIdHex, a.id); if (!l) return;
+    const l = getLabel(scopeOf(conn.cfg), a.id); if (!l) return;
     try { const rc = await ownerTx(() => labelOnChain(conn, s, a.id, l.name, l.purpose ?? "")); await refresh(conn); said(`${l.name} is now named on chain.`, rc?.hash); }
     catch (e) { setNote(msg(e)); }
   }
@@ -276,7 +277,7 @@ export default function Agents() {
     catch (e) { setNote(explain(e, conn)); }
     finally { setAct(null); }
   }
-  const rename = (a: Agent, name: string, purpose: string) => withAct("rename", async () => { const rc = await labelOnChain(conn!, ownerSigner(conn!)!, a.id, name, purpose); setLabel(conn!.cfg.chainIdHex, a.id, { name, purpose: purpose || undefined }); return rc; }, `Agent ${a.id} is now named ${name} on chain.`);
+  const rename = (a: Agent, name: string, purpose: string) => withAct("rename", async () => { const rc = await labelOnChain(conn!, ownerSigner(conn!)!, a.id, name, purpose); setLabel(scopeOf(conn!.cfg), a.id, { name, purpose: purpose || undefined }); return rc; }, `Agent ${a.id} is now named ${name} on chain.`);
   /* both limits land in one call, so an owner never sits between two states
      where one is set and the other is not. */
   const limits = (a: Agent, expiresAt: number, window: number) => withAct("limits", async () => (await (conn!.ks.connect(ownerSigner(conn!)!) as ethers.Contract).setLimits(a.id, expiresAt, window)).wait(2),
@@ -379,8 +380,8 @@ export default function Agents() {
 
   /* groups are the reader's, kept in this browser, keyed by chain and id */
   const [tags, setTags] = useState<Record<string, string>>({});
-  useEffect(() => { if (conn) setTags(loadTags(conn.cfg.chainIdHex)); }, [conn]);
-  const setTag = (id: bigint, t: string) => { if (!conn) return; const n = { ...tags }; if (t) n[id.toString()] = t; else delete n[id.toString()]; setTags(n); saveTags(conn.cfg.chainIdHex, n); };
+  useEffect(() => { if (conn) setTags(loadTags(scopeOf(conn.cfg))); }, [conn]);
+  const setTag = (id: bigint, t: string) => { if (!conn) return; const n = { ...tags }; if (t) n[id.toString()] = t; else delete n[id.toString()]; setTags(n); saveTags(scopeOf(conn.cfg), n); };
 
   const [histories, setHistories] = useState<Record<string, Agent["history"]>>({});
   const selectedRaw = routeId !== null ? all.find(a => a.id === routeId) ?? null : null;
@@ -482,7 +483,11 @@ export default function Agents() {
   const guardingPanel = (
     <section>
       <div className="sheet overflow-clip">
-        {guardedShown.map(g => {
+        {guardedShown.map((g, _i, list) => {
+          /* anybody can name you a guardian of an agent they made to look like
+             one you guard. a name shared with another row is flagged, and the
+             owner is shown long enough that a vanity address stands out */
+          const twin = !!g.label?.name && list.some(o => o.id !== g.id && o.label?.name?.toLowerCase() === g.label!.name.toLowerCase());
           const k = "g" + g.id.toString(); const b = busy.has(k);
           /* only a guardians' pause escalates. an owner's or a passkey's pause
              always reverted here, and still counted as waiting on the badge */
@@ -512,7 +517,8 @@ export default function Agents() {
               <span className="hidden sm:block w-2 h-2 rounded-full" style={{ background: dot }} />
               <div className="min-w-0">
                 <div className="font-semibold truncate">{g.label?.name || `Agent ${g.id}`}</div>
-                <div className="mono text-[11px] whitespace-nowrap truncate" style={{ color: "var(--text-medium)" }}>agent {g.id.toString()} · owner {short(g.coldKey)}</div>
+                <div className="mono text-[11px] whitespace-nowrap truncate" style={{ color: "var(--text-medium)" }}>agent {g.id.toString()} · owner {g.coldKey.slice(0, 10)}…{g.coldKey.slice(-8)}</div>
+                {twin && <div className="text-[11px] mt-0.5" style={{ color: "var(--orange-text)" }}>Another agent here has this name. Check the owner before you vote.</div>}
                 {/* on a phone the state sits under the name */}
                 <div className="sm:hidden mt-1 flex items-center gap-2 mono text-[11px]">
                   <span className="uppercase tracking-[0.1em]" style={{ color: live ? "var(--sage-text)" : state === "stopped" ? "var(--text-medium)" : "var(--orange-text)" }}>{state}</span>

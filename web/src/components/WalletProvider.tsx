@@ -48,7 +48,20 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [resuming, setResuming] = useState(() => { try { return !!localStorage.getItem(REMEMBER); } catch { return false; } });
   const walletOk = useWalletPresence();
 
-  useEffect(() => { connect().then(setConn).catch(() => setConn(null)); }, []);
+  /* the chain config, asked for again a few times before giving up: one
+     failed /api/chain at load used to leave the page with no chain and a
+     "Reconnecting" chip that never went away */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      for (let i = 0; i < 4 && alive; i++) {
+        try { const c = await connect(); if (alive) setConn(c); return; }
+        catch { await new Promise(r => setTimeout(r, 1500 * (i + 1))); }
+      }
+      if (alive) { setConn(null); setResuming(false); }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   const connectNow = useCallback(async () => {
     setError(null);
@@ -93,7 +106,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       try {
         const { gasMessage, gasDay } = await import("@/lib/gas");
         const signature = await s.signer.signMessage(gasMessage(s.address, gasDay()));
-        await fetch("/api/gas", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: s.address, signature }) });
+        const g = await fetch("/api/gas", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: s.address, signature }) });
+        /* a refused drip is said, with where to get gas instead. it used to
+           fail silently and the first Register failed on an empty wallet */
+        if (!g.ok && g.status !== 409) { const j = await g.json().catch(() => ({})); setError(`${j.error ?? "The testnet gas drip did not go through"}. You can get testnet MON from https://faucet.monad.xyz`); }
       } catch (e) { console.warn("trustset: gas drip failed", e); }
     },
   }, [conn, env]);

@@ -78,10 +78,19 @@ export default function Tip({ text, label, children, tap = true, underline = fal
   useEffect(() => {
     if (!open) return;
     const off = (e: PointerEvent) => { if (!trigger.current?.contains(e.target as Node) && !card.current?.contains(e.target as Node)) setOpen(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); show(false); } };
-    document.addEventListener("pointerdown", off); document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("pointerdown", off); document.removeEventListener("keydown", esc); };
+    document.addEventListener("pointerdown", off);
+    return () => document.removeEventListener("pointerdown", off);
   }, [open]);
+  /* escape closes a tip however it opened. it used to be listened for only
+     after a tap, so a tip opened by hover or by focus could not be dismissed
+     from the keyboard, which is the one thing a tooltip must allow */
+  useEffect(() => {
+    if (!shown) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); show(false); } };
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown]);
 
   const width = typeof window === "undefined" ? WIDTH : Math.min(WIDTH, window.innerWidth - PAD * 2);
   const Wrap = block ? "div" : "span";
@@ -117,7 +126,7 @@ export default function Tip({ text, label, children, tap = true, underline = fal
 export function InfoTip({ text, label }: { text: React.ReactNode; label?: string }) {
   return (
     <Tip text={text} label={label} className="inline-flex align-middle ml-1.5">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-label="about this" style={{ color: "var(--text-light)" }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-label="about this" style={{ color: "var(--text-faint)" }}>
         <circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" />
       </svg>
     </Tip>

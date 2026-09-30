@@ -161,7 +161,7 @@ export default function Palette({ open, onClose }: { open: boolean; onClose: () 
             initial={m.reduced ? false : { opacity: 0, y: -8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={m.reduced ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.98 }}
             transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}>
             <div className="flex items-center gap-3 px-4 h-14" style={{ borderBottom: "1px solid var(--hairline)" }}>
-              <span className="mono text-[13px]" style={{ color: "var(--text-light)" }}>⌕</span>
+              <span className="mono text-[13px]" style={{ color: "var(--text-faint)" }}>⌕</span>
               <input ref={input} value={q} onChange={e => setQ(e.target.value)} onKeyDown={onKey} spellCheck={false}
                 placeholder="An agent, an address, a transaction, or a page"
                 className="flex-1 min-w-0 bg-transparent outline-none text-[15px]" style={{ color: "var(--text-dark)" }} />
@@ -186,15 +186,15 @@ export default function Palette({ open, onClose }: { open: boolean; onClose: () 
                       {it.tone && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: it.tone === "live" ? "var(--sage)" : "var(--orange)" }} />}
                       <span className="text-[14px] font-medium truncate" style={{ color: "var(--text-dark)" }}>{it.label}</span>
                       {it.sub && <span className="mono text-[11px] truncate" style={{ color: "var(--text-medium)" }}>{it.sub}</span>}
-                      {it.hint && <span className="ml-auto mono text-[10.5px] uppercase tracking-[0.1em] shrink-0" style={{ color: on ? "var(--text-medium)" : "var(--text-light)" }}>{it.hint}</span>}
-                      {on && <kbd className="mono text-[10.5px] shrink-0" style={{ color: "var(--text-light)" }}>↵</kbd>}
+                      {it.hint && <span className="ml-auto mono text-[10.5px] uppercase tracking-[0.1em] shrink-0" style={{ color: on ? "var(--text-medium)" : "var(--text-faint)" }}>{it.hint}</span>}
+                      {on && <kbd className="mono text-[10.5px] shrink-0" style={{ color: "var(--text-faint)" }}>↵</kbd>}
                     </button>
                   </div>
                 );
               })}
             </div>
 
-            <div className="flex items-center gap-4 px-4 h-9 mono text-[10.5px]" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-light)" }}>
+            <div className="flex items-center gap-4 px-4 h-9 mono text-[10.5px]" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-faint)" }}>
               <span>↑↓ move</span><span>↵ open</span><span>esc close</span>
               <span className="ml-auto">{total !== null ? `${total} agents indexed` : "no index"}</span>
             </div>

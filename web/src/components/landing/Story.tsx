@@ -798,7 +798,7 @@ export function Features() {
               className="text-left rounded-xl px-3 py-3 lg:px-4 transition-colors outline-none focus-visible:ring-2"
               style={{ background: on ? "color-mix(in srgb, var(--text-dark) 6%, transparent)" : "transparent" }}>
               <div className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: on ? "color-mix(in srgb, var(--orange) 16%, transparent)" : "var(--hairline)", color: on ? "var(--orange-text)" : "var(--text-light)" }}>
+                <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: on ? "color-mix(in srgb, var(--orange) 16%, transparent)" : "var(--hairline)", color: on ? "var(--orange-text)" : "var(--text-faint)" }}>
                   {on ? <t.Icon ref={icon} size={15} /> : <t.Icon size={15} />}
                 </span>
                 <span className="text-[13px] sm:text-[14px] font-semibold tracking-tight truncate" style={{ color: on ? "var(--text-dark)" : "var(--text-medium)" }}>{t.k}</span>

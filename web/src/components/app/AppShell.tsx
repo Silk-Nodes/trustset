@@ -97,7 +97,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         initial="rest" animate="rest" whileHover={still ? undefined : "hover"} whileFocus={still ? undefined : "hover"}
         className="relative flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-[13px] outline-none focus-visible:ring-2 transition-colors whitespace-nowrap"
         style={{ background: on ? "color-mix(in srgb, var(--text-dark) 8%, transparent)" : "transparent", color: on ? "var(--text-dark)" : "var(--text-medium)", fontWeight: on ? 600 : 500 }}>
-        <span className="relative w-4 h-4 inline-flex items-center justify-center shrink-0" style={{ color: on ? "var(--text-dark)" : "var(--text-light)" }}>
+        <span className="relative w-4 h-4 inline-flex items-center justify-center shrink-0" style={{ color: on ? "var(--text-dark)" : "var(--text-faint)" }}>
           {n.icon}
           {count > 0 && !open && <span aria-hidden className="absolute -top-1 -right-1 w-[7px] h-[7px] rounded-full" style={{ background: "var(--orange)", boxShadow: "0 0 0 2px var(--rail)" }} />}
         </span>
@@ -133,7 +133,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
             <motion.button type="button" initial="rest" animate="rest" whileHover={still ? undefined : "hover"} onClick={() => togglePin()} aria-pressed={pinned} aria-label={pinned ? "Unpin the sidebar" : "Pin the sidebar open"} title={"\u2318\\"}
               className="mr-2 w-7 h-7 shrink-0 rounded-lg inline-flex items-center justify-center outline-none focus-visible:ring-2 transition-opacity duration-150"
-              style={{ opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none", color: pinned ? "var(--text-dark)" : "var(--text-light)" }}><IconPin on={pinned} /></motion.button>
+              style={{ opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none", color: pinned ? "var(--text-dark)" : "var(--text-faint)" }}><IconPin on={pinned} /></motion.button>
           </div>
           <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2.5 py-3 flex flex-col gap-0.5">
             <div className="eyebrow px-2.5 h-6 flex items-center whitespace-nowrap">{open ? "your agents" : <span className="block w-4 h-px" style={{ background: "var(--hairline)" }} />}</div>

@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDialogFocus } from "@/lib/useDialogFocus";
 import { nameFits, purposeFits } from "@/lib/labels";
 import { ethers } from "ethers";
 import { motion, AnimatePresence } from "motion/react";
@@ -87,6 +88,10 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
   const [consent, setConsent] = useState("");
   const [copiedMsg, setCopiedMsg] = useState(false);
   const first = useRef<HTMLInputElement>(null);
+  /* keyboard stays inside while it is open, and goes back to the Register
+     button when it closes */
+  const box = useRef<HTMLDivElement>(null);
+  useDialogFocus(box, open);
 
   useEffect(() => {
     if (!open) return;
@@ -389,7 +394,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
         <>
           <motion.div className="fixed inset-0 z-50" style={{ background: "rgba(0,0,0,0.45)" }}
             initial={m.reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={m.t(DUR.fast)} onClick={busy ? undefined : onClose} aria-hidden />
-          <motion.div role="dialog" aria-modal="true" aria-label="Register an agent"
+          <motion.div ref={box} role="dialog" aria-modal="true" aria-label="Register an agent"
             className="fixed z-50 left-1/2 top-1/2 w-[calc(100vw-2rem)] max-w-[520px]"
             initial={m.reduced ? { opacity: 0, x: "-50%", y: "-50%" } : { opacity: 0, scale: 0.96, x: "-50%", y: "-50%" }}
             animate={{ opacity: 1, scale: 1, x: "-50%", y: "-50%" }}

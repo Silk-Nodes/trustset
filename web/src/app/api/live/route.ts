@@ -16,6 +16,18 @@ const KS = [
 /* the figures the landing page opens on, read from whichever chain the app is
    pointed at. no operator registry here: it is in the repo and out of the
    product, so the page must not count it. */
+/* terminal answers kept for good: a stopped or rotated agent and a settled or
+   refunded payment never change again. every refresh used to read every agent
+   and every payment ever made, and anybody can add to both. now only the ones
+   that can still move are read, ten at a time. */
+const doneAgents = new Map<number, number>();
+const donePay = new Map<number, number>();
+async function inTens<T>(ids: number[], f: (i: number) => Promise<T>): Promise<T[]> {
+  const out: T[] = [];
+  for (let i = 0; i < ids.length; i += 10) out.push(...await Promise.all(ids.slice(i, i + 10).map(f)));
+  return out;
+}
+
 export async function GET() {
   try {
     const live = await memo("live", 4000, load);
@@ -38,15 +50,20 @@ async function load(): Promise<Live> {
     const agents = Number(await retry(() => ks.agentCount(at)));
     /* one round trip per agent is fine at this size and honest at any size:
        the count is small because every agent here was really registered. */
-    const states = await Promise.all(Array.from({ length: agents }, (_, i) => retry(() => ks.getAgent(i + 1, at))));
-    const revoked = states.filter(a => Number(a.status) === 3).length;
+    const open = Array.from({ length: agents }, (_, i) => i + 1).filter(i => !doneAgents.has(i));
+    const states = await inTens(open, i => retry(() => ks.getAgent(i, at)));
+    let revoked = 0;
+    states.forEach((a, k) => { const s = Number(a.status); if (s === 3 || s === 4) doneAgents.set(open[k], s); });
+    for (const [i, s] of doneAgents) if (i <= agents && s === 3) revoked++;
     let refunds = 0;
     if (cfg.refunds) {
       try {
         const rail = new ethers.Contract(cfg.refunds, ["function count() view returns (uint256)", "function get(uint256) view returns (tuple(address payer,address service,address token,uint256 amount,uint64 deadline,bytes32 requestHash,uint8 state))"], p);
         const n = Number(await retry(() => rail.count(at)));
-        const all = await Promise.all(Array.from({ length: n }, (_, i) => retry(() => rail.get(i + 1, at))));
-        refunds = all.filter(g => Number(g.state) === 3).length;
+        const open = Array.from({ length: n }, (_, i) => i + 1).filter(i => !donePay.has(i));
+        const got = await inTens(open, i => retry(() => rail.get(i, at)));
+        got.forEach((g, k) => { const s = Number(g.state); if (s === 2 || s === 3) donePay.set(open[k], s); });
+        refunds = [...donePay.values()].filter(s => s === 3).length;
       } catch { /* the figure stays at zero rather than guessing */ }
     }
     return { source: cfg.source, chain: cfg.chain, block, agents, revoked, refunds, asOf: new Date().toISOString() };

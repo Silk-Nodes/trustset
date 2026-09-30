@@ -65,7 +65,7 @@ export default function TrustLine({ agent, now, events = [], height = 10, labels
         })}
       </svg>
       {labels && (
-        <div className="flex justify-between mono text-[10px] mt-1" style={{ color: "var(--text-light)" }}>
+        <div className="flex justify-between mono text-[10px] mt-1" style={{ color: "var(--text-faint)" }}>
           <span>24h ago</span><span>12h</span><span>now</span>
         </div>
       )}

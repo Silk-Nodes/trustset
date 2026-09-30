@@ -60,8 +60,14 @@ function spkiToXY(spki: ArrayBuffer): { x: bigint; y: bigint } {
   return { x: n(p.slice(1, 33)), y: n(p.slice(33, 65)) };
 }
 
-export async function registerPasskey(accountLabel: string) {
+export async function registerPasskey(label: string) {
   const rpId = location.hostname;
+  /* each attempt is its own passkey, named with when it was made, so a phone
+     holding several can tell the newest (the one nominated) from ones left by
+     an attempt that never reached the chain. reusing one id would have the
+     phone overwrite the old passkey before the chain had accepted the new one,
+     and a cancelled nomination would leave no working panic button at all. */
+  const accountLabel = `${label} · ${new Date().toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`;
   const cred = (await navigator.credentials.create({
     publicKey: {
       challenge: buf(crypto.getRandomValues(new Uint8Array(32))),

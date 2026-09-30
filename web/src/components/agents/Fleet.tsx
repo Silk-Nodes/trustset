@@ -30,7 +30,7 @@ const DAY = 86400;
 const WINDOWS: [string, number][] = [["Off", 0], ["10 minutes", 600], ["1 hour", 3600], ["6 hours", 21600], ["1 day", DAY]];
 const ENDS: [string, number][] = [["Never", 0], ["1 day", DAY], ["7 days", 7 * DAY], ["30 days", 30 * DAY], ["90 days", 90 * DAY]];
 const quiet = { color: "var(--text-medium)" } as const;
-const faint = { color: "var(--text-light)" } as const;
+const faint = { color: "var(--text-faint)" } as const;
 const chip = (on: boolean) => ({ background: on ? "var(--pill-accent-bg)" : "transparent", color: on ? "var(--pill-accent-text)" : "var(--text-medium)", border: `1px solid ${on ? "var(--pill-accent-bg)" : "var(--hairline)"}` });
 const chipCls = "rounded-full px-2.5 h-7 inline-flex items-center gap-1.5 text-[12px] font-medium whitespace-nowrap outline-none focus-visible:ring-2 transition-colors";
 const btn = { padding: "4px 10px", fontSize: "0.74rem" } as const;
@@ -233,7 +233,7 @@ export default function Fleet(p: FleetProps) {
     <div className="flex items-center gap-1" aria-label={r.known ? `${r.set} of 8 layers set` : "reading"} style={{ opacity: r.known ? 1 : 0.4, transition: "opacity .3s" }}>
       {r.layers.map(l => (
         <span key={l.key} data-tip={r.known ? `${l.name}: ${l.value}` : `${l.name}: reading…`} className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[5px]"
-          style={{ color: l.set ? "var(--text-dark)" : "var(--text-light)", background: l.set ? "color-mix(in srgb, var(--text-dark) 8%, transparent)" : "transparent", border: l.set ? "1px solid transparent" : "1px dashed var(--hairline)" }}>
+          style={{ color: l.set ? "var(--text-dark)" : "var(--text-faint)", background: l.set ? "color-mix(in srgb, var(--text-dark) 8%, transparent)" : "transparent", border: l.set ? "1px solid transparent" : "1px dashed var(--hairline)" }}>
           <LayerIcon k={l.key} size={12} />
         </span>
       ))}

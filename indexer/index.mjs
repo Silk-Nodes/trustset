@@ -151,8 +151,15 @@ async function main() {
     const target = Math.max(0, head - BEHIND);
     while (cur <= target) {
       const to = Math.min(cur + WINDOW - 1, target);
-      const rows = [...await pull(p, d, ks, labels, venue, erc8004, cur, to), ...await stakes(p, staking, await agentKeys(db), cur, to)];
+      /* the switch's rows first, then the staking rows. the agent list for the
+         staking filter was read before this window's registrations were
+         written, so an agent that registered and staked in the same window had
+         its stake dropped for good. both writes land before the cursor moves */
+      const rows = await pull(p, d, ks, labels, venue, erc8004, cur, to);
       if (rows.length) await write(db, rows);
+      const staked = await stakes(p, staking, await agentKeys(db), cur, to);
+      if (staked.length) await write(db, staked);
+      rows.push(...staked);
       await db.query("INSERT INTO cursor (name, block) VALUES ('main', $1) ON CONFLICT (name) DO UPDATE SET block = $1", [to + 1]);
       if (rows.length) log(`blocks ${cur}-${to}: ${rows.length} events`);
       cur = to + 1;
@@ -359,22 +366,23 @@ async function fold(c, r) {
       await c.query("UPDATE agents SET successor_id = $2 WHERE id = $1", [id, r.data.successorId]);
       return;
     case "RevocationKeyChanged":
-      await c.query("UPDATE agents SET cold_key = $2 WHERE id = $1", [id, r.data.newKey]);
+      await c.query("UPDATE agents SET cold_key = $2, key_block = $3 WHERE id = $1 AND $3 >= key_block", [id, r.data.newKey, r.block]);
       return;
     case "LimitsSet":
-      await c.query("UPDATE agents SET expires_at = $2, heartbeat_window = $3, last_beat = $4 WHERE id = $1",
-        [id, r.data.expiresAt, r.data.heartbeatWindow, Math.floor(new Date(r.at).getTime() / 1000)]);
+      await c.query("UPDATE agents SET expires_at = $2, heartbeat_window = $3, last_beat = GREATEST(last_beat, $4), limits_block = $5 WHERE id = $1 AND $5 >= limits_block",
+        [id, r.data.expiresAt, r.data.heartbeatWindow, Math.floor(new Date(r.at).getTime() / 1000), r.block]);
       return;
     case "Beat":
-      await c.query("UPDATE agents SET last_beat = $2 WHERE id = $1", [id, r.data.beatAt]);
+      /* a beat only moves the clock forward */
+      await c.query("UPDATE agents SET last_beat = $2 WHERE id = $1 AND last_beat < $2", [id, r.data.beatAt]);
       return;
     case "Labelled":
-      await c.query("UPDATE agents SET name = $2, purpose = $3, labelled_at = $4 WHERE id = $1",
-        [id, r.data.name, r.data.purpose, r.at]);
+      await c.query("UPDATE agents SET name = $2, purpose = $3, labelled_at = $4, label_block = $5 WHERE id = $1 AND $5 >= label_block",
+        [id, r.data.name, r.data.purpose, r.at, r.block]);
       return;
     case "Linked8004":
       /* link8004 already dropped pointers at another chain or switch */
-      await c.query("UPDATE agents SET erc8004_id = $2 WHERE id = $1", [id, r.data.erc8004Id]);
+      await c.query("UPDATE agents SET erc8004_id = $2, link_block = $3 WHERE id = $1 AND $3 >= link_block", [id, r.data.erc8004Id, r.block]);
       return;
   }
 }

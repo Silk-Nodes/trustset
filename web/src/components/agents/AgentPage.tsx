@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useDialogFocus } from "@/lib/useDialogFocus";
 import type { Agent } from "@/lib/chain";
 import type { Extra, PulseEvent } from "@/lib/layers";
 import Module from "./Module";
@@ -37,6 +38,8 @@ export type AgentPageProps = {
 
 export default function AgentPage(p: AgentPageProps) {
   const [drawer, setDrawer] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+  useDialogFocus(panel, drawer);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -51,7 +54,7 @@ export default function AgentPage(p: AgentPageProps) {
   const nav = (
     <div className="flex items-center gap-2 shrink-0 mb-3">
       <button type="button" onClick={p.onBack} className="rounded-full h-7 px-2.5 inline-flex items-center gap-1.5 text-[12px] font-medium outline-none focus-visible:ring-2" style={{ border: "1px solid var(--hairline)", color: "var(--text-medium)" }}><span aria-hidden>←</span> agents</button>
-      <span className="mono text-[11px] tabular" style={{ color: "var(--text-light)" }}>{p.position}</span>
+      <span className="mono text-[11px] tabular" style={{ color: "var(--text-faint)" }}>{p.position}</span>
       <span className="flex-1" />
       <button type="button" onClick={p.onPrev} disabled={!p.onPrev} aria-label="previous agent" title="[" className="w-7 h-7 rounded-full inline-flex items-center justify-center text-[12px] outline-none focus-visible:ring-2 disabled:opacity-35" style={{ border: "1px solid var(--hairline)", color: "var(--text-medium)" }}>‹</button>
       <button type="button" onClick={p.onNext} disabled={!p.onNext} aria-label="next agent" title="]" className="w-7 h-7 rounded-full inline-flex items-center justify-center text-[12px] outline-none focus-visible:ring-2 disabled:opacity-35" style={{ border: "1px solid var(--hairline)", color: "var(--text-medium)" }}>›</button>
@@ -66,7 +69,7 @@ export default function AgentPage(p: AgentPageProps) {
         <span className="mono text-[11px] shrink-0 truncate" style={{ color: "var(--text-medium)" }}>agent {p.agent.id.toString()} · {p.explorer ? <a href={`${p.explorer}/address/${p.agent.key}`} target="_blank" rel="noreferrer" className="hover:underline">{short(p.agent.key)}</a> : short(p.agent.key)}</span>
         <CopyButton text={p.agent.key} label="Copy the agent's address" size={26} />
         <span className="flex-1" />
-        <span className="hidden sm:inline mono text-[11px] tabular" style={{ color: "var(--text-light)" }}>{p.position}</span>
+        <span className="hidden sm:inline mono text-[11px] tabular" style={{ color: "var(--text-faint)" }}>{p.position}</span>
         <button type="button" onClick={p.onPrev} disabled={!p.onPrev} aria-label="previous agent" title="[" className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-[13px] outline-none focus-visible:ring-2 disabled:opacity-35" style={{ color: "var(--text-medium)" }}>‹</button>
         <button type="button" onClick={p.onNext} disabled={!p.onNext} aria-label="next agent" title="]" className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-[13px] outline-none focus-visible:ring-2 disabled:opacity-35" style={{ color: "var(--text-medium)" }}>›</button>
         <button type="button" onClick={p.onBack} aria-label="close" title="esc" className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-[15px] outline-none focus-visible:ring-2" style={{ color: "var(--text-medium)" }}>×</button>
@@ -101,10 +104,11 @@ export default function AgentPage(p: AgentPageProps) {
       </div>
       {/* the drawer, below lg */}
       {drawer && (
-        <div className="lg:hidden fixed inset-0 z-[60]" role="dialog" aria-label="Settings">
+        <div className="lg:hidden fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Settings">
           <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.35)" }} onClick={() => setDrawer(false)} />
-          <div className="absolute right-0 top-0 bottom-0 w-[min(340px,92vw)] flex flex-col p-3" style={{ background: "var(--surface)", borderLeft: "1px solid var(--hairline)" }}>
-            <button type="button" onClick={() => setDrawer(false)} className="self-end text-[13px] px-2 py-1 mb-1" style={{ color: "var(--text-medium)" }} aria-label="close">×</button>
+          <div ref={panel} className="absolute right-0 top-0 bottom-0 w-[min(340px,92vw)] flex flex-col p-3" style={{ background: "var(--surface)", borderLeft: "1px solid var(--hairline)" }}>
+            {/* 44 by 44, a thumb's width: it was a 13px glyph with a few px round it */}
+            <button type="button" data-autofocus onClick={() => setDrawer(false)} className="self-end inline-flex items-center justify-center w-11 h-11 -mr-1 -mt-1 rounded-full text-[20px] leading-none outline-none focus-visible:ring-2" style={{ color: "var(--text-medium)" }} aria-label="Close settings">×</button>
             {inspector}
           </div>
         </div>

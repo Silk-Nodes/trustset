@@ -159,6 +159,14 @@ export async function POST(req: Request) {
        is a guardian pause: the owner undoes it, and if the owner does nothing
        the guardian may escalate once the delay has passed. */
     if (action === "guardianVote") {
+      /* a vote pauses the agent. on a visitor's own practice agent it has to
+         come from that visitor, signed like the start, or anybody could pause
+         anybody's agent by naming its owner. the shared one stays open */
+      if (owner) {
+        let signer = "";
+        try { signer = ethers.verifyMessage(demoMessage(owner, gasDay()), String(body.signature ?? "")); } catch { /* stays empty */ }
+        if (signer !== owner) return NextResponse.json({ error: "Sign with your wallet to vote on your own agent.", needsSignature: true }, { status: 401 });
+      }
       const p = provider(c);
       const a = await again(() => new ethers.Contract(c.killSwitch, KS, p).getAgent(id));
       const held = demoGuardian(d.mismatch?.storedFor ?? d.coldKey, [...a.guardians]);

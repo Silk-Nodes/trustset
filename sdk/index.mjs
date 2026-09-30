@@ -53,7 +53,7 @@ export function client({ rpc = MONAD_TESTNET.rpc, killSwitch = MONAD_TESTNET.kil
     /** Was this agent trusted at that moment. See verifySigned for the why. */
     trustedAt(agentId, when) { return trustedAt(this, agentId, when); },
     /** Every status change the switch recorded, oldest first. */
-    history(agentId) { return history(this, agentId); },
+    history(agentId, opts) { return history(this, agentId, opts); },
     /** A signed message, and whether the switch allowed that agent to sign it then. */
     verifySigned(args) { return verifySigned(this, args); },
 
@@ -137,9 +137,16 @@ export async function trustedAt(c, agentId, when) {
 }
 
 /** Everything the switch knows about how an agent's status moved, oldest first. */
-export async function history(c, agentId) {
+/** Every status change, oldest first. `limit` returns only the newest ones. */
+export async function history(c, agentId, { limit } = {}) {
   const n = Number(await c.contract.historyLength(agentId));
-  const rows = await Promise.all(Array.from({ length: n }, (_, i) => c.contract.historyAt(agentId, i)));
+  /* eight reads at a time. one call per entry all at once was a burst the
+     public rpc refuses, and an owner can make the history as long as they like */
+  const start = limit ? Math.max(0, n - limit) : 0;
+  const rows = [];
+  for (let i = start; i < n; i += 8) {
+    rows.push(...await Promise.all(Array.from({ length: Math.min(8, n - i) }, (_, k) => c.contract.historyAt(agentId, i + k))));
+  }
   /* positional, not by name: ethers' Result is an array first, so a field
      called "at" resolves to Array.prototype.at and Number(that) is NaN. */
   return rows.map(r => ({ at: Number(r[0]), status: STATUS[Number(r[1])] ?? "unknown" }));

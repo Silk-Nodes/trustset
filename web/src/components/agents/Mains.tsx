@@ -65,7 +65,7 @@ export default function Mains({ rows, now, pulses, on, onState, onClear, filtere
               </span>
               <span className="flex items-center gap-1.5 mt-1.5">
                 <span aria-hidden className="sm:hidden w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TONE[s], opacity: n ? 1 : 0.4 }} />
-                <span className="block mono tabular text-[20px] sm:text-[26px] leading-none tracking-[-0.02em]" style={{ color: n ? "var(--text-dark)" : "var(--text-light)" }}>{n}</span>
+                <span className="block mono tabular text-[20px] sm:text-[26px] leading-none tracking-[-0.02em]" style={{ color: n ? "var(--text-dark)" : "var(--text-faint)" }}>{n}</span>
               </span>
             </button>
           );

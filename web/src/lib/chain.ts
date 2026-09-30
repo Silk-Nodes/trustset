@@ -123,9 +123,9 @@ export type OnChainLabel = { name: string; purpose: string; by: string; at: numb
 export type Agent = {
   id: bigint; key: string; coldKey: string; guardians: string[]; threshold: number;
   status: Status; since: number; successor: bigint; history: { at: number; status: Status }[];
-  /* set when the cold key has written a label to the chain. absent otherwise. */
+  /* set when the owner has written a label to the chain. absent otherwise. */
   label?: OnChainLabel;
-  /* a cold key change that has been proposed and not yet applied */
+  /* an owner change that has been proposed and not yet applied */
   pendingColdKey?: string; coldKeyChangeAt?: number;
   /* the two limits that end trust with nobody sending anything. 0 means the
      limit is off. expired and lapsed are derived here rather than read, so a
@@ -407,7 +407,7 @@ export async function agentIdForKey(c: Conn, key: string): Promise<bigint> {
    version rescanned the list to find the new agent by key, which meant a
    flaky read after a successful write looked like a failed write, and the
    reader pressed Register again into AgentKeyInUse. */
-/* what the agent key signs to consent to being registered under a cold key.
+/* what the agent's own key signs to consent to being registered under an owner.
    this is the inner hash; the contract's registrationDigest is the EIP-191
    prefix over it, which is exactly what signMessage(bytes) produces. bound
    to the switch's address and the chain. */
@@ -418,7 +418,7 @@ export function consentMessage(c: Conn, agentKey: string, coldKey: string): Uint
   return ethers.getBytes(inner);
 }
 
-/* does this signature come from that agent key, for that cold key? checked
+/* does this signature come from that agent's key, for that owner? checked
    here before the wallet is opened, so a bad paste fails on the page and
    not in a reverted transaction. */
 export function consentValid(c: Conn, agentKey: string, coldKey: string, sig: string): boolean {
@@ -455,7 +455,7 @@ export async function registerOnChain(c: Conn, signer: ethers.Signer, agentKey: 
   throw new Error("Registered, but the chain has not yet reported the new id. Reload in a moment; the agent is there.");
 }
 
-/* write the owner's words to the chain. one transaction, signed by the cold key. */
+/* write the owner's words to the chain. one transaction, signed by the owner. */
 export async function labelOnChain(c: Conn, signer: ethers.Signer, id: bigint, name: string, purpose: string) {
   if (!c.labels) throw new Error("This chain has no labels contract");
   const tx = await (c.labels.connect(signer) as ethers.Contract).label(id, name, purpose);
@@ -541,7 +541,7 @@ export async function loadGuarded(c: Conn, me: string): Promise<Guarded[]> {
   }));
 }
 
-/* the one-day lock on a cold key change, read once from the contract. */
+/* the one-day lock on an owner change, read once from the contract. */
 export async function coldKeyDelay(c: Conn): Promise<number> {
   const R = await pinRead(c);
   const ks = new ethers.Contract(c.cfg.killSwitch, KS_ABI, c.p);
