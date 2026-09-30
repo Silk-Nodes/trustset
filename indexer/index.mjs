@@ -70,7 +70,15 @@ const STAKING_EVENTS = [
 const STAKE_KIND = { Delegate: "Staked", Undelegate: "Unstaked", Withdraw: "Withdrew", ClaimRewards: "ClaimedRewards" };
 /* a one-off: read only the staking logs from this block to the cursor, for
    stakes made before the indexer knew to look, then exit */
-const STAKING_FROM = (() => { const i = process.argv.indexOf("--staking-from"); return i >= 0 ? Number(process.argv[i + 1]) : 0; })();
+/* a flag given with a bad value stops here. a typo used to read as 0 and start
+   the full indexer instead of the backfill that was asked for */
+const STAKING_FROM = (() => {
+  const i = process.argv.indexOf("--staking-from");
+  if (i < 0) return 0;
+  const n = Number(process.argv[i + 1]);
+  if (!Number.isSafeInteger(n) || n <= 0) { console.error(`--staking-from needs a block number, got "${process.argv[i + 1] ?? ""}"`); process.exit(2); }
+  return n;
+})();
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -119,6 +127,8 @@ async function main() {
   const venue = new ethers.Interface(VENUE);
   const erc8004 = new ethers.Interface(ERC8004);
   const staking = new ethers.Interface(STAKING_EVENTS);
+  /* no fallback: without it pg quietly tries a local socket as the current user */
+  if (!process.env.DATABASE_URL) { log("DATABASE_URL is not set, so there is nowhere to write the index"); process.exit(2); }
   const db = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 4 });
   await db.query(await readFile(join(HERE, "schema.sql"), "utf8"));
 

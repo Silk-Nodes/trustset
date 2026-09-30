@@ -35,6 +35,16 @@ const SWEEP_MS = Number(process.env.SWEEP_SECONDS || 60) * 1000;
    estimated per call. this is only the fallback for when an estimate cannot be
    had, and it is deliberately close to the real cost. */
 const REFUND_GAS = 120000n;
+/* a refund whose transaction never shows up must not hold the sweep */
+const WAIT_MS = 120_000;
+/* the public rpc allows about fifteen reads a second; the sweep keeps well under */
+const READ_GAP_MS = 150;
+/* a refund that fails this many sweeps in a row, for a reason other than the
+   window, is left alone. monad charges the whole gas limit even on a revert,
+   so a payer that refuses the money used to cost a full refund every minute,
+   forever. it is logged once and retried after a day in case it was the rpc. */
+const GIVE_UP = 3;
+const RETRY_AFTER_MS = 24 * 3600_000;
 
 const RAIL = [
   "function count() view returns (uint256)",
@@ -51,12 +61,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /* the lowest id that might still be open. every id below it is settled or
    refunded, and those are terminal, so they never need looking at again. without
    this the sweep is O(every payment ever) on every tick. */
-async function loadCursor() {
-  try { return Number(JSON.parse(await readFile(STATE, "utf8")).from) || 1; }
-  catch { return 1; }
+async function loadState() {
+  try { const s = JSON.parse(await readFile(STATE, "utf8")); return { from: Number(s.from) || 1, failing: s.failing ?? {} }; }
+  catch { return { from: 1, failing: {} }; }
 }
-async function saveCursor(from, extra = {}) {
-  try { await writeFile(STATE, JSON.stringify({ from, at: new Date().toISOString(), ...extra }, null, 1)); }
+async function saveState(from, failing, extra = {}) {
+  try { await writeFile(STATE, JSON.stringify({ from, failing, at: new Date().toISOString(), ...extra }, null, 1)); }
   catch (e) { log("could not write state:", e.message); }
 }
 
@@ -73,7 +83,7 @@ async function main() {
   const bal = await provider.getBalance(wallet.address);
   if (bal === 0n) log("WARNING: this key holds no MON, so every refund will fail to send");
 
-  let from = await loadCursor();
+  let { from, failing } = await loadState();
 
   for (;;) {
     try {
@@ -82,6 +92,7 @@ async function main() {
 
       for (let id = from; id <= count; id++) {
         let p;
+        await sleep(READ_GAP_MS);
         try { p = await rail.get(id); }
         catch (e) { log(`id ${id}: could not read, ${e.shortMessage ?? e.message}`); lowestOpen ||= id; continue; }
 
@@ -96,16 +107,36 @@ async function main() {
         if (Math.floor(Date.now() / 1000) < deadline) continue;  // window still open
         due++;
 
+        const f = failing[id];
+        if (f && f.n >= GIVE_UP && Date.now() - f.at < RETRY_AFTER_MS) continue;
+        const failed = (why) => {
+          const n = (failing[id]?.n ?? 0) + 1;
+          failing[id] = { n, at: Date.now(), why: String(why).slice(0, 120) };
+          if (n === GIVE_UP) log(`id ${id}: failed ${n} times, leaving it for a day. last: ${failing[id].why}`);
+        };
+
         try {
+          /* ask first, for free. a refund the chain would revert is not sent:
+             a revert still costs the whole gas limit here */
+          try { await rail.refund.staticCall(id); }
+          catch (e) {
+            const m = e.shortMessage ?? e.message ?? String(e);
+            if (/NotOpen/.test(m)) { log(`id ${id}: settled before we got there`); continue; }
+            if (e.code === "CALL_EXCEPTION") { failed(m); log(`id ${id}: would revert, not sent: ${m.slice(0, 100)}`); continue; }
+            throw e;
+          }
           let gasLimit;
+          /* the fallback is for a transport error only; a revert was caught above */
           try { gasLimit = ((await rail.refund.estimateGas(id)) * 12n) / 10n; }
           catch { gasLimit = REFUND_GAS; }
           const tx = await rail.refund(id, { gasLimit });
           /* waitForTransaction rather than tx.wait: a reverted receipt makes
-             wait() throw, which loses the hash of the thing that failed. */
-          const rc = await provider.waitForTransaction(tx.hash);
-          if (rc?.status === 1) { sent++; log(`refunded ${id} to ${p[0]} · block ${rc.blockNumber} · ${tx.hash}`); }
-          else log(`refund ${id} REVERTED · ${tx.hash}`);
+             wait() throw, which loses the hash of the thing that failed. a
+             timeout moves on to the next id; the next sweep sees the result. */
+          const rc = await provider.waitForTransaction(tx.hash, 1, WAIT_MS).catch(() => null);
+          if (rc?.status === 1) { sent++; delete failing[id]; log(`refunded ${id} to ${p[0]} · block ${rc.blockNumber} · ${tx.hash}`); }
+          else if (rc) { failed("reverted"); log(`refund ${id} REVERTED · ${tx.hash}`); }
+          else log(`refund ${id} sent, no receipt within ${WAIT_MS / 1000}s · ${tx.hash}`);
         } catch (e) {
           /* a race with settle() is the ordinary case, not a fault: the service
              produced a receipt between the read and the send, and the payment
@@ -118,7 +149,9 @@ async function main() {
       /* nothing open at all means the next sweep can start after the last id. */
       const next = lowestOpen || count + 1;
       if (next !== from) { from = next; }
-      await saveCursor(from, { count, due, sent });
+      /* ids that are no longer open have nothing left to fail */
+      for (const k of Object.keys(failing)) if (Number(k) < from) delete failing[k];
+      await saveState(from, failing, { count, due, sent });
       if (due || sent) log(`swept ${from}..${count} · ${due} due · ${sent} refunded`);
     } catch (e) {
       log("sweep failed:", e.shortMessage ?? e.message);
