@@ -123,7 +123,7 @@ publish a `trustset` metadata key on their token saying where their switch is.
 ```js
 await trustset.isTrusted8004(1873);   // true or false, safe inside an if
 await trustset.check8004(1873);
-// { ok: true, tokenId: 1873, agentId: 7, trusted: true, why: "trusted", ... }
+// { ok: true, tokenId: 1873, agentId: 7, trusted: false, why: "silent", ... }
 ```
 
 ```bash
