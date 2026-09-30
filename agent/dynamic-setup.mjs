@@ -14,7 +14,7 @@
  *     copies agent 7's settings, names the agent, and sends it gas.
  *
  * it reads nothing from disk but the deployment file: load the env first, e.g.
- *   set -a; . /home/zoltan/trustset-state/agent.env; set +a
+ *   set -a; . "$AGENT_ENV_FILE"; set +a   (AGENT_ENV_FILE: the agent env on the box)
  * testnet only. */
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
