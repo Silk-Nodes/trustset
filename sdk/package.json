@@ -1,6 +1,6 @@
 {
   "name": "@trustset/check",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Ask the trustset switch whether an agent may act, before you act for it.",
   "type": "module",
   "main": "index.mjs",
