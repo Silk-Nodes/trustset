@@ -63,6 +63,11 @@ function forget() { snap = null; }
  *   held down by pressing again
  * - a visitor may bring back a visitor's pause early, never the operator's.
  *   a pause made with the token has no timer and only the token undoes it.
+ * - a visitor may only pause an agent that is running. pausing a paused agent
+ *   is allowed on chain and rewrites statusSince, so an operator, guardian or
+ *   passkey pause could be taken over by a visitor pause and then undone by
+ *   the visitor timer. the pause a visitor may undo is the one whose
+ *   statusSince we recorded when it landed, and nothing else.
  *
  * there is no cron on the box, so the resume happens on the first read after
  * the timer runs out. the card polls every fifteen seconds, so a page that is
@@ -72,7 +77,11 @@ const VISITOR_MS = 120_000;
 const COOLDOWN_MS = 300_000;
 const ROOT = () => process.env.TRUSTSET_ROOT || join(process.cwd(), "..");
 const PUBLIC = () => process.env.PUBLIC_PAUSE_STORE || join(ROOT(), ".public-pause.json");
-type Pause = { id: string; by: "visitor" | "operator"; at: number; resumeAt: number | null; lastVisitorAt: number };
+/* since: the chain's statusSince for the visitor pause this record describes.
+   the timer and the visitor resume apply only while the chain still shows it. */
+type Pause = { id: string; by: "visitor" | "operator"; at: number; resumeAt: number | null; lastVisitorAt: number; since?: number };
+/* a transaction the rpc never reports on must not hold the route forever */
+const WAIT_MS = 60_000;
 async function pauseState(): Promise<Pause | null> {
   try { return JSON.parse(await readFile(/*turbopackIgnore: true*/ PUBLIC(), "utf8")); } catch { return null; }
 }
@@ -91,13 +100,14 @@ async function autoResume(id: string) {
       const p = provider(c);
       const ks = new ethers.Contract(c.killSwitch, KS, await payer(c, p));
       const a = await ks.getAgent(id);
-      /* only undo the pause the visitor made. if the status has changed since
-         (the operator resumed and paused again from the console, say), the
-         pause on chain is somebody else's and the timer no longer applies. */
-      const ours = Number(a.statusSince) <= Math.floor(v.at / 1000) + 90;
+      /* only undo the pause the visitor made: the chain must still show the
+         exact statusSince that pause produced. any later change (the operator,
+         a guardian, the passkey) is somebody else's pause and the timer no
+         longer applies. */
+      const ours = v.since !== undefined && Number(a.statusSince) === v.since;
       if (Number(a.status) === 2 && ours) {
         const tx = await ks.setStatus(id, 1, ethers.id("resumed on its own after a visitor pause"), { gasLimit: 200000 });
-        await p.waitForTransaction(tx.hash);
+        await p.waitForTransaction(tx.hash, 1, WAIT_MS);
       }
       await savePause({ ...v, resumeAt: null });
       forget();
@@ -212,20 +222,26 @@ export async function POST(req: Request) {
     const mine = v && v.id === id ? v : null;
     if (!isOperator) {
       const now = Date.now();
+      const a = await ks.getAgent(id);
       if (action === "pause") {
         const next = (mine?.lastVisitorAt ?? 0) + COOLDOWN_MS;
         if (now < next) return NextResponse.json({ error: "Somebody switched it off a moment ago.", retryAt: next }, { status: 429 });
-      } else if (!mine || mine.by !== "visitor" || !mine.resumeAt) {
+        if (Number(a.status) !== 1) return NextResponse.json({ error: "It is already switched off." }, { status: 409 });
+      } else if (!mine || mine.by !== "visitor" || !mine.resumeAt || mine.since === undefined
+        || Number(a.status) !== 2 || Number(a.statusSince) !== mine.since) {
         return NextResponse.json({ error: "Only the operator can bring it back from this pause." }, { status: 403 });
       }
     }
     const to = action === "pause" ? 2 : 1;
     const tx = await ks.setStatus(id, to, ethers.id(action === "pause" ? "paused from the site" : "resumed from the site"), { gasLimit: 200000 });
-    const rc = await p.waitForTransaction(tx.hash);
+    const rc = await p.waitForTransaction(tx.hash, 1, WAIT_MS);
     if (rc?.status === 1) {
       const now = Date.now();
+      /* the statusSince this pause produced, read at its own block */
+      const since = action === "pause" && !isOperator
+        ? Number((await ks.getAgent(id, { blockTag: rc.blockNumber })).statusSince) : undefined;
       await savePause(action === "pause"
-        ? { id, by: isOperator ? "operator" : "visitor", at: now, resumeAt: isOperator ? null : now + VISITOR_MS, lastVisitorAt: isOperator ? (mine?.lastVisitorAt ?? 0) : now }
+        ? { id, by: isOperator ? "operator" : "visitor", at: now, resumeAt: isOperator ? null : now + VISITOR_MS, lastVisitorAt: isOperator ? (mine?.lastVisitorAt ?? 0) : now, since }
         : { id, by: mine?.by ?? "visitor", at: mine?.at ?? now, resumeAt: null, lastVisitorAt: mine?.lastVisitorAt ?? 0 });
     }
     return NextResponse.json({ ok: rc?.status === 1, hash: tx.hash, block: rc?.blockNumber ?? null, explorer: c.explorer });
