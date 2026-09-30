@@ -27,12 +27,18 @@ export async function GET(req: Request) {
   const u = new URL(req.url);
   const filter = u.searchParams.get("filter") ?? "";
   const q = (u.searchParams.get("q") ?? "").trim();
-  const before = Number(u.searchParams.get("before") ?? 0);
+  /* whole numbers in a range, bound as parameters. a raw Number() here turned
+     ?limit=abc into "LIMIT NaN" and a postgres error sent back to the caller */
+  const int = (k: string, dflt: number, lo: number, hi: number) => {
+    const v = Number(u.searchParams.get(k) ?? dflt);
+    return Number.isInteger(v) ? Math.min(hi, Math.max(lo, v)) : dflt;
+  };
+  const before = int("before", 0, 0, Number.MAX_SAFE_INTEGER);
   /* offset paging, so a reader can jump to page six rather than walk to it. it
      shifts when new events land above, which at this rate is an event an hour,
      and only the first page follows the head anyway. */
-  const offset = Math.max(0, Number(u.searchParams.get("offset") ?? 0));
-  const limit = Math.min(Number(u.searchParams.get("limit") ?? 60), 200);
+  const offset = int("offset", 0, 0, 100_000);
+  const limit = int("limit", 60, 1, 200);
 
   const where: string[] = [];
   const args: unknown[] = [];
@@ -48,7 +54,10 @@ export async function GET(req: Request) {
     else if (/^0x[0-9a-fA-F]{64}$/.test(q)) add("lower(e.tx_hash) = lower($?)", q);
     else if (/^0x[0-9a-fA-F]{40}$/.test(q)) {
       args.push(q);
-      where.push(`(lower(e.actor) = lower($${args.length}) OR e.agent_id IN (SELECT id FROM agents WHERE lower(agent_key) = lower($${args.length}) OR lower(cold_key) = lower($${args.length})))`);
+      /* an agent address or an actor, never an owner. the same rule as the
+         agent search: the owner is the one key worth phishing, and matching it
+         returned its whole fleet here */
+      where.push(`(lower(e.actor) = lower($${args.length}) OR e.agent_id IN (SELECT id FROM agents WHERE lower(agent_key) = lower($${args.length})))`);
     } else add("a.name ILIKE $?", `%${q}%`);
   }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -57,11 +66,11 @@ export async function GET(req: Request) {
     const [events, matching, stats] = await Promise.all([
       p.query(
         `SELECT e.id, e.block, e.tx_hash, e.at, e.kind, e.agent_id, e.actor, e.data,
-                a.name, a.agent_key, a.cold_key
+                a.name, a.agent_key
            FROM events e LEFT JOIN agents a ON a.id = e.agent_id
            ${clause}
           ORDER BY e.id DESC
-          LIMIT ${limit} OFFSET ${offset}`, args),
+          LIMIT $${args.length + 1} OFFSET $${args.length + 2}`, [...args, limit, offset]),
       /* how many rows this filter matches, not how many exist, or the page
          numbers would be wrong the moment somebody filters. */
       p.query(`SELECT count(*)::int AS n FROM events e LEFT JOIN agents a ON a.id = e.agent_id ${clause}`, args),
@@ -87,8 +96,10 @@ export async function GET(req: Request) {
     ]);
     return NextResponse.json({ indexed: true, stats: stats.rows[0], total: matching.rows[0].n, events: events.rows }, { headers: { "cache-control": "no-store" } });
   } catch (e) {
-    /* the index may simply not be built yet on a fresh machine. */
-    return NextResponse.json({ indexed: false, error: e instanceof Error ? e.message : String(e), stats: null, total: 0, events: [] },
+    /* the index may simply not be built yet on a fresh machine. the database's
+       own words stay in the server log: they name tables and columns */
+    console.error("explorer: index read failed", e instanceof Error ? e.message : e);
+    return NextResponse.json({ indexed: false, error: "index unavailable", stats: null, total: 0, events: [] },
       { status: 200, headers: { "cache-control": "no-store" } });
   }
 }

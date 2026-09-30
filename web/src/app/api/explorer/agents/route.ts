@@ -59,6 +59,7 @@ export async function GET(req: Request) {
        LIMIT ${per}`, [arg]);
     return NextResponse.json({ indexed: true, agents: rows.rows }, NO_STORE);
   } catch (e) {
-    return NextResponse.json({ indexed: false, error: e instanceof Error ? e.message : String(e), agents: [] }, NO_STORE);
+    console.error("explorer agents: index read failed", e instanceof Error ? e.message : e);
+    return NextResponse.json({ indexed: false, error: "index unavailable", agents: [] }, NO_STORE);
   }
 }

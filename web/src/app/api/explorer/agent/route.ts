@@ -17,6 +17,7 @@ export async function GET(req: Request) {
     ]);
     return NextResponse.json({ indexed: true, agent: agent.rows[0] ?? null, events: events.rows }, { headers: { "cache-control": "no-store" } });
   } catch (e) {
-    return NextResponse.json({ indexed: false, error: e instanceof Error ? e.message : String(e), agent: null, events: [] }, { headers: { "cache-control": "no-store" } });
+    console.error("explorer agent: index read failed", e instanceof Error ? e.message : e);
+    return NextResponse.json({ indexed: false, error: "index unavailable", agent: null, events: [] }, { headers: { "cache-control": "no-store" } });
   }
 }

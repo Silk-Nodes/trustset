@@ -25,7 +25,11 @@ export function provider(c: ChainCfg) {
      with backoff turns a burst of readers into a slower answer rather than a
      failed one. the caches in front of this are what keep the burst small;
      this is what survives the one that gets through anyway. */
-  const req = new ethers.FetchRequest(c.rpc);
+  /* MONAD_RPC, when set, is the server's own node. only the server uses it:
+     the config /api/chain hands to browsers keeps the public endpoint, so a
+     private node's address never reaches a page. unset, the public one. */
+  const url = c.source === "monad-testnet" && process.env.MONAD_RPC ? process.env.MONAD_RPC : c.rpc;
+  const req = new ethers.FetchRequest(url);
   req.setThrottleParams({ slotInterval: 250, maxAttempts: 5 });
   return new ethers.JsonRpcProvider(req, undefined, { staticNetwork: true, batchMaxCount: 4 });
 }

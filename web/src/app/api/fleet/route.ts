@@ -15,34 +15,38 @@ export const dynamic = "force-dynamic";
  * whole list at once: one sql for the latest event per agent, one for the
  * last day, and the passkey reads through the throttled server provider,
  * cached for a short while so many tabs are one burst, not many. */
-const ABI = ["function stopKeyOf(uint256) view returns (uint256 x, uint256 y, bytes32 rpIdHash, uint64 nonce, bool set)"];
+const ABI = ["function stopKeyOf(uint256) view returns (uint256 x, uint256 y, bytes32 rpIdHash, uint64 nonce, bool set)", "function agentCount() view returns (uint256)"];
 const TTL = 20_000;
 type Key = { set: boolean; nonce: number };
-const keys = new Map<string, { at: number; v: Record<string, Key> }>();
-const inflight = new Map<string, Promise<Record<string, Key>>>();
+/* cached per agent, not per list. keyed by the list, any made up list was a
+   fresh key: five hundred reads each time, and a cache that only grew. */
+const keys = new Map<number, { at: number; v: Key }>();
+let count: { at: number; n: number } | null = null;
 
 async function stopKeys(ids: number[]): Promise<Record<string, Key>> {
-  const k = ids.join(",");
-  const hit = keys.get(k);
-  if (hit && Date.now() - hit.at < TTL) return hit.v;
-  const running = inflight.get(k);
-  if (running) return running;
-  const job = (async () => {
-    const c = await cfg();
-    const ks = new ethers.Contract(c.killSwitch, ABI, provider(c));
-    const out: Record<string, Key> = {};
-    const rs = await Promise.all(ids.map(id => ks.stopKeyOf(id).catch(() => null) as Promise<[bigint, bigint, string, bigint, boolean] | null>));
-    ids.forEach((id, i) => { const r = rs[i]; if (r) out[id] = { set: r[4], nonce: Number(r[3]) }; });
-    keys.set(k, { at: Date.now(), v: out });
-    return out;
-  })();
-  inflight.set(k, job);
-  try { return await job; } finally { inflight.delete(k); }
+  const c = await cfg();
+  const ks = new ethers.Contract(c.killSwitch, ABI, provider(c));
+  const now = Date.now();
+  for (const [id, e] of keys) if (now - e.at > TTL) keys.delete(id);
+  /* ids that exist only: a number past the last agent costs a read and
+     answers nothing */
+  if (!count || now - count.at > TTL) count = { at: now, n: Number(await ks.agentCount()) };
+  const want = ids.filter(id => id >= 1 && id <= count!.n && !keys.has(id));
+  /* ten at a time, through the server's throttled provider */
+  for (let i = 0; i < want.length; i += 10) {
+    const part = want.slice(i, i + 10);
+    const rs = await Promise.all(part.map(id => ks.stopKeyOf(id).catch(() => null) as Promise<[bigint, bigint, string, bigint, boolean] | null>));
+    /* a failed read is left out and asked again next time, never cached */
+    part.forEach((id, k) => { const r = rs[k]; if (r) keys.set(id, { at: Date.now(), v: { set: r[4], nonce: Number(r[3]) } }); });
+  }
+  const out: Record<string, Key> = {};
+  for (const id of ids) { const e = keys.get(id); if (e) out[id] = e.v; }
+  return out;
 }
 
 export async function GET(req: Request) {
   const raw = new URL(req.url).searchParams.get("ids") ?? "";
-  const ids = [...new Set(raw.split(",").filter(s => /^\d+$/.test(s)).map(Number))].slice(0, 500);
+  const ids = [...new Set(raw.split(",").filter(s => /^\d+$/.test(s)).map(Number))].slice(0, 200);
   if (!ids.length) return NextResponse.json({ error: "no ids" }, { status: 400 });
 
   const [sk, index] = await Promise.all([
@@ -64,7 +68,8 @@ export async function GET(req: Request) {
         for (const r of linked.rows) { const n = Number((r.data as { erc8004Id?: unknown })?.erc8004Id ?? 0); if (n) erc8004[r.agent_id] = n; }
         return { indexed: true as const, last, events24, erc8004 };
       } catch (e) {
-        return { indexed: false as const, error: e instanceof Error ? e.message : String(e) };
+        console.error("fleet: index read failed", e instanceof Error ? e.message : e);
+        return { indexed: false as const, error: "index unavailable" };
       }
     })(),
   ]);

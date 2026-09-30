@@ -26,6 +26,7 @@ const ABI = [
   "function historyLength(uint256) view returns (uint256)",
   "function historyAt(uint256,uint256) view returns (tuple(uint64 at,uint8 status))",
   "function liveness(uint256) view returns (bool trusted, bool expired, bool lapsed, uint64 expiresAt, uint64 nextBeatBy)",
+  "function statusAt(uint256, uint64) view returns (uint8)",
 ];
 const STATUS = ["none", "active", "paused", "revoked", "rotated"] as const;
 const bad = (m: string, code = 400) => NextResponse.json({ error: m }, { status: code });
@@ -70,8 +71,11 @@ async function answer(agentId: bigint, at: number | null, signer: string | null)
   }
 
   /* a moment in the past. try the chain's own state at that time first: if the
-     rpc keeps the state it answers everything, limits included. */
-  const blockAt = await blockFor(p, at, block).catch(() => null);
+     rpc keeps the state it answers everything, limits included. only when this
+     rpc has been seen to serve old state: finding the block is a bisection of
+     some thirty reads, and on a node that keeps no history every one of them
+     was spent for nothing on every anonymous request. */
+  const blockAt = (await archive(p, block)) ? await blockFor(p, at, block).catch(() => null) : null;
   if (blockAt !== null) {
     try {
       const then = await (ks.liveness(agentId, { blockTag: blockAt }) as Promise<[boolean, boolean, boolean, bigint, bigint]>);
@@ -83,15 +87,10 @@ async function answer(agentId: bigint, at: number | null, signer: string | null)
   /* the fallback, and the one that always works: the contract keeps every
      status transition, so the status at any past second is exact. the limits
      are read as they stand now, which is stated rather than hidden. */
-  const n = Number(await ks.historyLength(agentId));
-  let status = "none", since = 0;
-  for (let i = 0; i < n; i++) {
-    const h = await ks.historyAt(agentId, i) as { at: bigint; status: bigint };
-    const t = Number(h.at);
-    if (t > at) break;
-    status = STATUS[Number(h.status)] ?? "unknown"; since = t;
-  }
-  if (!since) return { agent: Number(agentId), key, coldKey, at, asked: "a past moment", status: "none", trusted: false, source: "the on-chain status history", caveat: `agent ${agentId} was not registered yet at that moment`, now: nowState, signature: sig, chain };
+  /* one call: the contract searches its own history. this used to read the
+     history an entry at a time, which an owner can make as long as they like. */
+  const status = STATUS[Number(await ks.statusAt(agentId, BigInt(at)))] ?? "unknown";
+  if (status === "none") return { agent: Number(agentId), key, coldKey, at, asked: "a past moment", status: "none", trusted: false, source: "the on-chain status history", caveat: `agent ${agentId} was not registered yet at that moment`, now: nowState, signature: sig, chain };
 
   const expiresAt = Number(a.expiresAt), window = Number(a.heartbeatWindow);
   const expiredThen = expiresAt !== 0 && at >= expiresAt;
@@ -103,6 +102,16 @@ async function answer(agentId: bigint, at: number | null, signer: string | null)
     ? "status is exact for that moment; the end date was read as it stands now, and the heartbeat cannot be checked backwards because only the most recent beat is kept on chain"
     : "status is exact for that moment; the end date was read as it stands now and may have been changed since";
   return { agent: Number(agentId), key, coldKey, at, asked: "a past moment", status, trusted, source: "the on-chain status history", caveat, now: nowState, signature: sig, chain };
+}
+
+/* whether this rpc serves state from well behind the head. asked once per
+   process: the answer belongs to the node, not to the request. */
+let archiveKnown: boolean | null = null;
+async function archive(p: ethers.Provider, head: number): Promise<boolean> {
+  if (archiveKnown !== null) return archiveKnown;
+  try { await p.getBalance(ethers.ZeroAddress, Math.max(1, head - 100_000)); archiveKnown = true; }
+  catch { archiveKnown = false; }
+  return archiveKnown;
 }
 
 /* the block at a timestamp, by bisection over block times. the public rpc has
@@ -164,13 +173,27 @@ export async function POST(req: Request) {
   try {
     const c = await cfg();
     const ks = new ethers.Contract(c.killSwitch, ABI, provider(c));
-    let id = body.agent !== undefined && /^\d+$/.test(String(body.agent)) ? BigInt(String(body.agent)) : null;
+    if (body.agent !== undefined && !/^\d+$/.test(String(body.agent))) return bad("agent must be a number");
+    let id = body.agent !== undefined ? BigInt(String(body.agent)) : null;
     if (id === null) {
       id = BigInt(await ks.agentIdByKey(signer));
       if (id === 0n) return NextResponse.json({ error: "that signature is valid but its signer is not a registered agent", signature: { signer, isAgentKey: false } }, { status: 404 });
     }
     const r = await answer(id, at, signer);
-    return r instanceof NextResponse ? r : NextResponse.json(r, { headers: { "cache-control": "no-store" } });
+    if (r instanceof NextResponse) return r;
+    /* a certificate is only as good as its two halves. a signature from some
+       other key says nothing about this agent, so it is never trusted. and a
+       time chosen by whoever presents the certificate cannot be believed for an
+       agent that is stopped now: its stolen key could sign today and name any
+       moment before the stop. that moment has to come from somewhere else,
+       such as when the receiver saw it. */
+    if (!r.signature?.isAgentKey) {
+      return NextResponse.json({ ...r, trusted: false, caveat: `signed by ${signer}, which is not agent ${r.agent}'s key` }, { headers: { "cache-control": "no-store" } });
+    }
+    if (at !== null && (r.now.status === "revoked" || r.now.status === "rotated")) {
+      return NextResponse.json({ ...r, trusted: false, caveat: `agent ${r.agent} is ${r.now.status} now, so a time given by whoever presents this cannot be believed; check it against when you received it` }, { headers: { "cache-control": "no-store" } });
+    }
+    return NextResponse.json(r, { headers: { "cache-control": "no-store" } });
   } catch (e) {
     return bad(e instanceof Error ? e.message : String(e), 502);
   }

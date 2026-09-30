@@ -55,8 +55,11 @@ async function testnet(): Promise<ChainCfg | null> {
   } catch { return null; }
 }
 
+let warned = false;
 export async function GET() {
-  const cfg = process.env.NEXT_PUBLIC_CHAIN === "local" ? await local() : await testnet();
+  const want = process.env.NEXT_PUBLIC_CHAIN;
+  if (want && want !== "local" && want !== "testnet" && !warned) { console.error(`NEXT_PUBLIC_CHAIN is "${want}", which is neither local nor testnet, so testnet is served`); warned = true; }
+  const cfg = want === "local" ? await local() : await testnet();
   if (!cfg) return NextResponse.json({ error: "no chain configured" }, { status: 404, headers: { "cache-control": "no-store" } });
   return NextResponse.json(cfg, { headers: { "cache-control": "no-store" } });
 }
