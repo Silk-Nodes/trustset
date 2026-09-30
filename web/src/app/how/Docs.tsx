@@ -202,7 +202,7 @@ export default function Docs() {
               </div>
             ))}
           </div>
-          <p>The live agent holds ERC-8004 token 1873 and published a pointer back to this switch under the metadata key <span className="mono">trustset</span>. Anyone who publishes the same pointer is linked automatically, with no permission from us.</p>
+          <p>ERC-8004 token 1873, held by agent 7&apos;s owner, published a pointer back to this switch under the metadata key <span className="mono">trustset</span>. Anyone who publishes the same pointer is linked automatically, with no permission from us, as long as the token is held by the agent&apos;s owner or by the agent itself.</p>
         </Section>
 
         <Section id="states" title="The four states">

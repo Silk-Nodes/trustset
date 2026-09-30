@@ -225,8 +225,8 @@ whole thing: recover the signer, find its agent, ask the switch about that momen
 
 ## erc-8004
 
-the trustless agents registries are live on monad testnet. the live agent holds identity token
-**1873**, and its registration points back at this switch. the registry has no revocation primitive
+the trustless agents registries are live on monad testnet. identity token **1873** is held by
+the owner of agent 7, and its registration points back at this switch. the registry has no revocation primitive
 of its own, only an `active` flag in an off-chain json, which is the gap this fills.
 
 the pointer is read in both directions, and the second one is the useful one. an app that knows an

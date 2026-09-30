@@ -23,7 +23,7 @@ export const MONAD_TESTNET = {
 
 /* the metadata key an 8004 owner sets to say where their switch is. */
 export const ERC8004_KEY = "trustset";
-const IDENTITY_ABI = ["function getMetadata(uint256, string) view returns (bytes)"];
+const IDENTITY_ABI = ["function getMetadata(uint256, string) view returns (bytes)", "function ownerOf(uint256) view returns (address)"];
 
 const ABI = [
   "function isTrusted(uint256) view returns (bool)",
@@ -87,10 +87,17 @@ export function client({ rpc = MONAD_TESTNET.rpc, killSwitch = MONAD_TESTNET.kil
 
     /** The agent an ERC-8004 identity points at, or null. See from8004 below. */
     from8004(tokenId, opts) { return from8004(this, tokenId, opts); },
-    /** Is the agent behind an ERC-8004 identity allowed to act right now. */
+    /** Is the agent behind an ERC-8004 identity allowed to act right now. A plain
+     *  boolean, false whenever the link does not hold, so `if (await ...)` is safe.
+     *  It used to return an object, which is truthy for a paused agent too. */
     async isTrusted8004(tokenId, opts) {
       const link = await from8004(this, tokenId, opts);
-      return link.ok ? { ...link, trusted: await ks.isTrusted(link.agentId), why: await this.why(link.agentId) } : link;
+      return link.ok ? Boolean(await ks.isTrusted(link.agentId)) : false;
+    },
+    /** The same question with the working shown: the link, trusted, and why. */
+    async check8004(tokenId, opts) {
+      const link = await from8004(this, tokenId, opts);
+      return link.ok ? { ...link, trusted: Boolean(await ks.isTrusted(link.agentId)), why: await this.why(link.agentId) } : { ...link, trusted: false };
     },
 
     /** Say the agent is alive. Only the agent address can, and only inside its window.
@@ -117,9 +124,11 @@ export function client({ rpc = MONAD_TESTNET.rpc, killSwitch = MONAD_TESTNET.kil
  * beats is kept, so a lapse does not appear here. both are in AUDIT.md.
  */
 
-/** Was this agent trusted at that moment. Seconds since the epoch. */
+/** Was this agent trusted at that moment. Seconds, milliseconds or a Date. */
 export async function trustedAt(c, agentId, when) {
-  return c.contract.isTrustedAt(agentId, BigInt(Math.floor(seconds(when))));
+  const t = seconds(when);
+  if (Number.isNaN(t)) throw new Error("trustedAt needs a time: seconds, milliseconds or a Date");
+  return c.contract.isTrustedAt(agentId, BigInt(Math.floor(t)));
 }
 
 /** Everything the switch knows about how an agent's status moved, oldest first. */
@@ -131,18 +140,28 @@ export async function history(c, agentId) {
   return rows.map(r => ({ at: Number(r[0]), status: STATUS[Number(r[1])] ?? "unknown" }));
 }
 
-const seconds = when =>
-  when instanceof Date ? when.getTime() / 1000 : typeof when === "number" && when > 1e11 ? when / 1000 : Number(when);
+/* seconds since the epoch, from seconds, milliseconds or a Date. the ms test
+   used to apply to js numbers only, so a bigint or string of milliseconds was
+   read as seconds thousands of years out and got "trusted now" as its answer. */
+const seconds = when => {
+  const n = when instanceof Date ? when.getTime() : Number(typeof when === "bigint" ? when : when?.valueOf?.() ?? when);
+  if (!Number.isFinite(n) || n < 0) return NaN;
+  return when instanceof Date || n > 1e11 ? n / 1000 : n;
+};
 
 /**
  * Verify a message an agent signed, and that the switch allowed it to at the time.
  *
  * Returns { ok, agentId, signer, reason }. ok is true only if the signature
  * recovers to a key the switch knows and that agent was trusted at `when`.
- * Nothing here trusts the caller's clock on its own: `when` should come from the
- * order itself, and a venue should refuse a timestamp it did not see.
+ *
+ * `when` is the signer's claim, so it is not taken on its own. a thief holding
+ * a stopped agent's key could otherwise sign today and write last week. the
+ * claim must sit within `maxSkew` seconds before `receivedAt`, the time the
+ * venue itself saw the order (default: now), and not after it. a venue that
+ * settles later passes the receipt time it recorded, never the order's.
  */
-export async function verifySigned(c, { message, signature, when }) {
+export async function verifySigned(c, { message, signature, when, receivedAt = Date.now(), maxSkew = 300 }) {
   let signer;
   try { signer = ethers.verifyMessage(message, signature); }
   catch { return { ok: false, reason: "that signature does not verify" }; }
@@ -150,7 +169,12 @@ export async function verifySigned(c, { message, signature, when }) {
   const agentId = await c.contract.agentIdByKey(signer);
   if (agentId === 0n) return { ok: false, signer, reason: "that key is not registered on this switch" };
 
-  const at = Math.floor(seconds(when));
+  const seen = seconds(receivedAt);
+  const claimed = when === undefined ? seen : seconds(when);
+  if (Number.isNaN(seen) || Number.isNaN(claimed)) return { ok: false, agentId: String(agentId), signer, reason: "no usable time on that order" };
+  if (claimed > seen + 5) return { ok: false, agentId: String(agentId), signer, reason: "that order is dated after it was received" };
+  if (seen - claimed > maxSkew) return { ok: false, agentId: String(agentId), signer, reason: `that order is dated more than ${maxSkew}s before it was received` };
+  const at = Math.floor(claimed);
   const ok = await c.contract.isTrustedAt(agentId, BigInt(at));
   return ok
     ? { ok: true, agentId: String(agentId), signer, reason: "trusted when it signed" }
@@ -181,11 +205,14 @@ export default client;
  *
  * the pointer is the owner's claim and is checked, not trusted. a value naming
  * another chain or another switch is somebody else's arrangement and is
- * refused here rather than silently answered about the wrong agent. what this
- * cannot check is the reverse direction: the switch does not know which 8004
- * token claims it, so a token could point at an agent whose owner never agreed.
- * that costs the liar nothing and gains them nothing, because the answer is
- * about the agent they named, not about them. it is in AUDIT.md.
+ * refused here rather than silently answered about the wrong agent.
+ *
+ * and the pointer must be the agent's own. the switch does not know which
+ * token claims it, so any token could point at any trusted agent and borrow
+ * its answer: an app asking "may identity 900 act" would hear yes about
+ * somebody else's agent. so the identity has to be held by the agent's owner
+ * on the switch or by the agent's own address, a party that speaks for both.
+ * anybody else holding it is refused.
  */
 export async function from8004(c, tokenId, { registry = MONAD_TESTNET.identityRegistry, chainId = MONAD_TESTNET.chainId } = {}) {
   const reg = new ethers.Contract(registry, IDENTITY_ABI, c.provider);
@@ -202,6 +229,15 @@ export async function from8004(c, tokenId, { registry = MONAD_TESTNET.identityRe
   if (onChain !== chainId) return { ok: false, reason: `its switch is on chain ${onChain}, not ${chainId}` };
   if (switchAddr.toLowerCase() !== c.address.toLowerCase()) {
     return { ok: false, reason: `it points at a different switch, ${switchAddr}` };
+  }
+  let holder, a;
+  try {
+    [holder, a] = await Promise.all([reg.ownerOf(BigInt(tokenId)), c.contract.getAgent(agentId)]);
+  } catch { return { ok: false, reason: "could not read who holds that identity or that agent" }; }
+  /* positionally: agentKey, then revocationKey (the owner) */
+  const allowed = [String(a[0]).toLowerCase(), String(a[1]).toLowerCase()];
+  if (!allowed.includes(String(holder).toLowerCase())) {
+    return { ok: false, reason: `erc-8004 agent ${tokenId} is held by ${holder}, neither trustset agent ${agentId} nor its owner` };
   }
   return { ok: true, tokenId: Number(tokenId), agentId, killSwitch: switchAddr, chainId: onChain };
 }
