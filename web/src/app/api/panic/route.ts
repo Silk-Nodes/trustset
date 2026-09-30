@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ethers } from "ethers";
-import { cfg, provider, payer } from "@/lib/demo.server";
+import { cfg, provider, relayer } from "@/lib/demo.server";
+import { jsonOnly } from "@/lib/jsonOnly";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const refused = jsonOnly(req);
+  if (refused) return refused;
   try {
     const { agentId, authenticatorData, clientDataJSON, r, s } = await req.json();
     if (agentId === undefined || !authenticatorData || !clientDataJSON || !r || !s) {
@@ -48,9 +51,9 @@ export async function POST(req: Request) {
     }
     const c = await cfg();
     const p = provider(c);
-    const ks = new ethers.Contract(c.killSwitch, ABI, await payer(c, p));
+    const ks = new ethers.Contract(c.killSwitch, ABI, await relayer(c, p));
     const tx = await ks.pauseWithPasskey(agentId, { authenticatorData, clientDataJSON, r, s });
-    const rc = await p.waitForTransaction(tx.hash);
+    const rc = await p.waitForTransaction(tx.hash, 1, 60_000);
     return NextResponse.json({ ok: rc?.status === 1, hash: tx.hash, block: rc?.blockNumber ?? null, explorer: c.explorer });
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);

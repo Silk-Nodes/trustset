@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { readFile, writeFile } from "fs/promises";
+import { readFile, writeFile, rename } from "fs/promises";
+import { jsonOnly } from "@/lib/jsonOnly";
 import { join } from "path";
 import { ethers } from "ethers";
 import { cfg, provider, payer } from "@/lib/demo.server";
@@ -30,8 +31,27 @@ type Store = { paid: Record<string, string>; days: Record<string, string> };
 async function load(): Promise<Store> {
   try { return JSON.parse(await readFile(/*turbopackIgnore: true*/ STORE(), "utf8")); } catch { return { paid: {}, days: {} }; }
 }
+/* written whole and renamed into place, so a reader never sees half a ledger */
+async function store(s: Store) {
+  const tmp = `${STORE()}.${process.pid}.tmp`;
+  await writeFile(/*turbopackIgnore: true*/ tmp, JSON.stringify(s, null, 2));
+  await rename(tmp, STORE());
+}
+
+/* one drip decision at a time. two requests used to load the same ledger,
+   both pass the once per address check, and both be paid, and the second
+   write dropped the first one's day total. */
+let turn: Promise<unknown> = Promise.resolve();
 
 export async function POST(req: Request) {
+  const refused = jsonOnly(req);
+  if (refused) return refused;
+  const run = turn.then(() => drip(req));
+  turn = run.catch(() => {});
+  return run;
+}
+
+async function drip(req: Request) {
   let body: { address?: string; signature?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: "send JSON" }, { status: 400 }); }
   const address = body.address && ethers.isAddress(body.address) ? ethers.getAddress(body.address) : null;
@@ -55,19 +75,22 @@ export async function POST(req: Request) {
   /* recorded before sending, so two requests racing cannot both be paid */
   s.days[today] = (spent + DRIP).toString();
   s.paid[key] = "pending";
-  await writeFile(/*turbopackIgnore: true*/ STORE(), JSON.stringify(s, null, 2));
+  await store(s);
+  let tx: ethers.TransactionResponse;
   try {
     const w = await payer(c, p);
     /* 21000 exactly: monad refuses a plain transfer sent with more */
-    const tx = await w.sendTransaction({ to: address, value: DRIP, gasLimit: 21000 });
-    s.paid[key] = tx.hash;
-    await writeFile(/*turbopackIgnore: true*/ STORE(), JSON.stringify(s, null, 2));
-    await tx.wait(1);
-    return NextResponse.json({ ok: true, tx: tx.hash, amount: ethers.formatEther(DRIP) });
+    tx = await w.sendTransaction({ to: address, value: DRIP, gasLimit: 21000 });
   } catch (e) {
-    /* nothing was sent: give the address its chance back */
+    /* the send itself failed, so nothing left: give the address its chance back */
     delete s.paid[key]; s.days[today] = spent.toString();
-    await writeFile(/*turbopackIgnore: true*/ STORE(), JSON.stringify(s, null, 2)).catch(() => {});
+    await store(s).catch(() => {});
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
+  /* broadcast: from here the drip counts, whatever the wait says. rolling
+     back after a broadcast let the same address be paid again. */
+  s.paid[key] = tx.hash;
+  await store(s);
+  try { await tx.wait(1, 60_000); } catch { /* sent; the receipt is the chain's business now */ }
+  return NextResponse.json({ ok: true, tx: tx.hash, amount: ethers.formatEther(DRIP) });
 }

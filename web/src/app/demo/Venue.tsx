@@ -38,7 +38,7 @@ import { useMotionPrefs } from "@/lib/motion";
 type State = {
   agentId: string; agentKey: string; coldKey: string; guardian: string; owned: boolean;
   status: number; trades: number; venue: string; trusted: boolean; expired: boolean; lapsed: boolean; expiresAt: number;
-  readAt: number; error?: string;
+  readAt: number; error?: string; needsStart?: boolean;
   /* present when the chain disagrees that this agent is the connected
      wallet's. the page stops offering the owner's controls rather than
      letting them revert. */
@@ -84,15 +84,34 @@ export default function Venue() {
   const [prep, setPrep] = useState<"idle" | "resetting" | "busy">("idle");
   const triedReset = useRef(false);
 
+  /* a wallet with no practice agent yet sees the shared one, with an offer to
+     sign for its own. registering spends the demo key's gas, so it happens on
+     a signed request, never on a page load. */
+  const [unstarted, setUnstarted] = useState(false);
   const pull = useCallback(async (owner: string | null) => {
     const r = await fetch(`/api/demo${owner ? `?owner=${owner}` : ""}`, { cache: "no-store" });
     const j = (await r.json()) as State;
+    if (j.needsStart) { setUnstarted(true); return pull(null); }
     if (j.error) { setNote(j.error); return; }
+    if (owner) setUnstarted(false);
     setS(j);
   }, []);
+  const start = useCallback(async () => {
+    if (!w.who?.signer || !me) return;
+    setBusy("start"); setNote(null);
+    try {
+      const { demoMessage, gasDay } = await import("@/lib/gas");
+      const signature = await w.who.signer.signMessage(demoMessage(me, gasDay()));
+      const r = await fetch("/api/demo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "start", owner: me, signature }) });
+      const j = await r.json();
+      if (!r.ok || j.error) { setNote(j.error ?? "That did not work. Try again."); return; }
+      setS(null); await pull(me);
+    } catch (e) { setNote(explain(e)); }
+    finally { setBusy(null); }
+  }, [w.who, me, pull]);
 
   useEffect(() => {
-    setS(null); setLog([]); setSeen(new Set()); setOpen(new Set()); setRefusedAt(null); setRestored(false);
+    setS(null); setLog([]); setSeen(new Set()); setOpen(new Set()); setRefusedAt(null); setRestored(false); setUnstarted(false);
     triedReset.current = false; setPrep("idle");
     pull(me).catch(e => setNote(String(e)));
   }, [me, pull]);
@@ -174,7 +193,7 @@ export default function Venue() {
   async function post(action: string, kind: Kind, act?: Act) {
     setBusy(action); setNote(null);
     try {
-      const r = await fetch("/api/demo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, owner: me }) });
+      const r = await fetch("/api/demo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, owner: unstarted ? null : me }) });
       const j = await r.json();
       if (j.error) { setNote(j.error); return; }
       setS(v => (v ? { ...v, ...j } : v));
@@ -326,6 +345,18 @@ export default function Venue() {
       {/* compact while it sticks: at full size it covered a third of a phone
           screen, above the very buttons it reacts to. */}
       <div className="lg:hidden sticky top-[72px] z-20"><AgentCard s={s} off={off} refusedAt={refusedAt} reduced={m.reduced} resetting={prep === "resetting"} compact /></div>
+
+      {unstarted && me && (
+        <div className="sheet px-5 py-4 lg:col-span-2">
+          <div className="text-[15px] font-semibold">Get your own practice agent</div>
+          <p className="text-[13px] mt-1.5" style={{ color: "var(--text-medium)" }}>
+            Sign once and the demo registers an agent whose <Term k="owner">owner</Term> is your wallet. Until then you are driving the shared one.
+          </p>
+          <div className="flex flex-wrap items-center gap-3 mt-4">
+            <Do label={busy === "start" ? "Registering…" : "Sign and register"} onClick={start} />
+          </div>
+        </div>
+      )}
 
       {s?.mismatch && (
         <div className="sheet px-5 py-4 lg:col-span-2" style={{ borderColor: "var(--orange)" }}>

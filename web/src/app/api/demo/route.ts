@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { ethers } from "ethers";
-import { demoFor, agentWallet, guardianFor, cfg, provider, payer } from "@/lib/demo.server";
+import { demoFor, agentWallet, demoGuardian, cfg, provider, payer, NeedsStart } from "@/lib/demo.server";
+import { demoMessage, gasDay } from "@/lib/gas";
+import { jsonOnly } from "@/lib/jsonOnly";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +39,17 @@ const REFUSABLE = 120000n;
  * changed is the thing the next read asks about. */
 const TTL = 5000;
 type Snap = { at: number; v: Record<string, unknown> };
-const key = (owner: string | null) => (owner ?? "shared").toLowerCase();
+/* an owner is null (the shared agent) or a real address, checksummed. any
+   other value is refused: "shared" used to be accepted as an owner, landed on
+   the shared agent's cache key, and made every wallet-less visitor see that
+   agent as their own. */
+class BadOwner extends Error {}
+function ownerOf(v: unknown): string | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "string" && ethers.isAddress(v)) return ethers.getAddress(v);
+  throw new BadOwner("owner must be an address");
+}
+const key = (owner: string | null) => owner ? owner.toLowerCase() : "shared";
 const snaps = new Map<string, Snap>();
 const inflight = new Map<string, Promise<Record<string, unknown>>>();
 /* when each key last changed under us, so a read that was already in the air
@@ -47,7 +59,13 @@ const dirty = new Map<string, number>();
 function invalidate(owner: string | null) {
   const k = key(owner);
   snaps.delete(k);
-  dirty.set(k, Date.now());
+  const now = Date.now();
+  dirty.set(k, now);
+  /* both maps are keyed by whoever asked, so they are pruned as they go:
+     unpruned, a stream of made-up owners grew them until the process ran out
+     of memory */
+  for (const [x, at] of dirty) if (now - at > TTL * 2) dirty.delete(x);
+  for (const [x, v] of snaps) if (now - v.at > TTL) snaps.delete(x);
 }
 
 function snapshot(owner: string | null): Promise<Record<string, unknown>> {
@@ -69,21 +87,42 @@ function snapshot(owner: string | null): Promise<Record<string, unknown>> {
   return job;
 }
 
+/* a read never registers or funds anything. a wallet without a practice agent
+   is told so, and the page asks it to sign for one. */
 export async function GET(req: Request) {
   try {
-    const owner = new URL(req.url).searchParams.get("owner");
+    const owner = ownerOf(new URL(req.url).searchParams.get("owner"));
     return NextResponse.json(await snapshot(owner), { headers: { "cache-control": "no-store" } });
   } catch (e) {
+    if (e instanceof NeedsStart) return NextResponse.json({ needsStart: true }, { headers: { "cache-control": "no-store" } });
+    if (e instanceof BadOwner) return NextResponse.json({ error: e.message }, { status: 400 });
     return NextResponse.json({ error: reason(e) }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
+  const refused = jsonOnly(req);
+  if (refused) return refused;
   let who: string | null = null;
   try {
-    const { owner, action } = (await req.json()) as { owner?: string; action: string };
-    who = owner ?? null;
-    const d = await demoFor(owner ?? null);
+    const body = (await req.json()) as { owner?: unknown; action: string; signature?: string };
+    const action = body.action;
+    const owner = ownerOf(body.owner);
+    who = owner;
+
+    /* a practice agent for a wallet, registered and funded by the demo key.
+       only when that wallet signed for it today, so the spend goes to somebody
+       at the keyboard and not to addresses sprayed at the endpoint. */
+    if (action === "start") {
+      if (!owner) return NextResponse.json({ error: "connect a wallet first" }, { status: 400 });
+      let signer = "";
+      try { signer = ethers.verifyMessage(demoMessage(owner, gasDay()), String(body.signature ?? "")); } catch { /* stays empty */ }
+      if (signer !== owner) return NextResponse.json({ error: "the signature is not from that wallet, or is from another day" }, { status: 401 });
+      const made = await demoFor(owner, true);
+      return NextResponse.json({ ok: true, agentId: made.agentId });
+    }
+
+    const d = await demoFor(owner);
     /* the store is keyed by the address that asked for the agent, while
        d.coldKey is who the chain says owns it. those are the same until they
        are not, and under a mismatch looking up by the chain's answer found
@@ -121,7 +160,10 @@ export async function POST(req: Request) {
        the guardian may escalate once the delay has passed. */
     if (action === "guardianVote") {
       const p = provider(c);
-      const g = guardianFor(d.coldKey).connect(p);
+      const a = await again(() => new ethers.Contract(c.killSwitch, KS, p).getAgent(id));
+      const held = demoGuardian(d.mismatch?.storedFor ?? d.coldKey, [...a.guardians]);
+      if (!held) return NextResponse.json({ error: "This server holds none of that agent's guardians." }, { status: 409 });
+      const g = held.connect(p);
       const ks = new ethers.Contract(c.killSwitch, KS, g);
       const tx = await again(() => ks.guardianPause(id));
       const rc = await again(() => p.waitForTransaction(tx.hash));
@@ -182,6 +224,8 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({ error: "unknown action" }, { status: 400 });
   } catch (e) {
+    if (e instanceof NeedsStart) return NextResponse.json({ error: "Sign for your practice agent first.", needsStart: true }, { status: 409 });
+    if (e instanceof BadOwner) return NextResponse.json({ error: e.message }, { status: 400 });
     return NextResponse.json({ error: reason(e) }, { status: 500 });
   } finally {
     /* whatever just happened, a kept read is now behind the chain. */

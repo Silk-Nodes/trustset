@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { jsonOnly } from "@/lib/jsonOnly";
 import { timingSafeEqual } from "crypto";
 import { ethers } from "ethers";
 import { cfg, provider, payer } from "@/lib/demo.server";
@@ -59,6 +60,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const refused = jsonOnly(req);
+  if (refused) return refused;
   if (!operator(req)) return NextResponse.json({ error: "Nominating a passkey needs the operator token." }, { status: 401 });
   try {
     const { agentId, x, y, rpIdHash } = await req.json();

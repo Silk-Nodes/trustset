@@ -4,6 +4,7 @@ import { join } from "path";
 import { timingSafeEqual } from "crypto";
 import { ethers } from "ethers";
 import { cfg, provider, payer } from "@/lib/demo.server";
+import { jsonOnly } from "@/lib/jsonOnly";
 
 export const dynamic = "force-dynamic";
 
@@ -208,6 +209,8 @@ function operator(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const refused = jsonOnly(req);
+  if (refused) return refused;
   const isOperator = operator(req);
   try {
     const { action } = (await req.json()) as { action: "pause" | "resume" };
