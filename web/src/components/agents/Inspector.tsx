@@ -16,7 +16,11 @@ import Term from "@/components/Term";
  * ownership moves, which are read rarely and sit last for that reason. */
 const DAY = 86400;
 const WINDOWS: [string, number][] = [["Off", 0], ["10 minutes", 600], ["1 hour", 3600], ["6 hours", 21600], ["1 day", DAY]];
-const ENDS: [string, number][] = [["Never", 0], ["1 day", DAY], ["7 days", 7 * DAY], ["30 days", 30 * DAY], ["90 days", 90 * DAY]];
+/* KEEP leaves the end date as it is. "Set both" writes both limits in one
+   call, and the end date select used to start at Never, so changing only the
+   heartbeat silently removed an end date the owner had set. */
+const KEEP = -1;
+const ENDS: [string, number][] = [["Keep as it is", KEEP], ["Never", 0], ["1 day", DAY], ["7 days", 7 * DAY], ["30 days", 30 * DAY], ["90 days", 90 * DAY]];
 const sm = { padding: "6px 12px", fontSize: "0.76rem" } as const;
 const input = "text-[13px] w-full rounded-lg px-2.5 py-1.5 outline-none focus-visible:ring-2";
 const field = { background: "var(--bg-base)", border: "1px solid var(--hairline)", color: "var(--text-dark)" } as const;
@@ -46,10 +50,19 @@ export default function Inspector(p: InspectorProps) {
   const [n, setN] = useState(p.name === `Agent ${agent.id}` ? "" : p.name);
   const [pu, setPu] = useState(p.purpose ?? "");
   const [tg, setTg] = useState(p.tag);
-  const [ends, setEnds] = useState(0);
+  const [ends, setEnds] = useState(KEEP);
   const [win, setWin] = useState(agent.heartbeatWindow);
   const [addr, setAddr] = useState("");
-  const [succ, setSucc] = useState<string>(p.others[0]?.id.toString() ?? "");
+  /* no successor is chosen for you. rotating is permanent, and the list can
+     hold an agent somebody else registered under your address, so the first
+     one in it must never be the default. a choice that has left the list
+     (it stopped being trusted) is dropped rather than kept out of sight. */
+  const [succ, setSucc] = useState<string>("");
+  const pick = p.others.find(o => o.id.toString() === succ);
+  /* a heartbeat the owner set outside the presets is offered as itself, so
+     the select shows it instead of "Off" and writes it back unchanged */
+  const windows: [string, number][] = WINDOWS.some(([, v]) => v === agent.heartbeatWindow)
+    ? WINDOWS : [...WINDOWS, [`${Math.round(agent.heartbeatWindow / 60)} minutes`, agent.heartbeatWindow]];
   const terminal = agent.status === "revoked" || agent.status === "rotated";
   const nameOk = n.trim().length >= 2 && n.trim().length <= 40;
   const pending = !!agent.pendingColdKey && agent.pendingColdKey !== ethers.ZeroAddress;
@@ -100,15 +113,15 @@ export default function Inspector(p: InspectorProps) {
             <div className="flex flex-col gap-2.5">
               <label className="block">
                 <span className="eyebrow">Trusted until</span>
-                <select value={ends} onChange={e => setEnds(Number(e.target.value))} className={`${input} mt-1`} style={field}>{ENDS.map(([w, v]) => <option key={v} value={v}>{v === 0 ? w : `${w} from now`}</option>)}</select>
-                <span className="block text-[11px] mt-1 truncate" style={quiet}>{agent.expiresAt ? (expired(agent, now) ? "ran out" : `now ${new Date(agent.expiresAt * 1000).toLocaleString()}`) : "none today"}</span>
+                <select value={ends} onChange={e => setEnds(Number(e.target.value))} className={`${input} mt-1`} style={field}>{ENDS.map(([w, v]) => <option key={v} value={v}>{v <= 0 ? w : `${w} from now`}</option>)}</select>
+                <span className="block text-[11px] mt-1 truncate" style={quiet}>{agent.expiresAt ? (expired(agent, now) ? (ends === KEEP ? "ran out, pick a new date or Never" : "ran out") : `now ${new Date(agent.expiresAt * 1000).toLocaleString()}`) : "none today"}</span>
               </label>
               <label className="block">
                 <span className="eyebrow">Must report every</span>
-                <select value={win} onChange={e => setWin(Number(e.target.value))} className={`${input} mt-1`} style={field}>{WINDOWS.map(([w, v]) => <option key={v} value={v}>{w}</option>)}</select>
+                <select value={win} onChange={e => setWin(Number(e.target.value))} className={`${input} mt-1`} style={field}>{windows.map(([w, v]) => <option key={v} value={v}>{w}</option>)}</select>
                 <span className="block text-[11px] mt-1 truncate" style={quiet}>{agent.heartbeatWindow ? (lapsed(agent, now) ? "gone quiet" : `next by ${new Date((agent.lastBeat + agent.heartbeatWindow) * 1000).toLocaleTimeString()}`) : "silence is fine"}</span>
               </label>
-              <button type="button" className="drawn-btn btn-orange self-start" style={sm} disabled={!p.canSign || busy === "limits"} onClick={() => p.onLimits(ends === 0 ? 0 : Math.floor(Date.now() / 1000) + ends, win)}>{busy === "limits" ? "Writing…" : "Set both"}</button>
+              <button type="button" className="drawn-btn btn-orange self-start" style={sm} disabled={!p.canSign || busy === "limits" || (ends === KEEP && expired(agent, now))} onClick={() => p.onLimits(ends === KEEP ? agent.expiresAt : ends === 0 ? 0 : Math.floor(Date.now() / 1000) + ends, win)}>{busy === "limits" ? "Writing…" : "Set both"}</button>
             </div>
           ))
           : l.key === "identity" ? (
@@ -160,8 +173,12 @@ export default function Inspector(p: InspectorProps) {
                 <div className="text-[12px] font-semibold">Rotate to a successor <span className="font-normal" style={quiet}>· permanent</span></div>
                 {p.others.length === 0 ? <p className="text-xs mt-1" style={quiet}>Needs another trusted agent under this wallet.</p> : (
                   <div className="flex gap-2 mt-1.5">
-                    <select value={succ} onChange={e => setSucc(e.target.value)} className={input} style={field}>{p.others.map(o => <option key={o.id.toString()} value={o.id.toString()}>{o.name} · agent {o.id.toString()}</option>)}</select>
-                    <button type="button" className="drawn-btn btn-orange shrink-0" style={sm} disabled={!p.canSign || !succ || busy === "rotate"} onClick={() => p.onRotate(BigInt(succ))}>{busy === "rotate" ? "…" : "Rotate"}</button>
+                    <select value={pick ? succ : ""} onChange={e => setSucc(e.target.value)} className={input} style={field}>
+                      <option value="" disabled>Choose the successor</option>
+                      {p.others.map(o => <option key={o.id.toString()} value={o.id.toString()}>{o.name} · agent {o.id.toString()}</option>)}
+                    </select>
+                    <button type="button" className="drawn-btn btn-orange shrink-0" style={sm} disabled={!p.canSign || !pick || busy === "rotate"}
+                      onClick={() => { if (pick && window.confirm(`Retire agent ${agent.id} for good and hand over to ${pick.name} (agent ${pick.id})? This cannot be undone.`)) p.onRotate(pick.id); }}>{busy === "rotate" ? "…" : "Rotate"}</button>
                   </div>
                 )}
               </div>

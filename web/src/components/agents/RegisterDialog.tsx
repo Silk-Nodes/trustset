@@ -339,7 +339,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
               </div>
             )}
             {guardians.length > 0 && (
-              <Field label="Votes needed to pause" hint={`${threshold} of ${guardians.length} guardians must vote before the agent pauses.`}>
+              <Field label="Votes needed" hint={`${threshold} of ${guardians.length} can pause it. The same ${threshold} can also move it to a new owner if you lose your key, and you can cancel that.`}>
                 <div className="flex gap-1.5">
                   {guardians.map((_, i) => (
                     <button key={i} type="button" onClick={() => setThreshold(i + 1)} className="rounded-full w-9 h-9 text-sm font-semibold"

@@ -15,7 +15,7 @@ import TxLink, { addrUrl } from "@/components/agents/TxLink";
 import Term from "@/components/Term";
 import Tip, { InfoTip } from "@/components/Tip";
 import { adoptParked, fallbackName, getLabel, parkLabel, setLabel, type Label } from "@/lib/labels";
-import { FAUCET, READ, agentIdForKey, cachedAgents, coldKeyDelay, consentMessage, explain, settled, labelOnChain, loadAgents, loadGuarded, loadHistory, ownerTx, registerOnChain, short, statusWord, trusted, type Agent, type Conn, type Guarded } from "@/lib/chain";
+import { CONFIRMS, FAUCET, READ, agentIdForKey, cachedAgents, coldKeyDelay, consentMessage, explain, settled, labelOnChain, loadAgents, loadGuarded, loadHistory, ownerTx, registerOnChain, short, statusWord, trusted, type Agent, type Conn, type Guarded } from "@/lib/chain";
 import { type Extra, type PulseEvent, layersOf } from "@/lib/layers";
 import { type Row, fakeAgents, groupFromPurpose, loadTags, purposeWithGroup, rowsOf, saveTags } from "@/lib/fleet";
 import Runbook from "@/components/agents/Runbook";
@@ -284,6 +284,9 @@ export default function Agents() {
     `Agent ${a.id} has no passkey now.`);
   const proposeKey = (a: Agent, addr: string) => withAct("key", async () => (await (conn!.ks.connect(ownerSigner(conn!)!) as ethers.Contract).proposeRevocationKey(a.id, addr)).wait(2), `Owner change proposed for agent ${a.id}. It lands after the delay.`);
   const applyKey = (a: Agent) => withAct("key", async () => (await (conn!.ks.connect(ownerSigner(conn!)!) as ethers.Contract).applyRevocationKey(a.id)).wait(2), `Agent ${a.id} now belongs to its new owner, and has left this list.`);
+  /* the owner refusing a new owner their guardians agreed on. the only answer
+     to a recovery the owner did not ask for, and it has to land before readyAt */
+  const cancelRecovery = (a: Agent) => withAct(`recovery-${a.id}`, async () => (await (conn!.ks.connect(ownerSigner(conn!)!) as ethers.Contract).cancelRecovery(a.id)).wait(2), `Recovery of agent ${a.id} cancelled. It stays yours.`);
   const rotate = (a: Agent, succ: bigint) => withAct("rotate", async () => (await (conn!.ks.connect(ownerSigner(conn!)!) as ethers.Contract).rotate(a.id, succ, ethers.id("owner rotated"))).wait(2), `Agent ${a.id} rotated to agent ${succ}.`);
 
   async function stop(a: Agent) {
@@ -292,7 +295,7 @@ export default function Agents() {
     const k = a.id.toString();
     setBusy(b => new Set(b).add(k));
     try {
-      const rc = await ownerTx(async () => (await (conn.ks.connect(s) as ethers.Contract).setStatus(a.id, 3, ethers.id("owner pressed stop"))).wait());
+      const rc = await ownerTx(async () => (await (conn.ks.connect(s) as ethers.Contract).setStatus(a.id, 3, ethers.id("owner pressed stop"))).wait(CONFIRMS));
       setLast(l => ({ ...l, [k]: `Revoked by owner · block ${rc.blockNumber}` }));
       setStamps(st => ({ ...st, [k]: { block: rc.blockNumber, txHash: rc.hash } }));
       said(`Agent ${a.id} stopped at block ${rc.blockNumber}. From the next block every app that checks refuses it.`, rc.hash);
@@ -565,6 +568,24 @@ export default function Agents() {
           </div>
         )}
         {sampleOn && <div className="sm:hidden mb-3 shrink-0">{samplePill}</div>}
+        {/* a recovery in progress is the one thing on this page that can take
+            an agent away from its owner without the owner doing anything, so it
+            sits above everything else until it is cancelled or done */}
+        {signedIn && !guardingRoute && agents.filter(a => a.recovery).map(a => {
+          const r = a.recovery!;
+          const left = r.readyAt ? r.readyAt - now : 0;
+          return (
+            <div key={`rec-${a.id}`} role="alert" className="sheet px-4 sm:px-5 py-3.5 mb-3 shrink-0 flex flex-wrap items-center gap-x-4 gap-y-2" style={{ borderColor: "var(--orange)" }}>
+              <div className="min-w-0 flex-1 basis-[260px]">
+                <div className="text-[13.5px] font-semibold" style={{ color: "var(--orange-text)" }}>Guardians are moving {labelFor(a).name} to a new owner</div>
+                <div className="text-[12px] mt-0.5" style={{ color: "var(--text-medium)" }}>
+                  to <span className="mono">{short(r.newKey)}</span> · {r.readyAt ? (left > 0 ? `can happen in ${Math.floor(left / 60)}m ${left % 60}s` : "can happen now") : `${r.votes} of ${r.threshold} votes`}. If you did not ask for this, cancel it.
+                </div>
+              </div>
+              <button type="button" className="drawn-btn btn-orange shrink-0 whitespace-nowrap" style={{ padding: "6px 14px", fontSize: "0.78rem" }} disabled={act === `recovery-${a.id}`} onClick={() => cancelRecovery(a)}>{act === `recovery-${a.id}` ? "Cancelling…" : "Cancel recovery"}</button>
+            </div>
+          );
+        })}
         {conn === undefined && <div className="sheet p-6 text-sm text-ink/70">Connecting…</div>}
         {conn === null && <div className="sheet p-6 text-sm text-ink/70">No chain configured.</div>}
         {/* no wallet: the console itself, drawn from the sample, under one line

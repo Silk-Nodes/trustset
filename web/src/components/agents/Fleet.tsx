@@ -125,7 +125,12 @@ export default function Fleet(p: FleetProps) {
       const t = e.target as HTMLElement | null;
       const typing = t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA" || t.isContentEditable);
       if (e.key === "/" && !typing) { e.preventDefault(); search.current?.focus(); return; }
-      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (typing || e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+      /* a focused control keeps its own keys. enter on the switch or on a
+         button used to also open whichever agent the list cursor was on,
+         which was often another agent than the one being pressed */
+      const control = t?.closest("button, a, [role=button], [role=switch], summary");
+      if (control && (e.key === "Enter" || e.key === " " || e.key === "x")) return;
       if (e.key === "j" || e.key === "ArrowDown") { e.preventDefault(); setCursor(i => Math.min(flat.length - 1, i + 1)); }
       else if (e.key === "k" || e.key === "ArrowUp") { e.preventDefault(); setCursor(i => Math.max(0, i - 1)); }
       else if (e.key === "Enter" && flat[cursor]) p.onOpen(flat[cursor].a.id);
@@ -519,9 +524,21 @@ export function Hold({ disabled, onHeld, small, wide }: { disabled: boolean; onH
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
   const begin = () => { if (disabled) return; setHolding(true); t.current = setTimeout(() => { t.current = null; setHolding(false); onHeld(); }, 1500); };
   const end = () => { if (t.current) { clearTimeout(t.current); t.current = null; } setHolding(false); };
+  /* stopping is for good, so a hold the hand has left is cancelled, never
+     completed: on unmount, on a hidden tab, on blur and on escape */
+  useEffect(() => () => { if (t.current) clearTimeout(t.current); }, []);
+  useEffect(() => {
+    if (!holding) return;
+    const away = () => { if (document.hidden) end(); };
+    document.addEventListener("visibilitychange", away);
+    return () => document.removeEventListener("visibilitychange", away);
+  }, [holding]);
   return (
-    <button type="button" disabled={disabled} onPointerDown={e => { e.preventDefault(); begin(); }} onPointerUp={end} onPointerLeave={end} onPointerCancel={end}
-      onKeyDown={e => { if (e.key === " " && !e.repeat) { e.preventDefault(); begin(); } }} onKeyUp={e => { if (e.key === " ") end(); }}
+    <button type="button" disabled={disabled} onPointerDown={e => { e.preventDefault(); begin(); }} onPointerUp={end} onPointerLeave={end} onPointerCancel={end} onBlur={end}
+      onKeyDown={e => {
+        if (e.key === "Escape" && t.current) { e.preventDefault(); e.stopPropagation(); end(); return; }
+        if (e.key === " " && !e.repeat) { e.preventDefault(); begin(); }
+      }} onKeyUp={e => { if (e.key === " ") end(); }}
       className={`relative overflow-hidden rounded-full mono tracking-[0.08em] select-none ${wide ? "w-full" : ""} outline-none focus-visible:ring-2 disabled:opacity-45 ${small ? "text-[10px] px-2.5 h-[26px]" : "text-[11px] px-3.5 h-[30px]"}`}
       style={{ border: "1.5px solid var(--orange)", color: "var(--orange-text)", touchAction: "none" }}>
       <span aria-hidden className="absolute inset-0" style={{ background: "var(--orange)", clipPath: holding ? "inset(0 0 0 0)" : "inset(0 100% 0 0)", transition: holding ? "clip-path 1500ms linear" : "clip-path 180ms cubic-bezier(0.23, 1, 0.32, 1)" }} />

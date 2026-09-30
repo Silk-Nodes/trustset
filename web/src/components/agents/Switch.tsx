@@ -78,6 +78,15 @@ export default function Switch({ state, live, busy, lockBusy, disabled, onToggle
     if (commit && quick && canToggle) onToggle();
   };
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  /* a hold is a hand on the control. when the hand is plainly gone (focus
+     moved, the tab was hidden) the hold is cancelled, never completed: a
+     lockout is for good, so only an unbroken two seconds may send it. */
+  useEffect(() => {
+    if (!holding) return;
+    const away = () => { if (document.hidden) finish(false); };
+    document.addEventListener("visibilitychange", away);
+    return () => document.removeEventListener("visibilitychange", away);
+  });
 
   /* the padlock drops in when a lockout lands while the page is open; an
      agent that was already stopped just shows it */
@@ -95,13 +104,23 @@ export default function Switch({ state, live, busy, lockBusy, disabled, onToggle
     <button type="button" disabled={ended || (!canToggle && !canLock)} aria-pressed={on}
       aria-label={label ?? `switch ${WORD[state].toLowerCase()}`}
       aria-description={canLock ? `hold for ${LOCKOUT_MS / 1000} seconds to stop it for good` : undefined}
-      onClick={e => { e.stopPropagation(); if (!onLockout && canToggle) onToggle(); }}
+      onClick={e => {
+        e.stopPropagation();
+        /* a click with no press behind it (assistive tech, element.click())
+           is a tap. keyboard presses never get here: their keydown and keyup
+           are prevented. the lockout needs the hold, so it is not offered. */
+        if (canToggle && (!onLockout || (e.detail === 0 && !began.current))) onToggle();
+      }}
       onPointerDown={e => { if (!onLockout || e.button !== 0) return; e.stopPropagation(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); start(); }}
       onPointerUp={e => { if (!onLockout) return; e.stopPropagation(); finish(true); }}
       onPointerCancel={() => finish(false)}
+      onBlur={() => finish(false)}
       onContextMenu={e => { if (onLockout) e.preventDefault(); }}
       onKeyDown={e => {
         if (!onLockout) return;
+        /* escape lets go without doing anything, and is kept from the list's
+           own escape handler, which would otherwise act on it too */
+        if (e.key === "Escape" && began.current) { e.preventDefault(); e.stopPropagation(); finish(false); return; }
         if (e.key === " " && !e.repeat) { e.preventDefault(); start(); }
         else if (e.key === "Enter") { e.preventDefault(); if (canToggle) onToggle(); }
       }}

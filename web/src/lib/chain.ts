@@ -22,6 +22,8 @@ export const KS_ABI = [
   "function rotate(uint256 agentId, uint256 successorId, bytes32 reasonHash)",
   "function proposeRevocationKey(uint256 agentId, address newKey)",
   "function applyRevocationKey(uint256 agentId)",
+  "function recoveryOf(uint256 agentId) view returns (address newKey, uint64 readyAt, uint8 votes, uint8 threshold)",
+  "function cancelRecovery(uint256 agentId)",
   "function revocationKeyChangeDelay() view returns (uint64)",
   "function guardianEscalate(uint256)",
   "function guardianVoteCount(uint256) view returns (uint256)",
@@ -122,6 +124,10 @@ export type Agent = {
      limit is off. expired and lapsed are derived here rather than read, so a
      list of ten agents is still one round trip per agent. */
   expiresAt: number; heartbeatWindow: number; lastBeat: number;
+  /* guardians proposing a new owner. readyAt is 0 until enough of them agree,
+     then the moment it may be executed. only the owner can cancel it, and
+     nothing else on the page would tell them it is happening. */
+  recovery?: { newKey: string; readyAt: number; votes: number; threshold: number };
 };
 
 /* an agent is trusted when it is active, inside its dates and not gone quiet.
@@ -338,6 +344,16 @@ export async function loadAgents(c: Conn, owner: string): Promise<Agent[]> {
       const ls = await retry(() => c.labels!.labelsOf(out.map(a => a.id), READ));
       out.forEach((a, k) => { const l = ls[k]; if (l && l[0]) a.label = { name: l[0], purpose: l[1], by: l[2], at: Number(l[3]) }; });
     } catch { /* an older deployment without the contract: agents simply carry no label */ }
+  }
+  /* a recovery in progress, for every live agent that has guardians. one read
+     each, and only for those, so an agent without guardians costs nothing */
+  const guarded = out.filter(a => a.guardians.length && a.status !== "revoked" && a.status !== "rotated");
+  if (guarded.length) {
+    const rs = await Promise.all(guarded.map(a => retry(() => c.ks.recoveryOf(a.id, READ)).catch(() => null)));
+    guarded.forEach((a, k) => {
+      const x = rs[k];
+      if (x && x[0] !== ethers.ZeroAddress) a.recovery = { newKey: x[0], readyAt: Number(x[1]), votes: Number(x[2]), threshold: Number(x[3]) };
+    });
   }
   lastList.set(c.cfg.chainIdHex + ":" + owner.toLowerCase(), out);
   return out;
