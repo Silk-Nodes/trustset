@@ -35,7 +35,7 @@ export default function HumanProof({ conn, signer, account, txHash, onProved }: 
     if (!conn.touch) return; setState("busy"); setMsg(null);
     try {
       const k = await registerPasskey(account);
-      localStorage.setItem(KEY, JSON.stringify({ credentialId: k.credentialId, rpId: k.rpId }));
+      try { localStorage.setItem(KEY, JSON.stringify({ credentialId: k.credentialId, rpId: k.rpId })); } catch { /* no storage: the passkey still works this visit */ }
       setCred({ credentialId: k.credentialId, rpId: k.rpId });
       const rc = await (await (conn.touch.connect(signer) as ethers.Contract).registerPasskey(k.x, k.y, k.rpIdHash)).wait(2);
       setMsg(`Passkey registered for this account. ${conn.cfg.explorer}/tx/${rc.hash}`);

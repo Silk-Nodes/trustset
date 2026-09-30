@@ -1,5 +1,6 @@
 "use client";
 import type { Agent } from "@/lib/chain";
+import { useId } from "react";
 import { type Segment, type TrustState, WINDOW, trustline } from "@/lib/trustline";
 import { type Tone, toneOf } from "./Pulse";
 
@@ -26,7 +27,10 @@ export default function TrustLine({ agent, now, events = [], height = 10, labels
   const segs: Segment[] = trustline(agent, now, events);
   const start = now - WINDOW;
   const x = (t: number) => ((t - start) / WINDOW) * 100;
-  const id = `hatch-${agent.id}`;
+  /* one id per drawing, not per agent. the same agent is drawn in the list and
+     in the panel, and when the first copy was hidden the second pointed at its
+     pattern and drew the expired stretch blank */
+  const id = `hatch-${useId().replace(/:/g, "")}`;
   const TICK = ticks ? 12 : 0;
   const marks = ticks ? events.filter(e => e.at >= start && e.at <= now) : [];
   const said = segs.filter(s => s.state !== "absent").map(s => `${WORD[s.state]} ${clock(s.from)} to ${clock(s.to)}`).join(", ");

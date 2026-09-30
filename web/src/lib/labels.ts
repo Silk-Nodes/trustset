@@ -49,3 +49,11 @@ export function adoptParked(chain: string, agents: { id: bigint; key: string }[]
 
 /* what to print for an agent with no label: the truth, which is its id. */
 export const fallbackName = (id: bigint) => `Agent ${id.toString()}`;
+
+/* the contract counts bytes, not characters: an emoji is four, an accented
+   letter two. and a name made only of invisible characters reads as blank. so
+   a name is checked the way the chain will check it. */
+export const utf8Len = (s: string) => new TextEncoder().encode(s).length;
+export const visible = (s: string) => s.replace(/[​-‏‪-‮⁠-⁤﻿\s]/g, "");
+export const nameFits = (s: string) => visible(s).length >= 2 && utf8Len(s.trim()) <= 40;
+export const purposeFits = (s: string) => utf8Len(s.trim()) <= 200;

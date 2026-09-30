@@ -22,6 +22,7 @@ export const KS_ABI = [
   "function rotate(uint256 agentId, uint256 successorId, bytes32 reasonHash)",
   "function proposeRevocationKey(uint256 agentId, address newKey)",
   "function applyRevocationKey(uint256 agentId)",
+  "function guardianPaused(uint256) view returns (bool)",
   "function recoveryOf(uint256 agentId) view returns (address newKey, uint64 readyAt, uint8 votes, uint8 threshold)",
   "function cancelRecovery(uint256 agentId)",
   "function revocationKeyChangeDelay() view returns (uint64)",
@@ -278,6 +279,9 @@ async function doConnectWallet(cfg: Cfg): Promise<Signer> {
   }
 
   const live = new ethers.BrowserProvider(window.ethereum);
+  /* the wait above can run out with the wallet still elsewhere. a signer on
+     another chain would sign every stop there, where it does nothing */
+  if ((await live.getNetwork()).chainId !== want) throw new Error("Your wallet is still on another network. Switch it to " + cfg.chain + " and connect again");
   const signer = await live.getSigner();
   return { address: await signer.getAddress(), signer, kind: "wallet" };
 }
@@ -389,14 +393,29 @@ export function consentMessage(c: Conn, agentKey: string, coldKey: string): Uint
    here before the wallet is opened, so a bad paste fails on the page and
    not in a reverted transaction. */
 export function consentValid(c: Conn, agentKey: string, coldKey: string, sig: string): boolean {
-  try { return ethers.verifyMessage(consentMessage(c, agentKey, coldKey), sig).toLowerCase() === agentKey.toLowerCase(); } catch { return false; }
+  /* 65 bytes only: ethers also accepts the 64 byte compact form, which the
+     contract's ecrecover refuses, so it passed here and reverted on chain */
+  try { return ethers.getBytes(sig).length === 65 && ethers.verifyMessage(consentMessage(c, agentKey, coldKey), sig).toLowerCase() === agentKey.toLowerCase(); } catch { return false; }
+}
+
+/* a transaction's receipt, even when the wallet sped it up. a sped up send is
+   the same transaction at a higher price, and ethers reports it as replaced, so
+   a registration that succeeded read as a failure and invited a second one. a
+   cancelled or genuinely replaced send still fails. */
+export async function landed(tx: ethers.ContractTransactionResponse | ethers.TransactionResponse): Promise<ethers.TransactionReceipt> {
+  try { return (await tx.wait(CONFIRMS))!; }
+  catch (e) {
+    const x = e as { code?: string; reason?: string; receipt?: ethers.TransactionReceipt | null; cancelled?: boolean };
+    if (x.code === "TRANSACTION_REPLACED" && x.reason === "repriced" && x.receipt && x.receipt.status === 1) return x.receipt;
+    throw e;
+  }
 }
 
 export async function registerOnChain(c: Conn, signer: ethers.Signer, agentKey: string, coldKey: string, overrides: Record<string, unknown> = {}, guardians: string[] = [], threshold = 0, agentSig = "0x"): Promise<{ id: bigint; hash: string }> {
   /* fresh contract and interface from the current ABI. see agentIdForKey. */
   const ks = new ethers.Contract(c.cfg.killSwitch, KS_ABI, c.p);
   const tx = await (ks.connect(signer) as ethers.Contract).register(agentKey, coldKey, guardians, threshold, agentSig, overrides);
-  const rc = await tx.wait(CONFIRMS);
+  const rc = await landed(tx);
   for (const l of rc.logs) {
     try { const ev = ks.interface.parseLog(l); if (ev?.name === "AgentRegistered") return { id: BigInt(ev.args[0]), hash: rc.hash }; } catch { /* another contract's log */ }
   }
@@ -450,7 +469,9 @@ export const ago = (ts: number) => { const s = Math.max(0, Math.floor(Date.now()
 /* the agents this wallet guards: not its own, but ones whose owner named it a
    guardian. a guardian can vote to pause, and once a pause has stood for the
    escalation delay, revoke. never spend, never stop instantly. */
-export type Guarded = Agent & { votes: number; voted: boolean; escalateAt: number; delay: number };
+/* guardianPaused: the pause is the guardians' own. only then can it be escalated,
+   so an owner's or a passkey's pause must not offer a guardian "Revoke". */
+export type Guarded = Agent & { votes: number; voted: boolean; escalateAt: number; delay: number; guardianPaused: boolean };
 /* the last raw scan of the registry, so the guarded list does not ask the
    chain for every agent a second time right after the owner list did. */
 let lastScan: { key: string; ids: number[]; all: ethers.Result[] } | null = null;
@@ -477,14 +498,15 @@ export async function loadGuarded(c: Conn, me: string): Promise<Guarded[]> {
     } catch { labels = {}; }
   }
   return Promise.all(mine.map(async ({ i, a }) => {
-    const [votes, round, my] = await Promise.all([
+    const [votes, round, my, gp] = await Promise.all([
       retry(() => ks.guardianVoteCount(i, READ)), retry(() => ks.guardianVoteRound(i, READ)), retry(() => ks.guardianVote(i, me, READ)),
+      retry(() => ks.guardianPaused(i, READ)).catch(() => false),
     ]);
     return {
       id: BigInt(i), key: a.agentKey, coldKey: a.revocationKey, guardians: [...a.guardians], threshold: Number(a.guardianThreshold),
       status: STATUS[Number(a.status)], since: Number(a.statusSince), successor: a.successorId, history: [],
       expiresAt: Number(a.expiresAt), heartbeatWindow: Number(a.heartbeatWindow), lastBeat: Number(a.lastBeat),
-      votes: Number(votes), voted: Number(my) === Number(round) + 1, escalateAt: Number(a.statusSince) + delay, delay,
+      votes: Number(votes), voted: Number(my) === Number(round) + 1, escalateAt: Number(a.statusSince) + delay, delay, guardianPaused: Boolean(gp),
       label: labels[i],
     };
   }));

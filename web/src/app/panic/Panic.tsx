@@ -43,13 +43,21 @@ export default function Panic({ initialId }: { initialId?: string }) {
     if (!info?.challenge) return;
     setBusy(true); setNote(null);
     try {
-      const a = await assertAny(info.challenge);
+      /* the challenge is read again right before the touch: the one on screen
+         may have been spent by another press since the page loaded */
+      const fresh = await fetch(`/api/panic?id=${id}`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      const challenge = fresh?.challenge ?? info.challenge;
+      if (fresh) setInfo(fresh);
+      const a = await assertAny(challenge);
       const r = await fetch("/api/panic", {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ agentId: Number(id), authenticatorData: a.authenticatorData, clientDataJSON: a.clientDataJSON, r: a.r.toString(), s: a.s.toString() }),
       });
       const j = await r.json();
       if (j.error) { setNote(j.error); return; }
+      /* a transaction that landed but reverted is not a pause. it used to show
+         the paused card anyway */
+      if (j.ok !== true) { setNote(`That did not pause it. The transaction reverted${j.hash ? `: ${j.hash}` : ""}. Try again.`); return; }
       setDone(j);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

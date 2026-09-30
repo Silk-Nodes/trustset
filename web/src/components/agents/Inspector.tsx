@@ -1,5 +1,6 @@
 "use client";
 import Tip from "@/components/Tip";
+import { nameFits, purposeFits } from "@/lib/labels";
 import { useState } from "react";
 import Link from "next/link";
 import { ethers } from "ethers";
@@ -64,7 +65,7 @@ export default function Inspector(p: InspectorProps) {
   const windows: [string, number][] = WINDOWS.some(([, v]) => v === agent.heartbeatWindow)
     ? WINDOWS : [...WINDOWS, [`${Math.round(agent.heartbeatWindow / 60)} minutes`, agent.heartbeatWindow]];
   const terminal = agent.status === "revoked" || agent.status === "rotated";
-  const nameOk = n.trim().length >= 2 && n.trim().length <= 40;
+  const nameOk = nameFits(n) && purposeFits(pu);
   const pending = !!agent.pendingColdKey && agent.pendingColdKey !== ethers.ZeroAddress;
   const applyAt = agent.coldKeyChangeAt ?? 0;
   const canApply = pending && now >= applyAt;

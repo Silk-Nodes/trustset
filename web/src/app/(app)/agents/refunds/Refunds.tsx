@@ -70,8 +70,14 @@ export default function Refunds() {
   }
   useEffect(() => {
     if (!conn || !who) return;
-    let alive = true;
-    const run = () => { if (alive) refresh(conn, who.address).catch(() => {}); };
+    let alive = true, busy = false;
+    /* one read at a time. a pass reads every payment ever made, and on a slow
+       rpc it outlasted the four second interval, so passes piled up */
+    const run = () => {
+      if (!alive || busy) return;
+      busy = true;
+      refresh(conn, who.address).catch(() => {}).finally(() => { busy = false; });
+    };
     run(); const t = setInterval(run, 4000);
     return () => { alive = false; clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps

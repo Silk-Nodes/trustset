@@ -98,6 +98,10 @@ export function switchState(a: Agent, events: PulseEvent[]): SwitchState {
   if (a.status === "revoked" || a.status === "rotated") return "ended";
   if (a.status !== "paused") return "on";
   const last = events.find(e => e.kind === "StatusChanged" && String(e.data?.status ?? "") === "paused");
-  const byGuardian = !!last?.actor && last.actor.toLowerCase() !== a.coldKey.toLowerCase();
+  /* a guardian is somebody the chain lists as one. "anyone but the owner" also
+     caught a passkey pause, whose actor is the relay that sent it, and drew it
+     as a guardian trip. */
+  const guardians = new Set(a.guardians.map(g => g.toLowerCase()));
+  const byGuardian = !!last?.actor && guardians.has(last.actor.toLowerCase());
   return byGuardian ? "tripped" : "off";
 }

@@ -267,7 +267,7 @@ export default function Agents() {
     catch (e) { setNote(explain(e, conn)); }
     finally { setAct(null); }
   }
-  const rename = (a: Agent, name: string, purpose: string) => withAct("rename", async () => { await labelOnChain(conn!, ownerSigner(conn!)!, a.id, name, purpose); setLabel(conn!.cfg.chainIdHex, a.id, { name, purpose: purpose || undefined }); }, `Agent ${a.id} is now named ${name} on chain.`);
+  const rename = (a: Agent, name: string, purpose: string) => withAct("rename", async () => { const rc = await labelOnChain(conn!, ownerSigner(conn!)!, a.id, name, purpose); setLabel(conn!.cfg.chainIdHex, a.id, { name, purpose: purpose || undefined }); return rc; }, `Agent ${a.id} is now named ${name} on chain.`);
   /* both limits land in one call, so an owner never sits between two states
      where one is set and the other is not. */
   const limits = (a: Agent, expiresAt: number, window: number) => withAct("limits", async () => (await (conn!.ks.connect(ownerSigner(conn!)!) as ethers.Contract).setLimits(a.id, expiresAt, window)).wait(2),
@@ -402,7 +402,7 @@ export default function Agents() {
   const goAgent = (id: bigint, open?: LayerKey) => { const q = new URLSearchParams(typeof location !== "undefined" ? location.search : ""); if (open) q.set("open", open); else q.delete("open"); const qs = q.toString(); router.push(`/agents/${id}${qs ? "?" + qs : ""}`); };
   const guardedShown = useMemo(() => sampleOn ? sampleGuarded(pinned.current) : guarded, [sampleOn, guarded]);
   /* the guarding tab's count: agents waiting on this wallet's vote or escalation */
-  const waiting = guardedShown.filter(g => (g.status === "active" && !g.voted) || (g.status === "paused" && now >= g.escalateAt)).length;
+  const waiting = guardedShown.filter(g => (g.status === "active" && !g.voted) || (g.status === "paused" && g.guardianPaused && now >= g.escalateAt)).length;
 
   /* the agent page's history: the index's record for this agent, a hundred
      at a time, oldest pages fetched on request. */
@@ -457,7 +457,9 @@ export default function Agents() {
       <div className="sheet overflow-clip">
         {guardedShown.map(g => {
           const k = "g" + g.id.toString(); const b = busy.has(k);
-          const canEscalate = g.status === "paused" && now >= g.escalateAt;
+          /* only a guardians' pause escalates. an owner's or a passkey's pause
+             always reverted here, and still counted as waiting on the badge */
+          const canEscalate = g.status === "paused" && g.guardianPaused && now >= g.escalateAt;
           const wait = g.status === "paused" ? Math.max(0, g.escalateAt - now) : 0;
           /* a guardian is the person who acts on this row, so it must not
              call an agent Active when its end date has passed or it has
@@ -471,6 +473,8 @@ export default function Agents() {
              sentence, hidden on phones, which left a phone with no status. */
           const said = g.status === "active"
             ? { short: g.voted ? `voted · ${g.votes}/${g.threshold}` : `${g.votes}/${g.threshold} votes`, tip: `${g.votes} of ${g.threshold} guardian votes needed to pause it.${g.voted ? " Yours is in." : ""}${live ? "" : state === "expired" ? " Its end date has passed, so apps already refuse it." : " It missed its heartbeat, so apps already refuse it."}` }
+            : g.status === "paused" && !g.guardianPaused
+            ? { short: "paused by its owner", tip: "Its owner paused it, not the guardians, so there is nothing to escalate. Only a guardians' pause can become a stop." }
             : g.status === "paused"
             ? canEscalate
               ? { short: "you can stop it", tip: `Paused, and its owner has done nothing for ${span(g.delay)}. Any guardian may now stop it for good.` }
@@ -495,7 +499,7 @@ export default function Agents() {
               <div className="flex gap-1.5 justify-end">
                 {g.status === "active" && !g.voted && <button type="button" className="drawn-btn btn-gold" style={{ padding: "6px 12px", fontSize: "0.78rem" }} disabled={b} onClick={() => guardianAct(g, "pause")}>{b ? "…" : "Vote to pause"}</button>}
                 {g.status === "active" && g.voted && <span className="mono text-[11px] uppercase tracking-[0.12em]" style={{ color: "var(--text-medium)" }}>Voted</span>}
-                {g.status === "paused" && <button type="button" className="drawn-btn btn-orange" style={{ padding: "6px 12px", fontSize: "0.78rem" }} disabled={b || !canEscalate} onClick={() => guardianAct(g, "escalate")} title={canEscalate ? "Revoke for good" : "Opens when the delay has passed"}>{b ? "…" : "Revoke"}</button>}
+                {g.status === "paused" && g.guardianPaused && <button type="button" className="drawn-btn btn-orange" style={{ padding: "6px 12px", fontSize: "0.78rem" }} disabled={b || !canEscalate} onClick={() => guardianAct(g, "escalate")} title={canEscalate ? "Revoke for good" : "Opens when the delay has passed"}>{b ? "…" : "Revoke"}</button>}
               </div>
             </div>
           );
@@ -562,7 +566,7 @@ export default function Agents() {
 
         {/* a notice is a toast at the corner, never a bar that moves the table */}
         {note && (
-          <div role="status" className="fixed z-[70] bottom-4 right-4 left-4 sm:left-auto sm:max-w-md sheet px-4 py-3 text-xs flex items-start gap-3" style={{ boxShadow: "0 12px 32px rgba(0,0,0,0.14)" }}>
+          <div role="status" className="fixed z-[70] bottom-[calc(72px+env(safe-area-inset-bottom))] lg:bottom-4 right-4 left-4 sm:left-auto sm:max-w-md sheet px-4 py-3 text-xs flex items-start gap-3" style={{ boxShadow: "0 12px 32px rgba(0,0,0,0.14)" }}>
             <span className="break-words min-w-0" style={{ color: "var(--text-dark)" }}>{note}</span>
             <button type="button" onClick={() => setNote(null)} className="ml-auto shrink-0" style={{ color: "var(--text-medium)" }} aria-label="Dismiss">×</button>
           </div>

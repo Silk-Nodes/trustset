@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { nameFits, purposeFits } from "@/lib/labels";
 import { ethers } from "ethers";
 import { motion, AnimatePresence } from "motion/react";
 import { useMotionPrefs, DUR } from "@/lib/motion";
@@ -105,7 +106,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
     return () => window.removeEventListener("keydown", onKey);
   }, [open, busy, onClose]);
 
-  const nameOk = name.trim().length >= 2 && name.trim().length <= 40;
+  const nameOk = nameFits(name) && purposeFits(purpose);
   const pastedTrim = pasted.trim();
   const pastedValid = ethers.isAddress(pastedTrim);
   /* the key that stops the agent must not be the key that signs for it */

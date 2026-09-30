@@ -191,6 +191,8 @@ export function sampleGuarded(now: number): Guarded[] {
     guardians: GUARDIANS, threshold: 2,
     status: g.status, since: now + g.since, successor: 0n,
     history: [{ at: now + g.since, status: g.status }],
+    /* the sample's pauses are the guardians' own, so they show the escalation */
+    guardianPaused: g.status === "paused",
     label: { name: g.name, purpose: "", by: addr("other-owner:" + g.name), at: now + g.since },
     expiresAt: g.expiresAt === undefined ? 0 : now + g.expiresAt,
     heartbeatWindow: g.heartbeatWindow ?? 0,

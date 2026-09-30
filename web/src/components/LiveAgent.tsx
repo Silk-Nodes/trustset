@@ -83,7 +83,10 @@ export default function LiveAgent({ compact = false, lead = null }: { compact?: 
      answers that it is needed. an operator who has used the token once keeps
      it in this browser and always sends it. */
   async function flip(action: "pause" | "resume") {
-    const tok = token || (typeof localStorage !== "undefined" ? localStorage.getItem("trustset.operator") || "" : "");
+    /* storage can throw (private windows, blocked site data); the switch must still work */
+    let saved = "";
+    try { saved = localStorage.getItem("trustset.operator") || ""; } catch { /* no storage */ }
+    const tok = token || saved;
     setBusy(true); setNote(null);
     try {
       const r = await fetch("/api/live-agent", { method: "POST", headers: { "content-type": "application/json", ...(tok ? { "x-trustset-operator": tok } : {}) }, body: JSON.stringify({ action }) });
