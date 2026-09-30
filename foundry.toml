@@ -8,7 +8,13 @@ optimizer = true
 optimizer_runs = 200
 via_ir = true
 fuzz = { runs = 512 }
-fs_permissions = [{ access = "read-write", path = "./" }]
+# only what the scripts and tests touch. the whole repo was read-write, so any
+# script, test or vendored library could read .deployer.json or agent/silk.env.
+fs_permissions = [
+  { access = "read-write", path = "./deployments" },
+  { access = "read-write", path = "./demo" },
+  { access = "read", path = "./test" },
+]
 
 [rpc_endpoints]
 monad = "https://rpc.monad.xyz"
