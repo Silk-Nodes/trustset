@@ -63,11 +63,13 @@ echo "==> sending the dependencies and the deployment"
 # deployments/ at request time, so a contract deployed since the last sync is
 # simply absent on the server: sealed notes shipped without either would have
 # built red, and then said "no sealed notes contract" once it built.
-rsync -az "$ROOT/web/package.json" "$ROOT/web/package-lock.json" "$HOST:$REMOTE/web/"
+# the build config too. next.config.ts was never sent, so its headers (the
+# content security policy) and redirects changed on the laptop and nowhere else.
+rsync -az "$ROOT/web/package.json" "$ROOT/web/package-lock.json" "$ROOT/web/next.config.ts" "$ROOT/web/tsconfig.json" "$ROOT/web/postcss.config.mjs" "$HOST:$REMOTE/web/"
 rsync -az "$ROOT/deployments/" "$HOST:$REMOTE/deployments/"
 # npm ci only when the lockfile changed since the last install on the box, so
 # an ordinary deploy does not pay for a reinstall.
-ssh "$HOST" 'cd '"$REMOTE"'/web && h=$(sha256sum package-lock.json | cut -d" " -f1); if [ "$h" != "$(cat node_modules/.lock-sha 2>/dev/null)" ]; then echo "    installing"; npm ci --no-audit --no-fund 2>&1 | tail -2 && echo "$h" > node_modules/.lock-sha; else echo "    dependencies unchanged"; fi'
+ssh "$HOST" 'cd '"$REMOTE"'/web && h=$(sha256sum package-lock.json | cut -d" " -f1); if [ "$h" != "$(cat node_modules/.lock-sha 2>/dev/null)" ]; then echo "    installing"; npm ci --no-audit --no-fund > /tmp/trustset-npm-ci.log 2>&1; rc=$?; tail -2 /tmp/trustset-npm-ci.log; [ $rc -eq 0 ] || exit $rc; echo "$h" > node_modules/.lock-sha; else echo "    dependencies unchanged"; fi'
 
 echo "==> building on the vm"
 # a failed build must stop the deploy, loudly. the filter used to swallow the
@@ -95,7 +97,8 @@ fi
 echo "==> waiting for the server to answer"
 for i in $(seq 1 30); do
   sleep 1
-  curl -sS -o /dev/null --max-time 3 "$SITE/" && break
+  # a 200, not just an answer: the proxy says 502 while next is still starting
+  [ "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 3 "$SITE/" 2>/dev/null)" = "200" ] && break
 done
 
 echo "==> checking every asset the pages reference"

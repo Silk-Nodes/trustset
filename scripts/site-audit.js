@@ -55,14 +55,17 @@
      lighter ground, not just lighter text. */
   function inheritedOpacity(el) {
     let o = 1;
-    for (let n = el; n; n = n.parentElement) o *= parseFloat(getComputedStyle(n).opacity) || 1;
+    /* "|| 1" read an opacity of 0 as 1, so text faded to nothing was measured
+       as fully visible; only an unreadable value defaults */
+    for (let n = el; n; n = n.parentElement) { const v = parseFloat(getComputedStyle(n).opacity); o *= Number.isNaN(v) ? 1 : v; }
     return o;
   }
 
   /* only elements that themselves render text. a wrapper whose text comes
      entirely from children would be measured with the wrong colour. */
   const hasOwnText = (el) =>
-    [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim().length > 1);
+    /* one character counts: a lone "×" or "›" is still text somebody must read */
+    [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim().length > 0);
 
   /* aria-hidden anywhere up the tree is the author saying this is decoration,
      not content. the 371px "trustset" watermark in the footer sits at 1.46:1

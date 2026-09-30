@@ -70,10 +70,15 @@ export function client({ rpc = MONAD_TESTNET.rpc, killSwitch = MONAD_TESTNET.kil
     async why(agentId) {
       const [l, a] = await Promise.all([ks.liveness(agentId), ks.getAgent(agentId)]);
       if (l.trusted) return "trusted";
+      /* the status first: a stopped agent whose end date also passed is
+         stopped, not expired, and an id nobody registered is said so */
+      const s = STATUS[Number(a.status)] ?? "unknown";
+      if (s === "none") return "not registered";
+      if (s === "revoked") return "stopped";
+      if (s === "rotated" || s === "paused") return s;
       if (l.expired) return "expired";
       if (l.lapsed) return "silent";
-      const s = STATUS[Number(a.status)] ?? "unknown";
-      return s === "revoked" ? "stopped" : s;
+      return s;
     },
 
     /** Dates and deadlines, as seconds since the epoch. Zero means the limit is off. */

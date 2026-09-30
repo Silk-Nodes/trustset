@@ -21,8 +21,18 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.TRUSTSET_ROOT || join(HERE, "..");
 const STATE = process.env.AGENT_STATE || join(ROOT, ".agent-state.json");
 /* how often to look at the switch, and how often to act when it says yes. */
-const CHECK_MS = Number(process.env.CHECK_SECONDS || 60) * 1000;
-const ACT_MS = Number(process.env.ACT_SECONDS || 900) * 1000;
+/* a setting that is not a positive number is named and fatal: NaN stopped
+   every act and beat without a word, and 0 spun the loop against the rpc */
+function seconds(name, dflt) {
+  const raw = process.env[name];
+  const n = raw === undefined || raw === "" ? dflt : Number(raw);
+  if (!Number.isFinite(n) || n <= 0) { console.error(`${name} must be a positive number of seconds, got "${raw}"`); process.exit(2); }
+  return n * 1000;
+}
+const CHECK_MS = seconds("CHECK_SECONDS", 60);
+const ACT_MS = seconds("ACT_SECONDS", 900);
+/* one dropped send must not hang the loop that keeps the heartbeat */
+const WAIT_MS = 120_000;
 /* monad charges the whole gas limit, not the gas used, so a limit set generously
    is money burnt on every action. these are only the fallback for when an
    estimate cannot be had; the real limit is estimated per call and given a
@@ -32,9 +42,11 @@ const ACT_MS = Number(process.env.ACT_SECONDS || 900) * 1000;
 const TRADE_GAS = 120000n;
 const BEAT_GAS = 90000n;
 
+/* the fallback is for a transport failure. an estimate that reverted is the
+   chain saying no, and sending anyway only paid for the revert */
 async function limitFor(fn, args, fallback) {
   try { return ((await fn.estimateGas(...args)) * 12n) / 10n; }
-  catch { return fallback; }
+  catch (e) { if (e?.code === "CALL_EXCEPTION") throw e; return fallback; }
 }
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -44,7 +56,8 @@ const VENUE = ["function trade(uint256)"];
 
 async function main() {
   const d = JSON.parse(await readFile(join(ROOT, "deployments", "monad-testnet.json"), "utf8"));
-  const trustset = client({ rpc: process.env.MONAD_RPC, killSwitch: d.killSwitch });
+  /* an empty MONAD_RPC means unset, so the agent and its signer use one rpc */
+  const trustset = client({ rpc: process.env.MONAD_RPC || undefined, killSwitch: d.killSwitch });
   /* a Dynamic server wallet when one is configured, otherwise the key file.
      the log says which, so a box that fell back is never mistaken for one
      that did not. */
@@ -94,8 +107,8 @@ async function act(trustset, wallet, venue, id) {
     /* logged from the receipt, not from the send. a hash is not a trade: this
        said "traded" for one that reverted, which is the kind of log that sends
        you looking in the wrong place. */
-    const rc = await wallet.provider.waitForTransaction(tx.hash);
-    log(rc?.status === 1 ? `traded · ${tx.hash}` : `trade REVERTED · ${tx.hash}`);
+    const rc = await wallet.provider.waitForTransaction(tx.hash, 1, WAIT_MS).catch(() => null);
+    log(!rc ? `trade sent, no receipt within ${WAIT_MS / 1000}s · ${tx.hash}` : rc.status === 1 ? `traded · ${tx.hash}` : `trade REVERTED · ${tx.hash}`);
   } catch (e) { log("trade failed:", e?.shortMessage || e?.message?.split("\n")[0] || e); }
 
   if (l.nextBeatBy > 0 && !l.lapsed) {
@@ -106,8 +119,8 @@ async function act(trustset, wallet, venue, id) {
        mattered, and a lapse needs the owner to undo. */
     if (due < (ACT_MS / 1000) * 1.5) {
       const b = await trustset.beat(id, wallet, { gasLimit: BEAT_GAS });
-      const br = await wallet.provider.waitForTransaction(b.hash);
-      log(br?.status === 1 ? `beat · ${b.hash}` : `beat REVERTED · ${b.hash}`);
+      const br = await wallet.provider.waitForTransaction(b.hash, 1, WAIT_MS).catch(() => null);
+      log(!br ? `beat sent, no receipt yet · ${b.hash}` : br.status === 1 ? `beat · ${b.hash}` : `beat REVERTED · ${b.hash}`);
     }
   }
 }

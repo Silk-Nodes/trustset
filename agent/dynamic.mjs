@@ -95,7 +95,10 @@ export class DynamicSigner extends ethers.AbstractSigner {
   }
   async signTransaction() { throw new Error("DynamicSigner sends transactions itself; it does not hand out signed ones"); }
   async signTypedData(domain, types, value) {
-    const primaryType = Object.keys(types).find(k => k !== "EIP712Domain");
+    /* the type nothing else refers to, the way ethers works it out. the first
+       key was only right when the caller happened to list the root first */
+    const { EIP712Domain: _, ...rest } = types;
+    const primaryType = ethers.TypedDataEncoder.getPrimaryType(rest);
     return this.#withSession(wc => wc.signTypedData({ account: wc.account, domain, types, primaryType, message: value }));
   }
 

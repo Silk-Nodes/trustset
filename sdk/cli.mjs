@@ -37,6 +37,11 @@ const killSwitch = opt("--switch", MONAD_TESTNET.killSwitch);
 const address = opt("--address", null);
 const erc8004 = opt("--erc8004", null);
 
+/* anything left that is not an agent id is a mistake, said as one. an unknown
+   flag or a typo used to fall through to the default agent and report on it */
+const stray = args.filter(a => !/^\d+$/.test(a));
+if (stray.length) { console.error(`not understood: ${stray.join(" ")}. run with --help for the options`); process.exit(64); }
+
 const c = client({ rpc, killSwitch });
 
 /* the words the switch uses, and what they mean for the caller. why() already
@@ -48,6 +53,7 @@ const MEANING = {
   expired: "its end date has passed",
   silent: "it missed its heartbeat",
   rotated: "replaced by a successor agent",
+  "not registered": "no agent has this id on this switch",
 };
 
 const when = (t) => (t ? new Date(t * 1000).toISOString().replace("T", " ").slice(0, 16) + " utc" : "none");
@@ -58,6 +64,7 @@ async function report(id) {
   console.log(`  why        ${why}, ${MEANING[why] ?? "unknown to this version of the sdk"}`);
   console.log(`  ends       ${when(lim.expiresAt)}`);
   console.log(`  next beat  ${when(lim.nextBeatBy)}`);
+  return ok;
 }
 
 try {
@@ -83,11 +90,16 @@ try {
     console.log(`\n${address} is agent ${id}.`);
     ids = [id.toString()];
   }
-  if (!ids.length) ids = ["7"];
+  /* the example agent, only for a bare command with nothing asked */
+  if (!ids.length && !address && !erc8004) ids = ["7"];
 
   console.log(`switch ${c.address} on ${rpc}`);
-  for (const id of ids) await report(id);
+  let all = true;
+  for (const id of ids) all = (await report(id)) && all;
   console.log(`\nthat is isTrusted(), the whole integration. https://trustset.silknodes.io`);
+  /* scriptable: 0 when every agent asked about may act, 2 when any may not.
+     it used to exit 0 on REFUSED, so a script gating on it let everything through */
+  process.exit(all ? 0 : 2);
 } catch (e) {
   console.error(`\ncould not read the switch: ${e.shortMessage ?? e.message}`);
   process.exit(1);

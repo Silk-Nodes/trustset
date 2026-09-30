@@ -24,7 +24,10 @@ export class ViemSigner extends ethers.AbstractSigner {
   }
   async signTransaction(): Promise<string> { throw new Error("this wallet sends transactions itself"); }
   async signTypedData(domain: ethers.TypedDataDomain, types: Record<string, ethers.TypedDataField[]>, value: Record<string, unknown>) {
-    const primaryType = Object.keys(types).find(k => k !== "EIP712Domain")!;
+    /* the type nothing else refers to, as ethers works it out, not the first key */
+    const { EIP712Domain: _omit, ...rest } = types as Record<string, ethers.TypedDataField[]>;
+    void _omit;
+    const primaryType = ethers.TypedDataEncoder.getPrimaryType(rest);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ethers and viem type the same EIP-712 shape differently
     return this.#wc.signTypedData({ account: this.#wc.account, domain: domain as any, types: types as any, primaryType, message: value });
   }

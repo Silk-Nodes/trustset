@@ -20,7 +20,7 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ethers } from "ethers";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync, unlinkSync } from "node:fs";
 import { dynamicClient, dynamicSigner, saveWalletMeta } from "./dynamic.mjs";
 
 const ROOT = process.env.TRUSTSET_ROOT || join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -41,11 +41,17 @@ const KS = [
 async function create() {
   need("DYNAMIC_ENVIRONMENT_ID", "DYNAMIC_API_TOKEN", "DYNAMIC_WALLET_PASSWORD", "DYNAMIC_WALLET_FILE");
   if (existsSync(process.env.DYNAMIC_WALLET_FILE)) throw new Error(`${process.env.DYNAMIC_WALLET_FILE} already exists. a wallet was made already; remove the file only if you mean to abandon it`);
+  /* prove the file can be written before a wallet exists. a bad path used to
+     fail after the wallet was made, leaving a wallet nobody can sign with */
+  try { writeFileSync(process.env.DYNAMIC_WALLET_FILE, "", { flag: "wx", mode: 0o600 }); unlinkSync(process.env.DYNAMIC_WALLET_FILE); }
+  catch (e) { throw new Error(`cannot write ${process.env.DYNAMIC_WALLET_FILE} (${e.code}), so no wallet was made`); }
   step("signing in to Dynamic and creating the wallet");
   const c = await dynamicClient();
   const w = await c.createWalletAccount({ thresholdSignatureScheme: "TWO_OF_TWO", password: process.env.DYNAMIC_WALLET_PASSWORD, backUpToDynamic: true });
   const backed = w.externalKeySharesWithBackupStatus?.every(s => s.backedUpToClientKeyShareService);
-  saveWalletMeta(w.walletMetadata);
+  /* and if saving fails anyway, the metadata is printed so the wallet is not lost */
+  try { saveWalletMeta(w.walletMetadata); }
+  catch (e) { console.error(`could not save the wallet metadata (${e.message}). keep this, the wallet cannot sign without it:\n${JSON.stringify(w.walletMetadata)}`); throw e; }
   console.log(`created ${w.walletMetadata.accountAddress}`);
   console.log(`metadata saved to ${process.env.DYNAMIC_WALLET_FILE} (keep it: without it the wallet cannot sign)`);
   console.log(backed ? "our key share is backed up to Dynamic, encrypted under the password" : "WARNING: the key share did not report a backup. do not register this wallet.");

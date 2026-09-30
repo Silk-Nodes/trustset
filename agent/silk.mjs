@@ -47,8 +47,18 @@ const STAKING_ABI = [
 const FALLBACK_GAS = 300000n;
 /* a plain transfer must say exactly 21000 on monad */
 const TRANSFER_GAS = 21000n;
-const CHECK_MS = Number(process.env.CHECK_SECONDS || 60) * 1000;
-const ACT_MS = Number(process.env.ACT_SECONDS || 6 * 3600) * 1000;
+/* a number that is not a positive number is named and fatal. NaN used to stop
+   every act and beat without a word, and 0 spun the loop against the rpc */
+function seconds(name, dflt) {
+  const raw = process.env[name];
+  const n = raw === undefined || raw === "" ? dflt : Number(raw);
+  if (!Number.isFinite(n) || n <= 0) { console.error(`${name} must be a positive number of seconds, got "${raw}"`); process.exit(2); }
+  return n * 1000;
+}
+const CHECK_MS = seconds("CHECK_SECONDS", 60);
+const ACT_MS = seconds("ACT_SECONDS", 6 * 3600);
+/* the longest a receipt is waited for, so one dropped send cannot hang the loop */
+const WAIT_MS = 120_000;
 /* below this the rewards are not worth the gas of compounding them */
 const MIN_COMPOUND = ethers.parseEther(process.env.MIN_COMPOUND_MON || "0.01");
 
@@ -57,6 +67,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const mon = v => `${Number(ethers.formatEther(v)).toLocaleString("en-US", { maximumFractionDigits: 6 })} MON`;
 
 const argv = process.argv.slice(2);
+/* only the flags this knows. an unknown one used to be dropped, so a
+   misspelled --dry-run ran for real */
+const bad = argv.filter((a, i) => a.startsWith("-") && a !== "--dry-run" && a !== "--as" && argv[i - 1] !== "--as");
+if (bad.length) { console.error(`unknown flag ${bad.join(", ")}. the flags are --dry-run and --as <address>`); process.exit(1); }
 const DRY = argv.includes("--dry-run");
 const asIdx = argv.indexOf("--as");
 const AS = asIdx >= 0 ? argv[asIdx + 1] : undefined;
@@ -71,7 +85,7 @@ function need(name) {
 
 async function setup(withKey) {
   const d = JSON.parse(await readFile(join(ROOT, "deployments", "monad-testnet.json"), "utf8"));
-  const trustset = client({ rpc: process.env.MONAD_RPC, killSwitch: d.killSwitch });
+  const trustset = client({ rpc: process.env.MONAD_RPC || undefined, killSwitch: d.killSwitch });
   const p = trustset.provider;
   const wallet = withKey ? new ethers.Wallet(need("SILK_AGENT_KEY"), p) : null;
   /* a read needs only the address: from --as, or worked out from the key the
@@ -90,8 +104,11 @@ async function gate(trustset, id) {
   return { ok, why: ok ? "trusted" : await trustset.why(id) };
 }
 
+/* the fallback is for a transport failure only. an estimate that reverted is
+   the chain saying no, and sending anyway just pays for the revert */
 async function limitFor(estimate) {
-  try { return ((await estimate()) * 12n) / 10n; } catch { return FALLBACK_GAS; }
+  try { return ((await estimate()) * 12n) / 10n; }
+  catch (e) { if (e?.code === "CALL_EXCEPTION") throw e; return FALLBACK_GAS; }
 }
 
 /* ask the switch, then simulate, then send. a refusal from the switch stops
@@ -100,10 +117,14 @@ async function act(ctx, label, build) {
   const g = await gate(ctx.trustset, ctx.id);
   if (!g.ok) { log(`refused: agent ${ctx.id} is ${g.why} on the switch, so ${label} was not sent`); return false; }
   const { fn, args = [], overrides = {} } = build();
-  const gasLimit = overrides.gasLimit ?? await limitFor(() => fn.estimateGas(...args, overrides));
+  let gasLimit;
+  try { gasLimit = overrides.gasLimit ?? await limitFor(() => fn.estimateGas(...args, overrides)); }
+  catch (e) { log(`${label} would fail: ${e?.shortMessage || e?.reason || e?.message?.split("\n")[0]}`); return false; }
   /* an empty wallet fails the simulation with nothing useful to say, so say it
      here: what it holds against what this costs, the whole gas limit included */
-  const fee = (await ctx.p.getFeeData()).gasPrice ?? 0n;
+  /* the node holds back gasLimit times maxFeePerGas, not times the gas price */
+  const fd = await ctx.p.getFeeData();
+  const fee = fd.maxFeePerGas ?? fd.gasPrice ?? 0n;
   const cost = (overrides.value ?? 0n) + gasLimit * fee;
   const have = await ctx.p.getBalance(ctx.address);
   if (have < cost) { log(`${label} needs about ${mon(cost)} with gas; the agent's wallet ${ctx.address} holds ${mon(have)}`); return false; }
@@ -111,8 +132,8 @@ async function act(ctx, label, build) {
   catch (e) { log(`${label} would fail: ${e?.shortMessage || e?.reason || e?.message?.split("\n")[0]}`); return false; }
   if (DRY) { log(`dry run: ${label} simulates fine at gas limit ${gasLimit}. nothing sent`); return true; }
   const tx = await fn(...args, { ...overrides, gasLimit });
-  const rc = await ctx.p.waitForTransaction(tx.hash);
-  log(rc?.status === 1 ? `${label} · ${tx.hash}` : `${label} REVERTED · ${tx.hash}`);
+  const rc = await ctx.p.waitForTransaction(tx.hash, 1, WAIT_MS).catch(() => null);
+  log(!rc ? `${label} sent, no receipt within ${WAIT_MS / 1000}s · ${tx.hash}` : rc.status === 1 ? `${label} · ${tx.hash}` : `${label} REVERTED · ${tx.hash}`);
   return rc?.status === 1;
 }
 
@@ -135,12 +156,17 @@ async function status() {
 /* every id in the consensus set, read four at a time so the public rpc's rate
    limit is not the thing that answers */
 async function validators(match) {
-  const { staking } = await setup(false).catch(() => ({ staking: new ethers.Contract(STAKING, STAKING_ABI, client({ rpc: process.env.MONAD_RPC }).provider) }));
+  /* no agent needed: this reads the public validator set. it used to go through
+     setup, which exits without a key or with an unregistered one */
+  const staking = new ethers.Contract(STAKING, STAKING_ABI, client({ rpc: process.env.MONAD_RPC || undefined }).provider);
   const ids = [];
   for (let i = 0, done = false; !done;) { const r = await staking.getConsensusValidatorSet.staticCall(i); ids.push(...r.valIds); done = r.isDone; i = Number(r.nextIndex); }
   log(`${ids.length} validators in the consensus set`);
   for (let i = 0; i < ids.length; i += 4) {
-    const rows = await Promise.all(ids.slice(i, i + 4).map(async vid => ({ vid, v: await staking.getValidator.staticCall(vid) })));
+    /* the public rpc turns bursts away as "missing revert data"; a turned away
+       read waits and asks again rather than ending the whole listing */
+    const read = async vid => { for (let t = 0; ; t++) { try { return await staking.getValidator.staticCall(vid); } catch (e) { if (t >= 5) throw e; await sleep(800 * (t + 1)); } } };
+    const rows = await Promise.all(ids.slice(i, i + 4).map(async vid => ({ vid, v: await read(vid) })));
     for (const { vid, v } of rows) {
       if (match && v.authAddress.toLowerCase() !== match.toLowerCase()) continue;
       console.log(`${String(vid).padStart(5)}  ${v.authAddress}  stake ${mon(v.stake)}  commission ${Number(ethers.formatEther(v.commission)) * 100}%`);
@@ -193,10 +219,17 @@ async function main() {
         const dl = await ctx.staking.getDelegator.staticCall(vid(), ctx.address);
         if (dl.unclaimedRewards >= MIN_COMPOUND) await act(ctx, `compound ${mon(dl.unclaimedRewards)}`, () => ({ fn: ctx.staking.compound, args: [vid()] }));
         else log(`rewards ${mon(dl.unclaimedRewards)}, under ${mon(MIN_COMPOUND)}: not worth the gas yet`);
+      }
+      /* the heartbeat is checked every cycle, not on the act cadence: a window
+         shorter than ACT_SECONDS lapsed between two acts. it beats once less
+         than half the window, or a cycle and a half, is left */
+      if (g.ok) {
         const l = await ctx.trustset.limits(ctx.id);
-        if (l.nextBeatBy > 0 && !l.lapsed && l.nextBeatBy - Date.now() / 1000 < (ACT_MS / 1000) * 1.5) {
+        const win = l.nextBeatBy > 0 ? await ctx.trustset.contract.getAgent(ctx.id).then(a => Number(a[10])) : 0;
+        const left = l.nextBeatBy - Date.now() / 1000;
+        if (l.nextBeatBy > 0 && !l.lapsed && left < Math.min(win / 2, (CHECK_MS / 1000) * 1.5)) {
           if (DRY) log("dry run: a heartbeat is due. nothing sent");
-          else { const b = await ctx.trustset.beat(ctx.id, ctx.wallet, { gasLimit: 90000n }); const br = await ctx.p.waitForTransaction(b.hash); log(br?.status === 1 ? `beat · ${b.hash}` : `beat REVERTED · ${b.hash}`); }
+          else { const b = await ctx.trustset.beat(ctx.id, ctx.wallet, { gasLimit: 90000n }); const br = await ctx.p.waitForTransaction(b.hash, 1, WAIT_MS).catch(() => null); log(br?.status === 1 ? `beat · ${b.hash}` : br ? `beat REVERTED · ${b.hash}` : `beat sent, no receipt yet · ${b.hash}`); }
         }
       }
     } catch (e) { log("cycle failed:", e?.shortMessage || e?.message?.split("\n")[0] || e); }
