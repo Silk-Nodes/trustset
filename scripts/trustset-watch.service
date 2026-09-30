@@ -14,8 +14,9 @@ Type=oneshot
 WorkingDirectory=REPLACE_WITH_CHECKOUT
 Environment=TRUSTSET_ROOT=REPLACE_WITH_CHECKOUT
 Environment=AGENT_STATE=REPLACE_WITH_STATE_DIR/.agent-state.json
-# the agent named in the readme, the docs page and the cli help text
-Environment=WATCH_AGENT_ID=7
+# the live agent, the one with a process behind it that the watchdog can restart.
+# agent 7, the one the docs show refused, has no process and is left to lapse.
+Environment=WATCH_AGENT_ID=24
 Environment=WATCH_SITE=https://trustset.silknodes.io
 Environment=WATCH_PACKAGE=@trustset/check
 Environment=WATCH_AGENT_UNIT=trustset-agent
