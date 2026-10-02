@@ -134,13 +134,22 @@ export default function Switch({ state, live, busy, lockBusy, disabled, onToggle
           border: `${B}px solid ${ended ? "var(--hairline)" : tone}`,
           backgroundImage: state === "tripped" ? "repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--orange) 26%, transparent) 4px 6px)" : undefined,
           boxShadow: "inset 0 1px 2px rgba(0,0,0,0.18)",
-          opacity: busy ? 0.6 : 1,
+          opacity: busy ? 0.85 : 1,
         }}>
           <span aria-hidden className="absolute w-[2px] rounded-full" style={{ left: iw / 2 - 1, top: pad + 2, bottom: pad + 2, background: "color-mix(in srgb, var(--text-dark) 12%, transparent)" }} />
           <motion.span aria-hidden className="absolute rounded-[5px]" style={{ left: pad, width: z.k, height: z.k, background: ended ? "color-mix(in srgb, var(--text-dark) 22%, var(--surface))" : tone, boxShadow: "0 1px 0 rgba(255,255,255,0.18) inset, 0 2px 4px rgba(0,0,0,0.25)" }}
             initial={false} animate={{ top: on ? pad : pad + travel }}
             transition={m.reduced ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 26, mass: 0.7 }} />
         </span>
+
+        {/* in flight: the handle is already where it is going, and a soft
+            outline breathes until the chain has it. under reduced motion it
+            holds still at half strength */}
+        {busy && !ended && (
+          <motion.span aria-hidden className="absolute pointer-events-none" style={{ inset: -3, borderRadius: r + 3, border: `1.5px solid ${tone}` }}
+            initial={{ opacity: 0.5 }} animate={m.reduced ? { opacity: 0.5 } : { opacity: [0.2, 0.75, 0.2] }}
+            transition={m.reduced ? { duration: 0 } : { duration: 1.1, repeat: Infinity, ease: "easeInOut" }} />
+        )}
 
         {/* the lockout ring: it fills on the hold's own clock, and runs back
             fast when the hand lets go */}

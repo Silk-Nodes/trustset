@@ -245,7 +245,9 @@ export default function Fleet(p: FleetProps) {
   const stateWord = (r: Row) => (
     <button type="button" onClick={e => { e.stopPropagation(); p.onOpen(r.a.id, fixOf(r)); }} data-tip={r.state === "expired" || r.state === "quiet" ? "open its limits" : r.state === "paused" ? "open the switch" : undefined}
       className="mono text-[10.5px] uppercase tracking-[0.1em] whitespace-nowrap rounded outline-none focus-visible:ring-2 hover:underline text-left"
-      style={{ color: r.state === "trusted" ? "var(--sage-text)" : r.state === "stopped" ? "var(--text-medium)" : "var(--orange-text)" }}>{STATE_WORD[r.state]}</button>
+      style={{ color: r.state === "trusted" ? "var(--sage-text)" : r.state === "stopped" ? "var(--text-medium)" : "var(--orange-text)" }}>
+      {/* in flight, where it is going: the chain has not said so yet */}
+      {p.busy.has("p" + r.id) ? (r.a.status === "paused" ? "pausing…" : "resuming…") : STATE_WORD[r.state]}</button>
   );
   const expires = (r: Row) => r.expiresIn === null ? <span style={quiet}>none</span> : r.expiresIn <= 0 ? <span style={{ color: "var(--orange-text)" }}>ran out</span> : <span style={r.expiresIn <= DAY ? { color: "var(--orange-text)" } : undefined}>{span(r.expiresIn)}</span>;
   const last = (r: Row) => r.last === null ? <span data-tip="the index is not reachable" style={faint}>index away</span> : <span style={quiet}>{span(r.last)}</span>;

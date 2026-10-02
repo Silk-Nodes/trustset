@@ -244,3 +244,12 @@ h1, h2, h3, h4 { font-family: var(--font-main); font-weight: 600; letter-spacing
 }
 :root[data-theme="dark"] .theme-dark-only { display: inline-block; }
 :root[data-theme="dark"] .theme-light-only { display: none; }
+
+/* a placeholder in the shape of what is coming. it shimmers unless motion is
+   reduced, then it simply holds */
+.skeleton { background: color-mix(in srgb, var(--text-dark) 8%, transparent); }
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton { background: linear-gradient(90deg, color-mix(in srgb, var(--text-dark) 7%, transparent) 25%, color-mix(in srgb, var(--text-dark) 13%, transparent) 50%, color-mix(in srgb, var(--text-dark) 7%, transparent) 75%); background-size: 200% 100%; animation: skeleton 1.3s linear infinite; }
+}
+@keyframes skeleton { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+

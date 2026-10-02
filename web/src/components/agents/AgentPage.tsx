@@ -21,6 +21,8 @@ import { span } from "@/lib/layers";
 export type AgentPageProps = {
   agent: Agent; name: string; events: PulseEvent[]; indexed: boolean | null; extra: Extra; now: number; explorer?: string;
   busy: { pause?: boolean; stop?: boolean };
+  /* how far a pause or a resume has got, said under the switch */
+  phase?: string;
   onToggle: () => void; onStop: () => void;
   onBack: () => void; onPrev?: () => void; onNext?: () => void; position: string;
   history: { events: PulseEvent[]; total?: number; more?: () => void; loading?: boolean };
@@ -75,7 +77,7 @@ export default function AgentPage(p: AgentPageProps) {
         <button type="button" onClick={p.onBack} aria-label="close" title="esc" className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-[15px] outline-none focus-visible:ring-2" style={{ color: "var(--text-medium)" }}>×</button>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-5">
-        <Module bare slim headless agent={p.agent} name={p.name} now={p.now} events={p.events} indexed={p.indexed} extra={p.extra} explorer={p.explorer} busy={p.busy} onToggle={p.onToggle} onStop={p.onStop} />
+        <Module bare slim headless agent={p.agent} name={p.name} now={p.now} events={p.events} indexed={p.indexed} extra={p.extra} explorer={p.explorer} busy={p.busy} phase={p.phase} onToggle={p.onToggle} onStop={p.onStop} />
         <Recent events={p.history.events} loading={p.history.loading} now={p.now} href={p.recordHref} />
         {/* the agent's gas: it signs with its own key, so it pays from its own
             wallet. low is said in orange, and the faucet is one press away */}
@@ -97,7 +99,7 @@ export default function AgentPage(p: AgentPageProps) {
       {nav}
       <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="sheet min-h-0 flex flex-col p-4 sm:p-5 gap-4 min-w-0">
-          <Module bare slim agent={p.agent} name={p.name} now={p.now} events={p.events} indexed={p.indexed} extra={p.extra} explorer={p.explorer} busy={p.busy} onToggle={p.onToggle} onStop={p.onStop} />
+          <Module bare slim agent={p.agent} name={p.name} now={p.now} events={p.events} indexed={p.indexed} extra={p.extra} explorer={p.explorer} busy={p.busy} phase={p.phase} onToggle={p.onToggle} onStop={p.onStop} />
           <History agent={p.agent} events={p.history.events} total={p.history.total} more={p.history.more} loading={p.history.loading} indexed={p.indexed} now={p.now} explorer={p.explorer} />
         </div>
         <div className="hidden lg:flex sheet min-h-0 flex-col p-3 min-w-0">{inspector}</div>

@@ -87,9 +87,22 @@ export default function Agents() {
   const pinned = useRef(Math.floor(Date.now() / 1000));
   const sample = useMemo(() => sampleAgents(pinned.current), []);
   const sampleOn = !!(conn && !who && !conn.owner && !asOwner);
-  const all = useMemo(() => sampleOn ? sample
-    : fake && process.env.NODE_ENV !== "production" ? [...agents, ...fakeAgents(fake, pinned.current).filter(f => !agents.some(a => a.id === f.id))]
-    : agents, [sampleOn, sample, agents, fake]);
+  /* a switch thrown and not yet confirmed. the agent is drawn in the state it
+     is going to, the moment the tap lands, and the line under the switch says
+     how far the transaction has got. the chain's own answer replaces it */
+  type Pend = { to: Agent["status"]; phase: "signing" | "sent" | "landed"; hash?: string; block?: number };
+  const [pend, setPend] = useState<Record<string, Pend>>({});
+  const all = useMemo(() => {
+    const base = sampleOn ? sample
+      : fake && process.env.NODE_ENV !== "production" ? [...agents, ...fakeAgents(fake, pinned.current).filter(f => !agents.some(a => a.id === f.id))]
+      : agents;
+    return Object.keys(pend).length ? base.map(a => pend[a.id.toString()] ? { ...a, status: pend[a.id.toString()].to } : a) : base;
+  }, [sampleOn, sample, agents, fake, pend]);
+  const phaseText = (id: bigint): string | undefined => {
+    const x = pend[id.toString()]; if (!x) return undefined;
+    const word = x.to === "paused" ? "Paused" : "Back on";
+    return x.phase === "signing" ? "signing in your wallet…" : x.phase === "sent" ? "sent · waiting for Monad…" : `${word} at block ${x.block?.toLocaleString("en-US")}`;
+  };
   const ownerSigner = (c: Conn): ethers.Signer | null => who?.signer ?? c.owner ?? null;
 
   /* the owner the page is showing right now. a refresh started for one wallet
@@ -242,16 +255,36 @@ export default function Agents() {
   async function pause(a: Agent) {
     if (!conn) return;
     const s = ownerSigner(conn); if (!s) { setNote("Connect your wallet first"); return; }
-    const k = "p" + a.id.toString();
+    const id = a.id.toString(), k = "p" + id;
+    /* the agent as drawn now is its pending state, so read the real one */
+    const was = agents.find(x => x.id === a.id)?.status ?? a.status;
+    const to = was === "paused" ? 1 : 2;
+    const target: Agent["status"] = to === 2 ? "paused" : "active";
+    const put = (x: Pend | null) => setPend(p => { const n = { ...p }; if (x) n[id] = x; else delete n[id]; return n; });
+    /* the tap is answered before anything else happens: the switch moves, a
+       phone ticks, and the line under it says what the wallet is doing */
+    put({ to: target, phase: "signing" });
+    try { navigator.vibrate?.(8); } catch { /* no haptics */ }
     setBusy(b => new Set(b).add(k));
     try {
-      const to = a.status === "paused" ? 1 : 2;
-      const rc = await ownerTx(async () => (await (conn.ks.connect(s) as ethers.Contract).setStatus(a.id, to, ethers.id(to === 2 ? "owner paused" : "owner resumed"))).wait(2));
-      setLast(l => ({ ...l, [a.id.toString()]: `${to === 2 ? "Paused" : "Resumed"} by owner · block ${rc.blockNumber}` }));
-      said(`Agent ${a.id} ${to === 2 ? "paused" : "resumed"} at block ${rc.blockNumber}.`, rc.hash);
-      await settled(conn, rc.blockNumber); await refresh(conn);
-    } catch (e) { setNote(explain(e, conn)); }
-    finally { setBusy(b => { const n = new Set(b); n.delete(k); return n; }); }
+      const rc = await ownerTx(async () => {
+        const tx = await (conn.ks.connect(s) as ethers.Contract).setStatus(a.id, to, ethers.id(to === 2 ? "owner paused" : "owner resumed"));
+        put({ to: target, phase: "sent", hash: tx.hash });
+        /* one confirmation is the agent's new state on chain; the receipt is
+           the proof, so the page says so now rather than after a re-read */
+        return tx.wait(1);
+      });
+      put({ to: target, phase: "landed", hash: rc.hash, block: rc.blockNumber });
+      setLast(l => ({ ...l, [id]: `${to === 2 ? "Paused" : "Resumed"} by owner · block ${rc.blockNumber}` }));
+      said(`Agent ${a.id} ${to === 2 ? "paused" : "back on"} at block ${rc.blockNumber}. ${to === 2 ? "Every app that checks refuses it now." : "Apps that check serve it again."}`, rc.hash);
+      setBusy(b => { const n = new Set(b); n.delete(k); return n; });
+      /* the list catches up behind it; the pending state stays until it has */
+      settled(conn, rc.blockNumber).then(() => refresh(conn)).catch(() => {}).finally(() => setTimeout(() => put(null), 2500));
+    } catch (e) {
+      /* it did not happen, so the switch goes back and says why */
+      put(null); setNote(explain(e, conn));
+      setBusy(b => { const n = new Set(b); n.delete(k); return n; });
+    }
   }
 
   /* guardian actions, for agents this wallet guards but does not own. */
@@ -549,7 +582,7 @@ export default function Agents() {
             balance={balances[cur.id.toString()]} faucet={sampleOn ? undefined : FAUCET[conn.cfg.chainIdHex]}
             recordHref={sampleOn || isSample(cur.id) ? undefined : `/explorer/${cur.id}`}
             events={pulses[cur.id.toString()]?.events ?? []} indexed={pulses[cur.id.toString()]?.indexed ?? null} extra={extras[cur.id.toString()] ?? {}}
-            busy={{ pause: busy.has("p" + cur.id.toString()), stop: busy.has(cur.id.toString()) }}
+            busy={{ pause: busy.has("p" + cur.id.toString()), stop: busy.has(cur.id.toString()) }} phase={phaseText(cur.id)}
             onToggle={() => pause(cur)} onStop={() => stop(cur)}
             onBack={() => goAgentList()} position={at >= 0 ? `${at + 1} of ${order.length}` : ""}
             onPrev={at > 0 ? () => goAgent(order[at - 1]) : undefined} onNext={at >= 0 && at < order.length - 1 ? () => goAgent(order[at + 1]) : undefined}
@@ -628,7 +661,19 @@ export default function Agents() {
         {/* no wallet: the console itself, drawn from the sample, under one line
             saying so. an empty card with the word connect showed a visitor
             nothing about what any of this does. */}
-        {conn && signedIn && !guardingRoute && !loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>Reading your agents from {conn.cfg.chain}…</div>}
+        {/* a first visit, with nothing kept: the shape of the list, not a
+            sentence to wait under. the label is for screen readers */}
+        {conn && signedIn && !guardingRoute && !loaded && all.length === 0 && (
+          <div className="sheet overflow-hidden" role="status" aria-label={`Reading your agents from ${conn.cfg.chain}`}>
+            {[0, 1, 2].map(i => (
+              <div key={i} className="flex items-center gap-4 px-5 h-[68px]" style={{ borderBottom: i < 2 ? "1px solid var(--hairline)" : undefined }}>
+                <span className="w-[22px] h-[38px] rounded-lg skeleton" />
+                <span className="flex-1 flex flex-col gap-2"><span className="skeleton h-3 rounded w-[38%]" /><span className="skeleton h-2.5 rounded w-[22%]" /></span>
+                <span className="skeleton h-2.5 rounded w-16 hidden sm:block" />
+              </div>
+            ))}
+          </div>
+        )}
         {conn && signedIn && !guardingRoute && loaded && all.length === 0 && <div className="sheet px-5 py-8 text-sm text-ink/70">Nothing under {short(ownerAddr(conn)!)} yet. <Term k="register">Register</Term> the <Term k="agent address">agent address</Term> of an agent you already run, and this wallet becomes the one that can stop it. <span className="ml-2">{register}</span></div>}
         {conn && (signedIn || sampleOn) && guardingRoute && (
           <div className="min-w-0">{guardedShown.length ? guardingPanel : <div className="sheet px-5 py-8 text-sm" style={{ color: "var(--text-medium)" }}>Nobody has named this wallet as a guardian yet.</div>}</div>

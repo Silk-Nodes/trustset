@@ -25,6 +25,7 @@ import Tip from "@/components/Tip";
 export type ModuleProps = {
   agent: Agent; name: string; events: PulseEvent[]; extra: Extra; now: number;
   busy?: { pause?: boolean; stop?: boolean };
+  phase?: string;
   onToggle: () => void; onStop: () => void; onLayer?: (k: LayerKey) => void; onOpen?: () => void;
   explorer?: string;
   /* the index the pulse came from, and whether it answered at all */
@@ -37,12 +38,14 @@ export type ModuleProps = {
   headless?: boolean;
 };
 
-export default function Module({ agent, name, events, extra, now, busy, onToggle, onStop, onLayer, onOpen, explorer, indexed, bare, slim, headless }: ModuleProps) {
+export default function Module({ agent, name, events, extra, now, busy, phase, onToggle, onStop, onLayer, onOpen, explorer, indexed, bare, slim, headless }: ModuleProps) {
   const m = useMotionPrefs();
   const live = trusted(agent, now);
   const sw = switchState(agent, events);
   const ended = sw === "ended";
-  const word = livenessWord(agent, now);
+  /* in flight, the word says where it is going, not where it is: if the
+     wallet refuses, the page must not have said it already happened */
+  const word = busy?.pause ? (agent.status === "paused" ? "Pausing…" : "Resuming…") : livenessWord(agent, now);
   const layers = layersOf(agent, extra, now);
   const clock = nextClock(agent, now);
   const last = lastActivity(events, agent);
@@ -92,9 +95,10 @@ export default function Module({ agent, name, events, extra, now, busy, onToggle
           label={sw === "on" ? `pause ${name}` : `bring ${name} back`} />
         <div className="min-w-0 flex flex-col gap-1">
           {headless && wordTip}
-          <span className="mono text-[10.5px] tracking-[0.06em] whitespace-nowrap" style={{ color: holding || busy?.stop ? "var(--orange-text)" : "var(--text-medium)" }} aria-live="polite">
+          <span className="mono text-[10.5px] tracking-[0.06em] whitespace-nowrap" style={{ color: holding || busy?.stop ? "var(--orange-text)" : phase && !busy?.pause ? (agent.status === "paused" ? "var(--orange-text)" : "var(--sage-text)") : "var(--text-medium)" }} aria-live="polite">
             {ended ? (agent.status === "revoked" ? "locked out for good" : "rotated")
               : busy?.stop ? "stopping…"
+              : phase ? phase
               : holding ? "keep holding…"
               : `tap to ${sw === "on" ? "pause" : "bring back"} · hold to stop for good`}
           </span>

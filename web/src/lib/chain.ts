@@ -328,7 +328,23 @@ export function connect(): Promise<Conn> {
    back shows it at once and refreshes behind it rather than sitting empty
    for the length of a chain read. */
 const lastList = new Map<string, Agent[]>();
-export const cachedAgents = (c: Conn, owner: string) => lastList.get(c.cfg.chainIdHex + ":" + owner.toLowerCase()) ?? null;
+/* the last list this browser saw, also kept across visits so a return paints
+   at once and refreshes behind it. scoped to the chain, the switch and the
+   owner; bigints are written as strings and read back. */
+const KEPT = (c: Conn, owner: string) => `trustset.agents.${c.cfg.chainIdHex}@${c.cfg.killSwitch.toLowerCase()}:${owner.toLowerCase()}`;
+const keep = (c: Conn, owner: string, list: Agent[]) => {
+  try { localStorage.setItem(KEPT(c, owner), JSON.stringify({ at: Date.now(), list }, (_, v) => typeof v === "bigint" ? { $big: v.toString() } : v)); } catch { /* no storage: nothing kept */ }
+};
+export function cachedAgents(c: Conn, owner: string): Agent[] | null {
+  const mem = lastList.get(c.cfg.chainIdHex + ":" + owner.toLowerCase());
+  if (mem) return mem;
+  try {
+    const raw = localStorage.getItem(KEPT(c, owner)); if (!raw) return null;
+    const { at, list } = JSON.parse(raw, (_, v) => v && typeof v === "object" && "$big" in v ? BigInt(v.$big) : v) as { at: number; list: Agent[] };
+    /* a day old is too old to show as the owner's fleet */
+    return Date.now() - at < 86_400_000 ? list : null;
+  } catch { return null; }
+}
 
 /* the registry, read whole every five minutes and in between only where it
  * can matter to this wallet.
@@ -341,10 +357,31 @@ export const cachedAgents = (c: Conn, owner: string) => lastList.get(c.cfg.chain
  * so five minutes cannot miss one. */
 const FULL_MS = 300_000;
 let registry: { key: string; count: number; at: number; byId: Map<number, ethers.Result> } | null = null;
+/* the server's snapshot of the whole registry, one request for what was
+   twenty nine reads from this browser. null when it cannot be had, and the
+   console reads the chain itself as before */
+type RegRow = { id: number; agentKey: string; revocationKey: string; pendingRevocationKey: string; revocationKeyChangeAt: string; guardianThreshold: number; status: number; statusSince: string; successorId: string; expiresAt: string; heartbeatWindow: string; lastBeat: string; guardians: string[] };
+async function fromServer(c: Conn): Promise<{ block: number; count: number; byId: Map<number, ethers.Result> } | null> {
+  try {
+    const r = await fetch("/api/registry", { cache: "no-store", signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return null;
+    const j = await r.json() as { key: string; killSwitch: string; block: number; count: number; agents: RegRow[] };
+    if (j.key !== c.cfg.chainIdHex || j.killSwitch.toLowerCase() !== c.cfg.killSwitch.toLowerCase()) return null;
+    /* shaped like getAgent's result, by name, which is how every reader uses it */
+    const byId = new Map(j.agents.map(x => [x.id, { ...x, successorId: BigInt(x.successorId) } as unknown as ethers.Result]));
+    return { block: j.block, count: j.count, byId };
+  } catch { return null; }
+}
+
 async function scan(c: Conn, R: { blockTag: string | number }, me: string): Promise<{ ids: number[]; all: ethers.Result[] }> {
-  const n = Number(await retry(() => c.ks.agentCount(R)));
   const key = c.cfg.chainIdHex, m = me.toLowerCase();
-  const full = !registry || registry.key !== key || Date.now() - registry.at > FULL_MS || n < registry.count;
+  let full = !registry || registry.key !== key || Date.now() - registry.at > FULL_MS;
+  if (full) {
+    const snap = await fromServer(c);
+    if (snap) { registry = { key, count: snap.count, at: Date.now(), byId: snap.byId }; full = false; }
+  }
+  const n = Number(await retry(() => c.ks.agentCount(R)));
+  if (!full && registry && n < registry.count) full = true;
   if (full) registry = { key, count: 0, at: Date.now(), byId: new Map() };
   const reg = registry!;
   const want = full ? [] : [...reg.byId].filter(([, a]) =>
@@ -389,6 +426,7 @@ export async function loadAgents(c: Conn, owner: string): Promise<Agent[]> {
     });
   }
   lastList.set(c.cfg.chainIdHex + ":" + owner.toLowerCase(), out);
+  keep(c, owner, out);
   return out;
 }
 
