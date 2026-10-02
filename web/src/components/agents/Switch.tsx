@@ -101,7 +101,7 @@ export default function Switch({ state, live, busy, lockBusy, disabled, onToggle
   const r = size === "lg" ? 10 : 8;
 
   return (
-    <button type="button" disabled={ended || (!canToggle && !canLock)} aria-pressed={on}
+    <button type="button" disabled={ended || (!canToggle && !canLock)} aria-pressed={on} data-state={state}
       aria-label={label ?? `switch ${WORD[state].toLowerCase()}`}
       aria-description={canLock ? `hold for ${LOCKOUT_MS / 1000} seconds to stop it for good` : undefined}
       onClick={e => {

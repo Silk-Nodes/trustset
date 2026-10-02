@@ -1,0 +1,17 @@
+{
+  "name": "@trustset/e2e",
+  "private": true,
+  "type": "module",
+  "description": "End to end tests: the owner flow on a local chain, the live site, the api guards, the off-chain services.",
+  "scripts": {
+    "e2e": "playwright test --project=local --project=api && node services/run.mjs",
+    "e2e:local": "playwright test --project=local --project=api",
+    "e2e:services": "node services/run.mjs",
+    "e2e:live": "E2E_SKIP_LOCAL=1 playwright test --project=live"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "ethers": "^6.13.0",
+    "pg": "^8.13.0"
+  }
+}

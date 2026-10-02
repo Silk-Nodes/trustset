@@ -35,13 +35,19 @@ export type ChainCfg = {
 const root = () => process.env.TRUSTSET_ROOT || join(process.cwd(), "..");
 
 /* the local anvil demo, when it is asked for and actually answering. */
+/* where the local chain answers, and which deployment file describes it. the
+   address is named in env like every other, so a test run can start its own
+   chain on a free port beside the one a developer already has running */
+let warnedLocal = false;
 async function local(): Promise<ChainCfg | null> {
+  const rpc = process.env.LOCAL_RPC;
+  if (!rpc) { if (!warnedLocal) { console.error("LOCAL_RPC is not set, so the local chain cannot be reached"); warnedLocal = true; } return null; }
   try {
-    const cfg = JSON.parse(await readFile(join(root(), "demo", "config.json"), "utf8"));
-    const r = await fetch("http://127.0.0.1:8545", { method: "POST", headers: { "content-type": "application/json" },
+    const cfg = JSON.parse(await readFile(process.env.LOCAL_DEMO_CONFIG || join(root(), "demo", "config.json"), "utf8"));
+    const r = await fetch(rpc, { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }), signal: AbortSignal.timeout(1500) });
     if (!r.ok) return null;
-    return { source: "anvil", chain: "Local anvil", rpc: "http://127.0.0.1:8545", chainIdHex: "0x7a69", explorer: "",
+    return { source: "anvil", chain: "Local anvil", rpc, chainIdHex: "0x7a69", explorer: "",
       killSwitch: cfg.killSwitch, humanTouch: cfg.humanTouch, venue: cfg.venue, ownerKey: cfg.ownerKey, agentPrivKey: cfg.agentPrivKey };
   } catch { return null; }
 }

@@ -103,6 +103,9 @@ export function switchState(a: Agent, events: PulseEvent[]): SwitchState {
   /* a guardian is somebody the chain lists as one. "anyone but the owner" also
      caught a passkey pause, whose actor is the relay that sent it, and drew it
      as a guardian trip. */
+  /* the chain's own flag when the console has read it; the index's history
+     otherwise */
+  if (a.guardianPaused !== undefined) return a.guardianPaused ? "tripped" : "off";
   const guardians = new Set(a.guardians.map(g => g.toLowerCase()));
   const byGuardian = !!last?.actor && guardians.has(last.actor.toLowerCase());
   return byGuardian ? "tripped" : "off";

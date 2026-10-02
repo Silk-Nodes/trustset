@@ -135,6 +135,9 @@ export type Agent = {
      then the moment it may be executed. only the owner can cancel it, and
      nothing else on the page would tell them it is happening. */
   recovery?: { newKey: string; readyAt: number; votes: number; threshold: number };
+  /* read from the chain for a paused agent: whether the guardians paused it.
+     the index's history said so too, but only while the index was there */
+  guardianPaused?: boolean;
 };
 
 /* an agent is trusted when it is active, inside its dates and not gone quiet.
@@ -414,6 +417,12 @@ export async function loadAgents(c: Conn, owner: string): Promise<Agent[]> {
       const ls = await retry(() => c.labels!.labelsOf(out.map(a => a.id), R));
       out.forEach((a, k) => { const l = ls[k]; if (l && l[0]) a.label = { name: l[0], purpose: l[1], by: l[2], at: Number(l[3]) }; });
     } catch { /* an older deployment without the contract: agents simply carry no label */ }
+  }
+  /* who paused a paused agent, from the chain. one read each, paused only */
+  const paused = out.filter(a => a.status === "paused" && a.guardians.length);
+  if (paused.length) {
+    const gp = await Promise.all(paused.map(a => retry(() => c.ks.guardianPaused(a.id, R)).catch(() => undefined)));
+    paused.forEach((a, k) => { if (gp[k] !== undefined) a.guardianPaused = Boolean(gp[k]); });
   }
   /* a recovery in progress, for every live agent that has guardians. one read
      each, and only for those, so an agent without guardians costs nothing */

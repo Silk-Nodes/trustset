@@ -20,7 +20,9 @@ const nextConfig: NextConfig = {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https: wss:" + (dev ? " ws:" : ""),
+      /* a local chain is plain http on loopback; allowed only in development
+         or when the site is pointed at one, never on the deployed site */
+      "connect-src 'self' https: wss:" + (dev ? " ws:" : "") + (dev || process.env.NEXT_PUBLIC_CHAIN === "local" ? " http://127.0.0.1:* http://localhost:*" : ""),
       "frame-src https:",
       "worker-src 'self' blob:",
       "object-src 'none'",
