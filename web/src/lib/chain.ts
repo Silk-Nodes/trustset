@@ -479,6 +479,9 @@ export function explain(e: unknown, c?: Conn): string {
     } catch { /* not one of ours */ }
   }
   if (o?.code === "ACTION_REJECTED" || o?.code === 4001) return "Cancelled in your wallet";
+  /* rpc -32602, as the email wallet words it. it nearly always means the last
+     transaction from this wallet had not settled yet */
+  if (o?.code === -32602 || /missing or invalid parameters/i.test(`${o?.shortMessage ?? ""} ${o?.message ?? ""}`)) return "Your wallet turned that down because your last transaction was still settling. Wait a few seconds and press again";
   if (o?.code === "CALL_EXCEPTION" && !data) {
     /* name the read, so a failing one can be found instead of guessed at */
     const tx = (o as { transaction?: { to?: string; data?: string } }).transaction;

@@ -9,6 +9,13 @@ import type { Account, Chain, Transport, WalletClient } from "viem";
  * ethers fills in the nonce, the gas and the fees against our own provider,
  * which keeps monad's whole-limit gas sized by the same estimate the rest of
  * the console uses, and the viem client signs and broadcasts. */
+/* the last nonce sent from each address, kept across signer objects (the
+   wallet provider hands out a new one on every wallet event). the public rpc
+   can still report the old transaction count a few seconds after a send, so
+   a resume pressed right after a pause went out with the pause's nonce and
+   the wallet refused it as "missing or invalid parameters". */
+const lastNonce = new Map<string, number>();
+
 export class ViemSigner extends ethers.AbstractSigner {
   #wc: WalletClient<Transport, Chain, Account>;
   constructor(wc: WalletClient<Transport, Chain, Account>, provider: ethers.Provider) {
@@ -34,6 +41,9 @@ export class ViemSigner extends ethers.AbstractSigner {
 
   async sendTransaction(tx: ethers.TransactionRequest) {
     const t = await this.populateTransaction(tx);
+    const who = (await this.getAddress()).toLowerCase();
+    const prev = lastNonce.get(who);
+    if (t.nonce != null && prev != null && Number(t.nonce) <= prev) t.nonce = prev + 1;
     const big = (v: ethers.BigNumberish | null | undefined) => (v == null ? undefined : BigInt(v));
     const hash = await this.#wc.sendTransaction({
       account: this.#wc.account, chain: this.#wc.chain,
@@ -41,6 +51,7 @@ export class ViemSigner extends ethers.AbstractSigner {
       value: big(t.value), gas: big(t.gasLimit), nonce: t.nonce == null ? undefined : Number(t.nonce),
       maxFeePerGas: big(t.maxFeePerGas), maxPriorityFeePerGas: big(t.maxPriorityFeePerGas),
     });
+    if (t.nonce != null) lastNonce.set(who, Number(t.nonce));
     for (let i = 0; i < 30; i++) {
       const r = await this.provider!.getTransaction(hash);
       if (r) return r;
