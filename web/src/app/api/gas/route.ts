@@ -21,9 +21,12 @@ export const dynamic = "force-dynamic";
  * - once per address, ever, and only while it is nearly empty
  * - a daily ceiling across everybody
  * testnet MON has no price; the ceiling is about the demo key staying funded. */
-const DRIP = ethers.parseEther("0.05");
-const EMPTY = ethers.parseEther("0.02");
-const DAILY = ethers.parseEther("2");
+/* monad holds back the whole gas limit at the max fee, about 0.02 MON for one
+   status change, so 0.05 paid for a registration and one pause and left a
+   resume short. 0.2 is about ten actions. a wallet under 0.05 counts as empty */
+const DRIP = ethers.parseEther("0.2");
+const EMPTY = ethers.parseEther("0.05");
+const DAILY = ethers.parseEther("4");
 const ROOT = () => process.env.TRUSTSET_ROOT || join(process.cwd(), "..");
 const STORE = () => process.env.GAS_STORE || join(ROOT(), ".gas-drips.json");
 
