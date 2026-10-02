@@ -58,8 +58,10 @@ it never touches. every trade on its explorer page is sent from that wallet.
 
 on **/agents**, press **sign in**, then **continue with email**. Dynamic sends
 a code and makes an embedded wallet on first sign-in, and that wallet becomes
-the owner for your agents. it gets a small, one-time drip of testnet gas so
-registering an agent does not dead-end. agent 25 was registered this way.
+the owner of your agents. it gets a one-time drip of 0.2 testnet MON, about ten
+actions, so registering and switching an agent does not dead-end. if a wallet
+does run short, the console says how much it needs and where to get more,
+instead of a wallet error. agent 25 was registered this way.
 
 ## the panic button, if you have a phone
 
@@ -119,12 +121,24 @@ scripts/demo.sh
 brings up anvil, the contracts, a venue and a browser demo on 127.0.0.1:8787,
 with no network needed at all.
 
+```bash
+cd e2e && npm install && npm run e2e
+```
+
+drives the real console on a fresh local chain and checks the contract after
+every step: pause and resume, a cancelled and an unbroken hold to stop, an
+agent registered through the dialog with a guardian, a guardian's pause. then
+the api guards, then the indexer and keeper against chains that misbehave on
+purpose. about eighty seconds. `npm run e2e:live` checks the deployed site.
+
 ## what is honestly not true yet
 
 - **testnet, and no third-party audit.** every contract was read line by line
   and the findings are in [`AUDIT.md`](AUDIT.md), each fix with its test named
-  beside it. that is a self review by the author, not a substitute for an
-  outside one. do not put real money behind it.
+  beside it. a second, adversarial review followed; its contract findings that
+  would need a redeploy are listed there as known limits rather than hidden.
+  both are the author's own, not a substitute for an outside audit. do not put
+  real money behind it.
 - **a switch only binds an agent that checks it, or a venue that checks it for
   them.** an agent that never asks is not stopped by anything here. this is the
   real limit and [`AUDIT.md`](AUDIT.md) leads with it rather than burying it.
@@ -136,6 +150,6 @@ with no network needed at all.
 ## if something is broken while you are looking
 
 the live agent keeps a heartbeat, and a watchdog restarts it and alerts us if
-it stops. if `npx @trustset/check 24` ever says `NOT TRUSTED` with the reason
-`lapsed`, that is our process being down rather than the product misbehaving,
+it stops. if `npx @trustset/check 24` ever says `REFUSED` with the reason
+`silent`, that is our process being down rather than the product misbehaving,
 and the demo above is unaffected because it uses its own agent.

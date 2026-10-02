@@ -109,7 +109,11 @@ if (!killSwitch.isTrusted(agentId)) revert AgentNotTrusted(agentId);
 - **sign in with an email**, through a Dynamic embedded wallet that becomes the owner
 - **a live agent whose key no one machine holds**, signing through a Dynamic MPC server wallet
 - **a sealed runbook** per agent, encrypted with a key the owner's passkey derives through Mera
-- **147 tests**, including 128,000 fuzzed calls per run asserting eleven invariants
+- **a switch that answers the tap**: it moves the moment it is pressed, the line under it follows
+  the transaction (signing, sent, the block it landed in), and a refusal puts it back with the reason
+- **147 contract tests**, including 128,000 fuzzed calls per run asserting eleven invariants
+- **an end-to-end suite** that drives the real console against a fresh local chain and checks the
+  contract after every step, plus read-only checks of the deployed site
 
 ## sponsor integrations
 
@@ -129,8 +133,9 @@ code: [`agent/dynamic.mjs`](agent/dynamic.mjs), [`agent/dynamic-setup.mjs`](agen
 **the owner side, an embedded wallet.** an operator without a browser wallet signs in with an
 email. Dynamic sends a code, makes an embedded wallet on first sign-in, and that wallet becomes the
 owner that registers, pauses and stops agents. the console sees one ethers signer either way. a
-new email wallet gets one signed, capped drip of testnet gas so its first registration does not
-dead-end. the SDK loads only when email sign-in is used.
+new email wallet gets one signed, capped drip of 0.2 testnet MON, about ten actions, so it does not
+dead-end after registering. the SDK loads only when email sign-in is used, and the sign-in panel says
+it is secured by Dynamic, with their mark.
 code: [`web/src/lib/dynamic.ts`](web/src/lib/dynamic.ts), [`web/src/app/api/gas/route.ts`](web/src/app/api/gas/route.ts).
 
 **check it yourself.** agent 24 on the explorer: every trade is sent from its Dynamic wallet.
@@ -146,6 +151,8 @@ fresh 32-byte salt. only ciphertext goes on chain, in `SealedNotes`; any device 
 to recreates the key and opens the note, with no wallet and nothing stored.
 code: [`src/SealedNotes.sol`](src/SealedNotes.sol), [`web/src/lib/sealed.ts`](web/src/lib/sealed.ts).
 check it: agent 13 on the explorer carries a sealed runbook; its page offers "open with passkey".
+in the console the runbook row reads "sealed with Mera", and the panic and passkey pages say the same
+passkey opens it.
 
 ## architecture
 
@@ -314,6 +321,16 @@ scripts/demo.sh             # anvil, contracts, a venue, and a browser demo on 1
 cd web && npm install && npm run dev
 ```
 
+### end to end
+
+```bash
+cd e2e && npm install
+npm run e2e                 # the owner flow on anvil, the api guards, the indexer and keeper
+npm run e2e:live            # read only checks against the deployed site
+```
+
+needs foundry and google chrome. see [`e2e/README.md`](e2e/README.md).
+
 ### the sdk
 
 ```bash
@@ -363,6 +380,16 @@ the suite goes red. three of them did not, at first, and the suite was wrong rat
 contract: it proved who may move a thing and never that they waited. `AUDIT.md` records what the
 invariants still do not reach.
 
+the contract tests cannot see the page. `e2e/` does: on a fresh anvil it opens the console in a real
+browser and walks what an owner does, checking the contract after each step. a tap moves the switch
+in under 600ms and the pause lands; set both keeps an end date it was not asked to change; escape
+during a hold to stop sends nothing, and an unbroken hold stops for good; an agent registers through
+the dialog with its consent and a guardian; a guardian's pause shows as a trip. the same run checks
+every guard on the routes that sign or send, and puts the indexer and the keeper against chains that
+misbehave on purpose. the live suite checks the deployed site at three widths in both themes for
+console errors, anything the content security policy blocks, sideways scroll, button labels broken
+over two lines and text under 4.5:1, and that the explorer's verdict matches the chain.
+
 ## who would adopt this
 
 a kill switch is worth nothing on its own. it is worth something when the places
@@ -392,14 +419,18 @@ stopped by anything here.
 
 other limits it records:
 
-- the erc-8004 pointer can be checked in one direction only
+- the erc-8004 pointer is not bound on chain; the sdk refuses a token that is not held by the agent
+  or its owner, which closes the borrowing case but is a check in the client, not the contract
 - `isTrustedAt` checks expiry against the agent's current end date, because only the current one is
   stored, so moving the end date changes the answer about the past
 - the heartbeat is not part of the historical answer at all: liveness is a fact about now, and no
   record of past beats is kept
 - this is testnet, and it has had no third-party audit. every contract was read line by line and
-  the findings are in [`AUDIT.md`](AUDIT.md), each fix with its test named beside it. that is a self
-  review by the author, and it is not a substitute for an outside one
+  the findings are in [`AUDIT.md`](AUDIT.md), each fix with its test named beside it. a second review
+  in late september used independent hunters per area and three skeptics per finding, each trying to
+  refute it with a proof of concept; everything it confirmed outside the contracts is fixed, and the
+  contract findings that would need a redeploy are listed there as known limits. both are reviews
+  by the author's own tooling, and not a substitute for an outside audit
 
 ## project layout
 
