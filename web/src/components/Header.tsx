@@ -1,12 +1,11 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import ThemeToggle from "./ThemeToggle";
 import Mark from "./Mark";
 import { useMotionPrefs, DUR } from "@/lib/motion";
-import Palette from "@/components/Palette";
 
 /* the bar is two zones, not a nav row.
  *
@@ -92,21 +91,6 @@ function SiteHeader() {
      list, so adding a wide page cannot leave its header behind. */
   const wide = inConsole || pathname.startsWith("/explorer");
 
-  /* one search for the whole site, opened from here.
-     the trigger looks like a field because that is what people look for, and
-     is a button because a field in a sticky bar cannot survive 393px, where
-     this collapses to the glyph alone. cmd+k on a mac, ctrl+k elsewhere. */
-  const [palette, setPalette] = useState(false);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette(p => !p); }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-  const closePalette = useCallback(() => setPalette(false), []);
-  const [mac, setMac] = useState(true);
-  useEffect(() => { setMac(/Mac|iPhone|iPad/.test(navigator.userAgent)); }, []);
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 24);
@@ -158,18 +142,9 @@ function SiteHeader() {
             <Link href={ACTION.href} className="hidden lg:block rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors"
               style={{ background: "var(--pill-accent-bg)", color: "var(--pill-accent-text)" }}>{ACTION.label}</Link>
           )}
-          <button type="button" onClick={() => setPalette(true)} aria-label="Search"
-            className="flex items-center gap-2 rounded-full h-9 px-3 transition-colors outline-none focus-visible:ring-2 hover:border-[var(--text-light)]"
-            style={{ border: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
-            <span className="mono text-[13px] leading-none">⌕</span>
-            <span className="hidden xl:inline text-[13px] whitespace-nowrap">Search</span>
-            <kbd className="hidden xl:inline mono text-[10px] rounded px-1.5 py-0.5 leading-none"
-              style={{ border: "1px solid var(--hairline)" }}>{mac ? "⌘" : "ctrl"}K</kbd>
-          </button>
           <NavDrawer pathname={pathname} /><ThemeToggle />
         </div>
       </header>
-      <Palette open={palette} onClose={closePalette} />
     </div>
   );
 }

@@ -100,8 +100,8 @@ export default function Faq() {
         {/* the filter. answers are searched too, so a word buried in one still finds it. */}
         <div className="flex flex-wrap items-center gap-3 mb-8">
           <label className="relative flex-1 min-w-[240px]">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 mono text-[12px] pointer-events-none" style={{ color: "var(--text-faint)" }}>/</span>
-            <input ref={search} value={q} onChange={e => setQ(e.target.value)} placeholder="Search the questions and the answers" spellCheck={false}
+            <svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-faint)" }}><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
+            <input ref={search} value={q} onChange={e => setQ(e.target.value)} placeholder="Search the FAQ" spellCheck={false}
               aria-label="Search the questions"
               className="w-full h-11 rounded-full pl-9 pr-4 text-[14px] outline-none focus-visible:ring-2 transition-colors"
               style={{ background: "var(--surface)", border: "1px solid var(--hairline)", color: "var(--text-dark)" }} />

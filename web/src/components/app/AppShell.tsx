@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Mark from "@/components/Mark";
 import ThemeToggle from "@/components/ThemeToggle";
-import Palette from "@/components/Palette";
 import { motion, useReducedMotion } from "motion/react";
 import { IconAgents, IconDocs, IconFaq, IconPin, IconRefund, IconSearch, IconShield, IconTry } from "./icons";
 
@@ -39,9 +38,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [badges, setBadges] = useState<Record<string, number>>({});
   const set = useCallback((href: string, n: number) => setBadges(b => (b[href] === n ? b : { ...b, [href]: n })), []);
   const badgeCtx = useMemo(() => ({ set }), [set]);
-  const openSearch = useCallback(() => setPalette(true), []);
-  const [palette, setPalette] = useState(false);
-  const closePalette = useCallback(() => setPalette(false), []);
   const [block, setBlock] = useState<number | null>(null);
   const [pinned, setPinned] = useState(false);
   const [peek, setPeek] = useState(false);
@@ -50,8 +46,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette(p => !p); }
-      else if ((e.metaKey || e.ctrlKey) && e.key === "\\") { e.preventDefault(); togglePin(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === "\\") { e.preventDefault(); togglePin(); }
     };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
@@ -131,7 +126,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <span className="shrink-0"><Mark size={20} /></span>
               <span className="mono font-medium text-[14.5px] tracking-tight transition-opacity duration-150" style={{ opacity: open ? 1 : 0 }}>trustset</span>
             </Link>
-            <motion.button type="button" initial="rest" animate="rest" whileHover={still ? undefined : "hover"} onClick={() => togglePin()} aria-pressed={pinned} aria-label={pinned ? "Unpin the sidebar" : "Pin the sidebar open"} title={"\u2318\\"}
+            <motion.button type="button" initial="rest" animate="rest" whileHover={still ? undefined : "hover"} onClick={() => togglePin()} aria-pressed={pinned} aria-label={pinned ? "Unpin the sidebar" : "Pin the sidebar open"} title={pinned ? "Unpin the sidebar" : "Pin the sidebar open"}
               className="mr-2 w-7 h-7 shrink-0 rounded-lg inline-flex items-center justify-center outline-none focus-visible:ring-2 transition-opacity duration-150"
               style={{ opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none", color: pinned ? "var(--text-dark)" : "var(--text-faint)" }}><IconPin on={pinned} /></motion.button>
           </div>
@@ -156,7 +151,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex-1 min-w-0 flex flex-col">
           <div id="app-scroll" className="flex-1 min-h-0 overflow-y-auto overflow-x-clip pb-14 lg:pb-0">
-            <AppSearch.Provider value={openSearch}>{children}</AppSearch.Provider>
+            {children}
           </div>
           <div className="hidden lg:flex shrink-0 h-7 items-center gap-4 px-4 mono text-[10.5px] app-material" style={{ borderTop: "1px solid var(--hairline)", color: "var(--text-medium)" }}>
             <span className="tabular">{block ? `block ${block.toLocaleString("en-US")}` : "reading the chain"}</span>
@@ -177,16 +172,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
       </div>
-      <Palette open={palette} onClose={closePalette} />
     </BadgeCtx.Provider>
   );
 }
 
 /* the page's own bar: its title, a note, its actions. sticky inside the
    scrolling work area, so it stays while a long list moves under it. */
-export const AppSearch = createContext<(() => void) | null>(null);
 export function TopBar({ title, note, actions }: { title: React.ReactNode; note?: React.ReactNode; actions?: React.ReactNode }) {
-  const open = useContext(AppSearch);
   const still = !!useReducedMotion();
   return (
     <div className="sticky top-0 z-[20] h-12 flex items-center gap-2 sm:gap-3 px-4 sm:px-5 app-material" style={{ borderBottom: "1px solid var(--hairline)" }}>
@@ -196,12 +188,6 @@ export function TopBar({ title, note, actions }: { title: React.ReactNode; note?
           and the page draws it under the bar instead */}
       {note && <span className="hidden sm:inline-flex items-center text-[12px] min-w-0 shrink-0" style={{ color: "var(--text-medium)" }}>{note}</span>}
       <span className="flex-1" />
-      {open && (
-        <motion.button type="button" initial="rest" animate="rest" whileHover={still ? undefined : "hover"} onClick={open} className="hidden md:inline-flex items-center gap-2 h-8 rounded-lg px-2.5 text-[12.5px] outline-none focus-visible:ring-2"
-          style={{ border: "1px solid var(--hairline)", color: "var(--text-medium)" }} aria-label="Search">
-          <IconSearch /> Search <kbd className="mono text-[10.5px] rounded px-1" style={{ border: "1px solid var(--hairline)" }}>⌘K</kbd>
-        </motion.button>
-      )}
       {actions}
     </div>
   );

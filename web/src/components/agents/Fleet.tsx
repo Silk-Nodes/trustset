@@ -428,7 +428,8 @@ export default function Fleet(p: FleetProps) {
             {selected.length === 0 && (
               <div className="shrink-0 flex flex-wrap items-center gap-2 px-3 py-2" style={{ borderTop: items.length ? "1px solid var(--hairline)" : undefined }}>
                 <label className="relative">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 mono text-[11px]" style={quiet}>/</span>
+                  {/* a magnifier, not "/": the key works, but a phone has no key to press */}
+                  <svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={quiet}><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
                   <input ref={search} value={f.q} onChange={e => setF(x => ({ ...x, q: e.target.value }))} placeholder="find" spellCheck={false} aria-label="Find an agent by name, id or key"
                     className="h-7 w-[112px] focus:w-[170px] transition-[width] duration-200 rounded-full pl-7 pr-3 text-[12.5px] outline-none focus-visible:ring-2" style={{ background: "var(--surface)", border: "1px solid var(--hairline)", color: "var(--text-dark)" }} />
                 </label>
