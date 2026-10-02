@@ -1,5 +1,6 @@
 "use client";
 import { InfoTip } from "@/components/Tip";
+import { MeraName } from "@/components/Credits";
 import { useCallback, useEffect, useState } from "react";
 import type { ethers } from "ethers";
 import type { Conn } from "@/lib/chain";
@@ -64,8 +65,9 @@ export default function Runbook({ conn, signer, id, sample, readOnly }: { conn: 
       <p className="text-[11.5px] flex items-center" style={quiet}>
         {readOnly ? "the owner's passkey only" : "sealed with your passkey"}
         <InfoTip text={readOnly
-          ? "Stored on chain as ciphertext. Only the owner's passkey opens them, on any device it syncs to, with no wallet."
-          : "Stored on chain as ciphertext. Any device your passkey syncs to can open it; nobody else can."} />
+          ? "Stored on chain as ciphertext. Only the owner's passkey opens them, on any device it syncs to, with no wallet. The key comes from the passkey through Mera."
+          : "Encrypted in your browser with a key your passkey derives through Mera. Only the ciphertext is on chain, and any device your passkey syncs to can open it; nobody else can."} />
+        <span className="ml-auto whitespace-nowrap">through <MeraName /></span>
       </p>
 
       {notes === null && <p className="text-xs" style={quiet}>Reading the chain…</p>}

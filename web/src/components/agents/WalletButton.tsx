@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { DynamicMark, SecuredByDynamic } from "@/components/Credits";
 import { short } from "@/lib/chain";
 
 /* one control: connect, or show who is signing.
@@ -43,7 +44,11 @@ export default function WalletButton({ address, kind, onConnect, onDisconnect, a
               room on one line. on a phone the line scrolls sideways inside
               the card rather than breaking. a chopped last character is not
               a layout. */}
-          <div className="eyebrow mb-1.5">{kind === "email" ? <>Signed in{signedInAs ? <> as <span className="normal-case tracking-normal">{signedInAs}</span></> : null} · the owner</> : "Connected as the owner"}</div>
+          <div className="eyebrow mb-1.5 flex items-center gap-2">
+            <span className="min-w-0 truncate">{kind === "email" ? <>Signed in{signedInAs ? <> as <span className="normal-case tracking-normal">{signedInAs}</span></> : null} · the owner</> : "Connected as the owner"}</span>
+            {/* an email sign-in is a Dynamic wallet; say so where the wallet is shown */}
+            {kind === "email" && <span className="ml-auto shrink-0"><DynamicMark height={12} /></span>}
+          </div>
           <div className="mono text-[12.5px] whitespace-nowrap overflow-x-auto select-all leading-relaxed no-scrollbar">{address}</div>
           <div className="flex flex-wrap gap-2 mt-3">
             <button type="button" className="drawn-btn btn-gold" style={{ padding: "6px 12px", fontSize: "0.75rem" }}
@@ -118,7 +123,7 @@ function EmailSignIn({ email, onDone }: { email: { send: (a: string) => Promise<
       <div className="eyebrow">{step === "address" ? "Continue with email" : "Check your email"}</div>
       <p className="text-[12px]" style={{ color: "var(--text-medium)" }}>
         {step === "address"
-          ? "A wallet is made for you on first sign-in, through Dynamic. It becomes the owner for your agents."
+          ? "A wallet is made for you on first sign-in, through Dynamic. It becomes the owner of your agents."
           : <>We sent a code to <span style={{ color: "var(--text-dark)" }}>{sentTo}</span>.</>}
       </p>
       <input autoFocus value={value} onChange={e => setValue(e.target.value)} disabled={busy}
@@ -130,6 +135,7 @@ function EmailSignIn({ email, onDone }: { email: { send: (a: string) => Promise<
           {busy ? (step === "address" ? "Sending…" : "Signing in…") : step === "address" ? "Send code" : "Sign in"}
         </button>
         {step === "code" && <button type="button" onClick={() => { setStep("address"); setValue(sentTo); setErr(null); }} className="text-[12px] underline" style={{ color: "var(--text-medium)" }}>use another email</button>}
+        {step === "address" && <span className="ml-auto"><SecuredByDynamic /></span>}
       </div>
       {err && <p className="text-[12px]" style={{ color: "var(--orange-text)" }}>{err}</p>}
     </form>

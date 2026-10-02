@@ -150,7 +150,7 @@ export default function Inspector(p: InspectorProps) {
 
         {p.runbook && <>
           <li className="eyebrow px-2 pt-4 pb-1.5">sealed</li>
-          {row("runbook", <LockMark />, "Runbook", "passkey only", true, true, p.runbook)}
+          {row("runbook", <LockMark />, "Runbook", "sealed with Mera", true, true, p.runbook)}
         </>}
         <li className="eyebrow px-2 pt-4 pb-1.5">ownership</li>
         {row("keys", <AddressMark />, "Addresses", agent.guardians.length ? `agent, owner, ${agent.guardians.length} guardians` : "agent, owner", true, true,

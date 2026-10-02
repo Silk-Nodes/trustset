@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { MeraName } from "@/components/Credits";
 import { motion } from "motion/react";
 import { assertAny, platformAvailable } from "@/lib/webauthn";
 import { useMotionPrefs } from "@/lib/motion";
@@ -114,6 +115,10 @@ export default function Panic({ initialId }: { initialId?: string }) {
           )}
           <div className="text-[12px] mt-3" style={{ color: "var(--text-medium)" }}>
             Bringing it back needs the owner. A passkey can pause and nothing else.
+          </div>
+          {/* one passkey, two keys: the stop here, and the runbook's key there */}
+          <div className="text-[12px] mt-2" style={{ color: "var(--text-medium)" }}>
+            The same passkey opens this agent&apos;s sealed runbook, through <MeraName />.
           </div>
         </motion.div>
       )}

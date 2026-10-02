@@ -234,3 +234,13 @@ h1, h2, h3, h4 { font-family: var(--font-main); font-weight: 600; letter-spacing
 
 /* aurora nova mobile blur radii, per its spec */
 @media (max-width: 767px) { .aura-l1 { filter: blur(88px) !important; } .aura-l2 { filter: blur(25px) !important; } }
+
+/* a logo drawn for one theme only: the sponsor's own files, not a recolour.
+   the same three cases as the colour tokens, so the right one paints first */
+.theme-dark-only { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-dark-only { display: inline-block; }
+  :root:not([data-theme="light"]) .theme-light-only { display: none; }
+}
+:root[data-theme="dark"] .theme-dark-only { display: inline-block; }
+:root[data-theme="dark"] .theme-light-only { display: none; }

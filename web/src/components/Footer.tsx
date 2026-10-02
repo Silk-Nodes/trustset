@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Wordmark from "@/components/Wordmark";
+import { DynamicMark, MeraName } from "@/components/Credits";
 
 /* the footer ends the page on weight, not on small print.
  *
@@ -21,6 +22,9 @@ export default function Footer({ close = false }: { close?: boolean }) {
 
         <div className={`${close ? "mt-16 sm:mt-24" : "mt-10 sm:mt-14"} flex flex-wrap items-center gap-x-6 gap-y-2 text-xs`} style={{ color: "var(--text-medium)" }}>
           <span>Built by <a href="https://silknodes.io" target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline" style={{ color: "var(--text-dark)" }}>Silk Nodes</a></span>
+          {/* the two integrations inside the product, credited once on every page */}
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">Wallets by <DynamicMark height={12} /></span>
+          <span className="whitespace-nowrap">Sealed notes by <MeraName /></span>
           <nav className="ml-auto flex flex-wrap gap-x-5 gap-y-2">
             <Link href="/faq" className="hover:underline">FAQ</Link>
             <Link href="/how" className="hover:underline">Docs</Link>

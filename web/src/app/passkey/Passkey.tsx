@@ -1,5 +1,6 @@
 "use client";
 import Tip, { InfoTip } from "@/components/Tip";
+import { MeraName } from "@/components/Credits";
 import { useCallback, useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { registerPasskey, platformAvailable } from "@/lib/webauthn";
@@ -210,6 +211,9 @@ export default function Passkey({ initialId }: { initialId?: string }) {
           <div className="flex flex-wrap gap-3 mt-2 text-[12.5px]">
             <a href={`${done.explorer}/tx/${done.hash}`} target="_blank" rel="noreferrer" className="underline" style={{ color: "var(--orange-text)" }}>View the transaction</a>
             <a href={`/panic?id=${id}`} className="underline" style={{ color: "var(--orange-text)" }}>Open the panic page</a>
+          </div>
+          <div className="text-[12px] mt-3" style={{ color: "var(--text-medium)" }}>
+            The same passkey can also seal this agent&apos;s runbook, encrypted with a key it derives through <MeraName />.
           </div>
         </div>
       )}
