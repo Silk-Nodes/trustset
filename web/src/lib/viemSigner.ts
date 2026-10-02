@@ -41,10 +41,21 @@ export class ViemSigner extends ethers.AbstractSigner {
 
   async sendTransaction(tx: ethers.TransactionRequest) {
     const t = await this.populateTransaction(tx);
+    const big = (v: ethers.BigNumberish | null | undefined) => (v == null ? undefined : BigInt(v));
     const who = (await this.getAddress()).toLowerCase();
     const prev = lastNonce.get(who);
     if (t.nonce != null && prev != null && Number(t.nonce) <= prev) t.nonce = prev + 1;
-    const big = (v: ethers.BigNumberish | null | undefined) => (v == null ? undefined : BigInt(v));
+    /* monad holds back the whole gas limit at the max fee before it runs
+       anything. a wallet short of that was refused by dynamic as "missing or
+       invalid parameters", which names nothing. so the sum is checked here
+       and said in MON, with where to get more. */
+    const fee = big(t.maxFeePerGas) ?? big(t.gasPrice) ?? 0n;
+    const need = (big(t.gasLimit) ?? 0n) * fee + (big(t.value) ?? 0n);
+    const have = await this.provider!.getBalance(who);
+    if (need > 0n && have < need) {
+      const mon = (v: bigint) => Number(ethers.formatEther(v)).toLocaleString("en-US", { maximumFractionDigits: 4 });
+      throw Object.assign(new Error(`This needs about ${mon(need)} MON held for gas, and your wallet has ${mon(have)}. Get testnet MON at https://faucet.monad.xyz for ${ethers.getAddress(who)}, then press again`), { code: "INSUFFICIENT_FUNDS" });
+    }
     const hash = await this.#wc.sendTransaction({
       account: this.#wc.account, chain: this.#wc.chain,
       to: (t.to ?? undefined) as `0x${string}` | undefined, data: (t.data ?? undefined) as `0x${string}` | undefined,
