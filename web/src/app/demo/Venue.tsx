@@ -75,7 +75,7 @@ export default function Venue() {
   /* the block a trade was last refused at. it stays on the agent card until the
      agent changes status again, because that is the fact the reader came for. */
   const [refusedAt, setRefusedAt] = useState<number | null>(null);
-  /* incremented when a pause lands, which plays the sweep once. */
+  /* incremented when a pause lands, which flashes the agent card's edge once. */
   const [sweep, setSweep] = useState(0);
   const done = useCallback((a: Act) => setSeen(p => new Set(p).add(a)), []);
   /* getting the shared practice agent ready. "resetting" while the server
@@ -302,7 +302,7 @@ export default function Venue() {
     window.scrollTo({ top: 0, behavior: m.reduced ? "auto" : "smooth" });
   };
 
-  const agent = <AgentCard s={s} off={off} refusedAt={refusedAt} reduced={m.reduced} resetting={prep === "resetting"} />;
+  const agent = <AgentCard s={s} off={off} refusedAt={refusedAt} reduced={m.reduced} resetting={prep === "resetting"} flash={sweep} />;
   const rail = (
     <>
       <Console log={log} cfg={cfg} reduced={m.reduced} />
@@ -333,17 +333,6 @@ export default function Venue() {
 
   return (
     <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
-      {/* the switch landing is the one moment the page makes a fuss of: one
-          pass of orange across everything, then gone. */}
-      <AnimatePresence>
-        {sweep > 0 && !m.reduced && (
-          <motion.div key={sweep} aria-hidden className="fixed inset-0 pointer-events-none z-40 origin-left"
-            style={{ background: "var(--orange)" }}
-            initial={{ scaleX: 0, opacity: 0.32 }} animate={{ scaleX: 1, opacity: 0 }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.75, ease: EASE }} />
-        )}
-      </AnimatePresence>
-
       {/* on a phone the agent comes first, because it is the thing the steps act on */}
       {/* on a phone the card sticks to the top of the viewport. measured before
           this: from step five onward it sat at -314, -383 and -451, so the one
@@ -354,7 +343,7 @@ export default function Venue() {
           rather than at the top of the viewport, and under it in the stack. */}
       {/* compact while it sticks: at full size it covered a third of a phone
           screen, above the very buttons it reacts to. */}
-      <div className="lg:hidden sticky top-[72px] z-20"><AgentCard s={s} off={off} refusedAt={refusedAt} reduced={m.reduced} resetting={prep === "resetting"} compact /></div>
+      <div className="lg:hidden sticky top-[72px] z-20"><AgentCard s={s} off={off} refusedAt={refusedAt} reduced={m.reduced} resetting={prep === "resetting"} flash={sweep} compact /></div>
 
       {unstarted && me && (
         <div className="sheet px-5 py-4 lg:col-span-2">
@@ -503,13 +492,26 @@ export default function Venue() {
 }
 
 /* the agent, as a thing on the page rather than a row of addresses. */
-function AgentCard({ s, off, refusedAt, reduced, resetting, compact = false }: { s: State | null; off: boolean; refusedAt: number | null; reduced: boolean; resetting?: boolean; compact?: boolean }) {
+function AgentCard({ s, off, refusedAt, reduced, resetting, flash = 0, compact = false }: { s: State | null; off: boolean; refusedAt: number | null; reduced: boolean; resetting?: boolean; flash?: number; compact?: boolean }) {
   const word = !s ? "reading the chain" : resetting ? "getting ready" : s.trusted ? "trusted" : s.expired ? "expired" : s.status === 2 ? "switched off" : "not trusted";
   return (
     <div className={`sheet ${compact ? "px-4 py-3" : "p-5"} relative overflow-hidden`} style={{
       background: off ? "color-mix(in srgb, var(--orange) 7%, var(--surface))" : "var(--surface)",
       transition: reduced ? "none" : "background .45s ease",
     }}>
+      {/* the switch landing is the one moment the page makes a fuss of, and it
+          makes it on the agent, the thing that changed: the card's edge lights
+          orange once and fades. it used to be a pass of orange across the whole
+          viewport at 32%, which on the dark theme read as a brown shadow
+          sweeping the page, a full-screen flash on every pause. */}
+      <AnimatePresence>
+        {flash > 0 && !reduced && (
+          <motion.div key={flash} aria-hidden className="absolute inset-0 pointer-events-none"
+            style={{ borderRadius: "inherit", boxShadow: "inset 0 0 0 2px var(--orange)" }}
+            initial={{ opacity: 1 }} animate={{ opacity: 0 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.9, ease: EASE }} />
+        )}
+      </AnimatePresence>
       <div className="flex items-center gap-3">
         {/* the trustset face, wearing this agent's state: awake while it is
             trusted, eyes half closed when it is off, a flat line once it is
