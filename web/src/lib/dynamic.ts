@@ -77,11 +77,25 @@ export async function emailSigner(environmentId: string, provider: ethers.Provid
   const { createWalletClientForWalletAccount } = await import("@dynamic-labs-sdk/evm/viem");
   const account = c.getWalletAccounts().find(isEvmWalletAccount);
   if (!account) return null;
+  /* the wallet account outlives the sign-in: Dynamic keeps it cached after the
+     session expires, and its own isSignedIn() says yes on the cached account
+     alone. signing then fails with "Session ID is required". so a live session
+     is checked, refreshed once, and its absence reads as signed out, which
+     asks for the email code again instead of failing on the first Register */
+  if (!(await liveSession(c))) return null;
   const wc = await createWalletClientForWalletAccount({ walletAccount: account });
   if (wc.chain.id !== Number(MONAD.networkId)) throw new Error(`the email wallet is on chain ${wc.chain.id}, not Monad testnet`);
   const signer = new ViemSigner(wc, provider);
   const user = c.getDefaultClient?.()?.user as { email?: string } | undefined;
   return { signer, address: await signer.getAddress(), email: user?.email ?? null };
+}
+
+/** true when Dynamic holds a session it can sign with, after one refresh if it had none */
+async function liveSession(c: Client): Promise<boolean> {
+  const sessionId = () => (c.getDefaultClient?.()?.user as { sessionId?: string } | undefined)?.sessionId;
+  if (sessionId()) return true;
+  try { await c.refreshUser(); } catch { /* an expired session cannot be refreshed; that is the answer */ }
+  return Boolean(sessionId());
 }
 
 export async function signOutEmail(environmentId: string) {
