@@ -14,6 +14,10 @@ an agent with a key can trade, pay and sign for as long as it runs. trustset giv
 owns it one place to say stop, and gives every app the agent talks to one call to check before it
 acts. pausing is reversible, stopping for good is not, and both land in the next block.
 
+<p align="center">
+  <img src="brand/assets/how-it-works.gif" alt="How it works, animated: an AI agent asks a dApp to trade, the dApp asks trustset on Monad whether the agent is trusted, the answer is true and the trade runs. The owner switches the agent off, the same trade comes back false, and the dApp reverts with AgentNotTrusted." width="860">
+</p>
+
 built for monad metropolis, track 04: trust, identity and ai infrastructure.
 
 - live: **https://trustset.silknodes.io**
