@@ -1,0 +1,138 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:06.450
+trustset: the trust stack for AI agents.
+It starts with an off switch, in a contract on Monad.
+
+2
+00:00:06.700 --> 00:00:09.750
+The app asks the switch, then accepts.
+
+3
+00:00:10.000 --> 00:00:13.350
+We switch the agent off.
+
+4
+00:00:13.600 --> 00:00:15.650
+Same agent, same trade.
+
+5
+00:00:15.900 --> 00:00:20.150
+The app refuses it, on chain.
+Its contract reverts with AgentNotTrusted.
+
+6
+00:00:20.400 --> 00:00:25.750
+Same trade, one switch apart.
+
+7
+00:00:26.000 --> 00:00:30.850
+That refusal is a real transaction.
+
+8
+00:00:31.100 --> 00:00:33.850
+Anyone can read the switch.
+
+9
+00:00:34.100 --> 00:00:37.400
+No key, no account, one call.
+
+10
+00:00:54.400 --> 00:00:57.850
+Owners sign in with an email.
+Dynamic makes the wallet for them.
+
+11
+00:00:58.100 --> 00:01:01.750
+Every agent signs with its own key.
+
+12
+00:01:02.000 --> 00:01:08.550
+The agent key is made in this browser.
+Shown once, never sent anywhere. Blurred here.
+
+13
+00:01:08.800 --> 00:01:12.850
+Every agent gets a record on chain.
+
+14
+00:01:13.100 --> 00:01:16.500
+It is live on Monad, switched on.
+
+15
+00:01:17.500 --> 00:01:23.750
+Guardians are wallets we trust to step in.
+They can vote to pause. Only the owner resumes.
+
+16
+00:01:24.000 --> 00:01:29.150
+Registered with one guardian.
+
+17
+00:01:29.400 --> 00:01:32.300
+One vote is enough to pause it.
+
+18
+00:01:33.100 --> 00:01:36.550
+Pause is reversible.
+
+19
+00:01:36.800 --> 00:01:39.950
+We resume it.
+
+20
+00:01:40.200 --> 00:01:43.550
+Stop is for good, so it asks for a hold.
+
+21
+00:01:43.800 --> 00:01:48.100
+This one is final. Nobody can undo it.
+
+22
+00:01:49.000 --> 00:01:52.150
+A passkey can pause this agent.
+
+23
+00:01:52.400 --> 00:01:53.650
+It can pause and nothing else.
+
+24
+00:01:53.900 --> 00:01:56.250
+No wallet, and no gas to pay.
+
+25
+00:01:56.500 --> 00:02:01.250
+The passkey also seals its runbook.
+
+26
+00:02:01.500 --> 00:02:04.150
+Mera seals it. Only ciphertext on chain.
+
+27
+00:02:04.400 --> 00:02:10.200
+We open it again with the passkey.
+
+28
+00:02:11.100 --> 00:02:15.850
+It can run out on a date we set.
+
+29
+00:02:16.100 --> 00:02:22.100
+It can also be told to report in.
+
+30
+00:02:22.900 --> 00:02:27.050
+Agent payments wait in escrow.
+
+31
+00:02:27.300 --> 00:02:29.850
+No receipt in time, anyone can refund it.
+
+32
+00:02:30.100 --> 00:02:32.700
+The payer gets the money back, on chain.
+
+33
+00:02:33.300 --> 00:02:48.300
+trustset. The trust stack for AI agents, on Monad. trustset.silknodes.io

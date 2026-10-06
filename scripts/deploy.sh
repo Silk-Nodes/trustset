@@ -55,7 +55,15 @@ echo "==> sending web/public"
 # build ran answers 404 until the next build. so this is sent before the
 # build, on purpose. it was not sent at all for the first four days, and the
 # og image and the new favicon sat at 404 while every page reported 200.
-rsync -az --delete --exclude '.env*' "$ROOT/web/public/" "$HOST:$REMOTE/web/public/"
+# media/ holds the films, which are not in git (see web/.gitignore). the sync
+# above deletes anything the laptop does not have, so media/ is kept out of it
+# and sent on its own, never deleting: a deploy from a fresh clone, which has
+# no films, must not wipe them from the box.
+rsync -az --delete --exclude '.env*' --exclude '/media/' "$ROOT/web/public/" "$HOST:$REMOTE/web/public/"
+if [ -d "$ROOT/web/public/media" ]; then
+  echo "==> sending web/public/media (never deletes)"
+  rsync -az "$ROOT/web/public/media/" "$HOST:$REMOTE/web/public/media/"
+fi
 
 echo "==> sending the dependencies and the deployment"
 # a new package in package.json and nothing sent but src is a build that
@@ -103,7 +111,7 @@ done
 
 echo "==> checking every asset the pages reference"
 fail=0
-for path in / /demo /explorer /agents /agents/guarding /agents/refunds /passkey /panic /how; do
+for path in / /demo /launch /walkthrough /explorer /agents /agents/guarding /agents/refunds /passkey /panic /how; do
   code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$SITE$path" || echo 000)
   printf '%-10s %s\n' "$path" "$code"
   [ "$code" = "200" ] || fail=1
@@ -125,9 +133,16 @@ for path in "/api/chain" "/api/verify?agent=1" "/api/fleet?ids=1,2"; do
   [ "$code" = "200" ] || { echo "   not the build: the chain or the index is not answering"; fail=1; }
 done
 echo
-for f in og.png icon.svg favicon-32.png apple-touch-icon.png; do
+for f in og.png icon.svg favicon-32.png apple-touch-icon.png media/launch-poster.jpg media/walkthrough-poster.jpg; do
   a=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$SITE/$f" || echo 000)
   printf '%-10s %s\n' "/$f" "$a"
+  [ "$a" = "200" ] || fail=1
+done
+echo
+# the films: a header check only, a full download would take most of the timeout
+for f in media/trustset-launch.mp4 media/trustset-walkthrough.mp4; do
+  a=$(curl -sSI -o /dev/null -w '%{http_code}' --max-time 15 "$SITE/$f" || echo 000)
+  printf '%-32s %s\n' "/$f" "$a"
   [ "$a" = "200" ] || fail=1
 done
 echo

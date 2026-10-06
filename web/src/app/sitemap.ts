@@ -12,6 +12,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ["/faq", 0.9, "monthly"],
     ["/how", 0.9, "monthly"],
     ["/demo", 0.8, "monthly"],
+    ["/launch", 0.8, "monthly"],
+    ["/walkthrough", 0.8, "monthly"],
     ["/explorer", 0.7, "daily"],
     ["/passkey", 0.5, "monthly"],
   ];

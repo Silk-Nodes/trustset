@@ -21,6 +21,7 @@ acts. pausing is reversible, stopping for good is not, and both land in the next
 built for monad metropolis, track 04: trust, identity and ai infrastructure.
 
 - live: **https://trustset.silknodes.io**
+- watch: the [launch film](https://trustset.silknodes.io/launch) (40s) and the [walkthrough](https://trustset.silknodes.io/walkthrough) (2:48)
 - chain: monad testnet, chain id **10143**
 - switch: [`0x54D8211233Cc65b62C594cBAb900930dd37ED3b8`](https://testnet.monadexplorer.com/address/0x54D8211233Cc65b62C594cBAb900930dd37ED3b8)
 - package: [`@trustset/check`](https://www.npmjs.com/package/@trustset/check)

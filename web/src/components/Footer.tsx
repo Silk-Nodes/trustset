@@ -26,6 +26,7 @@ export default function Footer({ close = false }: { close?: boolean }) {
           <span className="inline-flex items-center gap-1.5 whitespace-nowrap">Wallets by <DynamicMark height={12} /></span>
           <span className="whitespace-nowrap">Sealed notes by <MeraName /></span>
           <nav className="ml-auto flex flex-wrap gap-x-5 gap-y-2">
+            <Link href="/walkthrough" className="hover:underline">Walkthrough</Link>
             <Link href="/faq" className="hover:underline">FAQ</Link>
             <Link href="/how" className="hover:underline">Docs</Link>
             <a href="https://github.com/Silk-Nodes/trustset" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
