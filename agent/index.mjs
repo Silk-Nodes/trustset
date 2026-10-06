@@ -98,30 +98,52 @@ async function main() {
    only the owner can start a new one. */
 async function act(trustset, wallet, venue, id) {
   const l = await trustset.limits(id);
+  const due = l.nextBeatBy > 0 && !l.lapsed ? l.nextBeatBy - Math.floor(Date.now() / 1000) : null;
+  /* beat with room to spare: while less than one and a half action
+     intervals remain. "less than an hour" with an hourly action could fall
+     a few seconds either side of the boundary and skip the beat that
+     mattered, and a lapse needs the owner to undo. */
+  const beatDue = due !== null && due < (ACT_MS / 1000) * 1.5;
+
+  /* what sending costs before it is sent. the rpc wants the whole limit at the
+     max fee in the account up front, and when it is not there it answers
+     "Missing or invalid parameters", which is how this agent ran dry on
+     6 oct 2026 without one line saying so. so it is checked here and said
+     plainly, and when there is not enough for both, the beat goes first: a
+     skipped trade costs nothing, a missed beat is a lapse only the owner can
+     undo. */
+  const [balance, fees] = await Promise.all([wallet.provider.getBalance(await wallet.getAddress()), wallet.provider.getFeeData()]);
+  const perGas = fees.maxFeePerGas ?? fees.gasPrice ?? 0n;
+  const tradeLimit = await limitFor(venue.trade, [id], TRADE_GAS).catch(e => { log("trade failed:", e?.shortMessage || e?.message?.split("\n")[0] || e); return null; });
+  const beatCost = beatDue ? BEAT_GAS * perGas : 0n;
+  const tradeCost = tradeLimit ? tradeLimit * perGas : 0n;
+  const mon = (w) => Number(ethers.formatEther(w)).toFixed(4);
 
   /* the trade and the heartbeat are separate jobs. a trade that failed used to
      throw before the heartbeat was reached, so one bad trade also cost the
      beat, and a missed beat is a lapse only the owner can undo. */
-  try {
-    const tx = await venue.trade(id, { gasLimit: await limitFor(venue.trade, [id], TRADE_GAS) });
-    /* logged from the receipt, not from the send. a hash is not a trade: this
-       said "traded" for one that reverted, which is the kind of log that sends
-       you looking in the wrong place. */
-    const rc = await wallet.provider.waitForTransaction(tx.hash, 1, WAIT_MS).catch(() => null);
-    log(!rc ? `trade sent, no receipt within ${WAIT_MS / 1000}s · ${tx.hash}` : rc.status === 1 ? `traded · ${tx.hash}` : `trade REVERTED · ${tx.hash}`);
-  } catch (e) { log("trade failed:", e?.shortMessage || e?.message?.split("\n")[0] || e); }
+  if (tradeLimit && balance < tradeCost + beatCost) {
+    log(`OUT OF GAS MONEY: skipping the trade, it needs ${mon(tradeCost)} MON${beatDue ? ` on top of ${mon(beatCost)} for the beat` : ""}, the agent has ${mon(balance)} MON. fund ${await wallet.getAddress()}`);
+  } else if (tradeLimit) {
+    try {
+      const tx = await venue.trade(id, { gasLimit: tradeLimit });
+      /* logged from the receipt, not from the send. a hash is not a trade: this
+         said "traded" for one that reverted, which is the kind of log that sends
+         you looking in the wrong place. */
+      const rc = await wallet.provider.waitForTransaction(tx.hash, 1, WAIT_MS).catch(() => null);
+      log(!rc ? `trade sent, no receipt within ${WAIT_MS / 1000}s · ${tx.hash}` : rc.status === 1 ? `traded · ${tx.hash}` : `trade REVERTED · ${tx.hash}`);
+    } catch (e) { log("trade failed:", e?.shortMessage || e?.message?.split("\n")[0] || e); }
+  }
 
-  if (l.nextBeatBy > 0 && !l.lapsed) {
-    const due = l.nextBeatBy - Math.floor(Date.now() / 1000);
-    /* beat with room to spare: while less than one and a half action
-       intervals remain. "less than an hour" with an hourly action could fall
-       a few seconds either side of the boundary and skip the beat that
-       mattered, and a lapse needs the owner to undo. */
-    if (due < (ACT_MS / 1000) * 1.5) {
-      const b = await trustset.beat(id, wallet, { gasLimit: BEAT_GAS });
-      const br = await wallet.provider.waitForTransaction(b.hash, 1, WAIT_MS).catch(() => null);
-      log(!br ? `beat sent, no receipt yet · ${b.hash}` : br.status === 1 ? `beat · ${b.hash}` : `beat REVERTED · ${b.hash}`);
+  if (beatDue) {
+    const left = await wallet.provider.getBalance(await wallet.getAddress());
+    if (left < beatCost) {
+      log(`OUT OF GAS MONEY: cannot beat, it needs ${mon(beatCost)} MON and the agent has ${mon(left)}. the window closes in ${Math.round(due / 60)}min, then only the owner can reopen it. fund ${await wallet.getAddress()}`);
+      return;
     }
+    const b = await trustset.beat(id, wallet, { gasLimit: BEAT_GAS });
+    const br = await wallet.provider.waitForTransaction(b.hash, 1, WAIT_MS).catch(() => null);
+    log(!br ? `beat sent, no receipt yet · ${b.hash}` : br.status === 1 ? `beat · ${b.hash}` : `beat REVERTED · ${b.hash}`);
   }
 }
 

@@ -58,6 +58,15 @@ const PKG = process.env.WATCH_PACKAGE;                  // optional, e.g. @trust
    margin under 45 minutes means it has already missed at least one chance. */
 const RESTART_UNDER_MIN = Number(process.env.WATCH_RESTART_UNDER_MIN || 45);
 const STATE_STALE_MIN = Number(process.env.WATCH_STATE_STALE_MIN || 15);
+/* the agent pays for its own trades and beats. on 6 oct 2026 it ran dry: the
+   rpc refused every send, the beat stopped, and the agent lapsed an hour later
+   while this watchdog could only say "lapsed". the runway is the balance over
+   what an hour of work costs at today's gas price, and the alert fires while
+   there is still a day to top it up. the gas figures are the agent's own
+   fallback limits, so the estimate errs high. */
+const MIN_RUNWAY_H = Number(process.env.WATCH_MIN_RUNWAY_HOURS || 24);
+const ACT_S = Number(process.env.ACT_SECONDS || 3600);
+const GAS_PER_ACT = 120000n + 90000n; // trade + beat, agent/index.mjs TRADE_GAS and BEAT_GAS
 
 const KS = [
   "function liveness(uint256) view returns (bool trusted, bool expired, bool lapsed, uint64 expiresAt, uint64 nextBeatBy)",
@@ -90,6 +99,17 @@ async function chain() {
     why = s === "active" ? (l.expired ? "expired" : l.lapsed ? "silent" : "active") : s;
   }
   return { trusted: l.trusted, lapsed: l.lapsed, expired: l.expired, marginMin, next, why };
+}
+
+/* the agent's balance in MON and how many hours of work it pays for */
+async function runway() {
+  const d = JSON.parse(await readFile(join(ROOT, "deployments", "monad-testnet.json"), "utf8"));
+  const p = new ethers.JsonRpcProvider(RPC, undefined, { staticNetwork: true });
+  const key = (await new ethers.Contract(d.killSwitch, KS, p).getAgent(AGENT_ID))[0];
+  const [bal, fees] = await Promise.all([p.getBalance(key), p.getFeeData()]);
+  const perGas = fees.maxFeePerGas ?? fees.gasPrice ?? 0n;
+  const perHour = (GAS_PER_ACT * perGas * 3600n) / BigInt(Math.max(1, ACT_S));
+  return { key, mon: Number(ethers.formatEther(bal)), hours: perHour > 0n ? Number(bal / (perHour / 1000n)) / 1000 : Infinity };
 }
 
 /* the agent rewrites this file every cycle. a fresh file proves the loop is
@@ -131,6 +151,14 @@ async function main() {
     const staleMin = await loopTurning();
     log(`agent ${AGENT_ID}: trusted=${c.trusted} lapsed=${c.lapsed} margin=${c.marginMin}min` +
         (staleMin === null ? " state=not configured" : ` state=${staleMin === Infinity ? "unreadable" : staleMin + "min old"}`));
+
+    /* gas money, before the verdict: a lapse caused by an empty wallet should
+       say so, not just that the agent lapsed */
+    const r = await runway().catch(e => { fail(`could not read the agent's balance: ${e.shortMessage ?? e.message}`); return null; });
+    if (r) {
+      log(`agent ${AGENT_ID}: balance ${r.mon.toFixed(4)} MON, about ${r.hours === Infinity ? "unlimited" : Math.floor(r.hours) + "h"} of work at today's gas price`);
+      if (r.hours < MIN_RUNWAY_H) fail(`agent ${AGENT_ID} has ${r.mon.toFixed(4)} MON, about ${Math.floor(r.hours)}h of gas. fund ${r.key} before it stops beating.`);
+    }
 
     if (c.lapsed) {
       /* past saving from here. say exactly what fixes it rather than just
