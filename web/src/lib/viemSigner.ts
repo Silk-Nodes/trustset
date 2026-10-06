@@ -18,19 +18,26 @@ const lastNonce = new Map<string, number>();
 
 export class ViemSigner extends ethers.AbstractSigner {
   #wc: WalletClient<Transport, Chain, Account>;
-  constructor(wc: WalletClient<Transport, Chain, Account>, provider: ethers.Provider) {
+  /* asked before every signature. the email wallet passes a session check
+     here: the session can run out while the page is open, and the wallet
+     only says so after the user has pressed, as "Session ID is required" */
+  #ready: () => Promise<void>;
+  constructor(wc: WalletClient<Transport, Chain, Account>, provider: ethers.Provider, ready: () => Promise<void> = async () => {}) {
     super(provider);
     this.#wc = wc;
+    this.#ready = ready;
   }
   async getAddress() { return ethers.getAddress(this.#wc.account.address); }
-  connect(provider: ethers.Provider | null) { return new ViemSigner(this.#wc, provider as ethers.Provider); }
+  connect(provider: ethers.Provider | null) { return new ViemSigner(this.#wc, provider as ethers.Provider, this.#ready); }
 
   async signMessage(message: string | Uint8Array) {
+    await this.#ready();
     const raw = typeof message === "string" ? ethers.hexlify(ethers.toUtf8Bytes(message)) : ethers.hexlify(message);
     return this.#wc.signMessage({ account: this.#wc.account, message: { raw: raw as `0x${string}` } });
   }
   async signTransaction(): Promise<string> { throw new Error("this wallet sends transactions itself"); }
   async signTypedData(domain: ethers.TypedDataDomain, types: Record<string, ethers.TypedDataField[]>, value: Record<string, unknown>) {
+    await this.#ready();
     /* the type nothing else refers to, as ethers works it out, not the first key */
     const { EIP712Domain: _omit, ...rest } = types as Record<string, ethers.TypedDataField[]>;
     void _omit;
@@ -40,6 +47,7 @@ export class ViemSigner extends ethers.AbstractSigner {
   }
 
   async sendTransaction(tx: ethers.TransactionRequest) {
+    await this.#ready();
     const t = await this.populateTransaction(tx);
     const big = (v: ethers.BigNumberish | null | undefined) => (v == null ? undefined : BigInt(v));
     const who = (await this.getAddress()).toLowerCase();

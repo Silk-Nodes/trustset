@@ -6,7 +6,7 @@ import { ethers } from "ethers";
 import { motion, AnimatePresence } from "motion/react";
 import { useMotionPrefs, DUR } from "@/lib/motion";
 import type { Label } from "@/lib/labels";
-import { consentMessage, consentValid, type Conn } from "@/lib/chain";
+import { consentMessage, consentValid, explain, type Conn } from "@/lib/chain";
 import Term from "@/components/Term";
 
 /* register an agent that already exists, or make a key for one and treat that
@@ -139,7 +139,7 @@ export default function RegisterDialog({ open, onClose, onRegister, checkKey, co
          end of the dialog. nothing about it is written anywhere. */
       setWallet(null);
       onClose();
-    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { setErr(explain(e, conn)); }
     finally { setBusy(false); }
   }
 

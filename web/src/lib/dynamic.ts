@@ -85,10 +85,14 @@ export async function emailSigner(environmentId: string, provider: ethers.Provid
   if (!(await liveSession(c))) return null;
   const wc = await createWalletClientForWalletAccount({ walletAccount: account });
   if (wc.chain.id !== Number(MONAD.networkId)) throw new Error(`the email wallet is on chain ${wc.chain.id}, not Monad testnet`);
-  const signer = new ViemSigner(wc, provider);
+  const signer = new ViemSigner(wc, provider, async () => {
+    if (!(await liveSession(c))) throw Object.assign(new Error(SESSION_EXPIRED), { code: "SESSION_EXPIRED" });
+  });
   const user = c.getDefaultClient?.()?.user as { email?: string } | undefined;
   return { signer, address: await signer.getAddress(), email: user?.email ?? null };
 }
+
+export const SESSION_EXPIRED = "Your email sign-in has expired. Sign out, sign in with your email again, then press again";
 
 /** true when Dynamic holds a session it can sign with, after one refresh if it had none */
 async function liveSession(c: Client): Promise<boolean> {
