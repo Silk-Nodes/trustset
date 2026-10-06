@@ -10,6 +10,7 @@ import { Why, HowItWorks } from "@/components/landing/Story";
 import { Day } from "@/components/landing/Day";
 import { Checks } from "@/components/landing/Moments";
 import { Reveal } from "@/components/Reveal";
+import { FilmModal, useFirstVisitFilm } from "@/components/Film";
 
 /* the landing page argues the read side.
  *
@@ -20,9 +21,12 @@ import { Reveal } from "@/components/Reveal";
 
 export default function Home() {
   const m = useMotionPrefs();
+  /* the launch film, offered once to a new visitor and always one press away */
+  const film = useFirstVisitFilm();
 
   return (
     <div className="relative">
+      <FilmModal open={film.open} onClose={film.close} />
     <main className="w-full max-w-6xl mx-auto px-4 sm:px-5 pt-10 sm:pt-16 pb-16 min-w-0 relative" style={{ zIndex: 1 }}>
       <div>
       <div className="max-w-4xl mb-10 sm:mb-14">
@@ -32,12 +36,15 @@ export default function Home() {
         </motion.h1>
         <motion.p initial={m.reduced ? { opacity: 0 } : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={m.reduced ? { duration: 0.2 } : { duration: 0.7, ease: [0.23, 1, 0.32, 1], delay: 0.1 }}
           className="text-xl sm:text-2xl text-ink/70 mt-6 max-w-[40ch]">Like the controls on your bank card, for an AI agent. Freeze it, give it an end date, choose who else can freeze it, and see every move it made. Apps on Monad that check follow your settings from the next block.</motion.p>
-        <motion.div initial={m.reduced ? { opacity: 0 } : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={m.reduced ? { duration: 0.2 } : { duration: 0.7, ease: [0.23, 1, 0.32, 1], delay: 0.18 }} className="flex gap-2 mt-8">
+        <motion.div initial={m.reduced ? { opacity: 0 } : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={m.reduced ? { duration: 0.2 } : { duration: 0.7, ease: [0.23, 1, 0.32, 1], delay: 0.18 }} className="flex flex-wrap gap-2 mt-8">
           {/* the walkthrough explains the product better than this page does, so
               it takes the accented button. somebody who already has agents knows
               where the console is. */}
           <Link href="/demo" className="drawn-btn btn-orange" style={{ padding: "13px 24px", fontSize: "0.95rem" }}>Try it on testnet</Link>
           <Link href="/agents" className="drawn-btn btn-gold" style={{ padding: "13px 20px", fontSize: "0.95rem" }}>See your agents</Link>
+          <button type="button" onClick={film.show} className="drawn-btn btn-gold" style={{ padding: "13px 20px", fontSize: "0.95rem" }}>
+            <span aria-hidden style={{ color: "var(--orange)" }}>▶</span> Watch the 40s film
+          </button>
         </motion.div>
         {/* the facts under the buttons, where every infrastructure page puts its
             proof. the others put logos or a volume figure there. we have neither

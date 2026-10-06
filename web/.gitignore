@@ -10,3 +10,8 @@ build/
 next-env.d.ts
 .vercel
 *.tsbuildinfo
+
+# the films are served from the vm and sent by deploy.sh, never committed:
+# 30 MB of video would ride along in every clone forever. posters, share cards
+# and captions are small and stay in git.
+public/media/*.mp4

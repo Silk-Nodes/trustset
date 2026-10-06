@@ -531,7 +531,7 @@ export function explain(e: unknown, c?: Conn): string {
   /* the email wallet's sign-in ran out while the page was open: Dynamic keeps
      the wallet but has no session to sign with, and viem wraps that in a dump
      of the whole transaction */
-  if (/session id is required|signed session id is required/i.test(`${o?.shortMessage ?? ""} ${o?.message ?? ""}`)) return "Your email sign-in has expired. Sign out, sign in with your email again, then press again";
+  if (o?.code === "SESSION_EXPIRED" || /session id is required/i.test(`${o?.shortMessage ?? ""} ${o?.message ?? ""}`)) return "Your email sign-in has expired. Sign out, sign in with your email again, then press again";
   /* rpc -32602, as the email wallet words it. the gas check above catches the
      usual cause, so this is whatever is left */
   if (o?.code === -32602 || /missing or invalid parameters/i.test(`${o?.shortMessage ?? ""} ${o?.message ?? ""}`)) return "Your wallet refused that transaction. Check it holds testnet MON for gas, wait a few seconds, and press again";

@@ -6,6 +6,7 @@ signing in with an email is there if you want your own agents, and optional.
 
 live: **https://trustset.silknodes.io**
 chain: monad testnet, chain id 10143
+watch first: the [launch film](https://trustset.silknodes.io/launch), 40 seconds, and the [walkthrough](https://trustset.silknodes.io/walkthrough), 2:48 of the real product at real speed
 
 ## the sixty second version
 

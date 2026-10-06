@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import Venue from "./Venue";
 import { InfoTip } from "@/components/Tip";
 import Footer from "@/components/Footer";
@@ -29,6 +30,9 @@ export default function Page() {
         </h1>
         <p className="text-base sm:text-lg mt-3 max-w-[64ch] flex items-center" style={{ color: "var(--text-medium)" }}>
           Real transactions on Monad testnet.<InfoTip text="Every button below sends a real transaction. Nothing here is a recording." />
+        </p>
+        <p className="text-[14px] mt-2" style={{ color: "var(--text-medium)" }}>
+          Prefer to watch first? <Link href="/walkthrough" className="font-semibold hover:underline" style={{ color: "var(--orange-text)" }}>The 2:48 walkthrough</Link>
         </p>
 
         <LiveAgent lead={<Section eyebrow="The quick version" title="Stop a real agent" meta="30 seconds"
