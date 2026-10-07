@@ -111,7 +111,7 @@ done
 
 echo "==> checking every asset the pages reference"
 fail=0
-for path in / /demo /launch /walkthrough /pitch /explorer /agents /agents/guarding /agents/refunds /passkey /panic /how; do
+for path in / /demo /launch /walkthrough /pitch /dynamic /mera /explorer /agents /agents/guarding /agents/refunds /passkey /panic /how; do
   code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$SITE$path" || echo 000)
   printf '%-10s %s\n' "$path" "$code"
   [ "$code" = "200" ] || fail=1
@@ -133,14 +133,14 @@ for path in "/api/chain" "/api/verify?agent=1" "/api/fleet?ids=1,2"; do
   [ "$code" = "200" ] || { echo "   not the build: the chain or the index is not answering"; fail=1; }
 done
 echo
-for f in og.png icon.svg favicon-32.png apple-touch-icon.png media/launch-poster.jpg media/walkthrough-poster.jpg media/pitch-poster.jpg; do
+for f in og.png icon.svg favicon-32.png apple-touch-icon.png media/launch-poster.jpg media/walkthrough-poster.jpg media/pitch-poster.jpg media/dynamic-poster.jpg media/mera-poster.jpg; do
   a=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$SITE/$f" || echo 000)
   printf '%-10s %s\n' "/$f" "$a"
   [ "$a" = "200" ] || fail=1
 done
 echo
 # the films: a header check only, a full download would take most of the timeout
-for f in media/trustset-launch.mp4 media/trustset-walkthrough.mp4 media/trustset-pitch.mp4; do
+for f in media/trustset-launch.mp4 media/trustset-walkthrough.mp4 media/trustset-pitch.mp4 media/trustset-dynamic.mp4 media/trustset-mera.mp4; do
   a=$(curl -sSI -o /dev/null -w '%{http_code}' --max-time 15 "$SITE/$f" || echo 000)
   printf '%-32s %s\n' "/$f" "$a"
   [ "$a" = "200" ] || fail=1

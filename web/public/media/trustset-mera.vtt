@@ -1,0 +1,40 @@
+WEBVTT
+
+1
+00:00:00.300 --> 00:00:03.650
+An owner nominates a passkey for agent 30.
+
+2
+00:00:03.700 --> 00:00:06.650
+It can pause the agent from a phone.
+A P256 signature, checked by Monad’s precompile.
+
+3
+00:00:07.000 --> 00:00:11.950
+The same passkey seals the agent’s runbook.
+Where it runs, how to restart it, why it was stopped.
+
+4
+00:00:12.000 --> 00:00:14.850
+Mera turns the passkey’s PRF output into a key,
+AES-256-GCM, made in the browser and nowhere else.
+
+5
+00:00:14.900 --> 00:00:17.350
+The passkey opens it again.
+
+6
+00:00:17.400 --> 00:00:20.750
+Any device the passkey syncs to can read it.
+Nobody else can, including us.
+
+7
+00:00:20.800 --> 00:00:29.250
+This is everything the chain holds.
+A salt, a nonce and ciphertext. No key, no text.
+
+8
+00:00:29.300 --> 00:00:37.050
+One passkey, two keys.
+One stops the agent. One opens its notes.
+
