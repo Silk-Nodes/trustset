@@ -9,8 +9,19 @@ export default function FilmPage({ film }: { film: FilmKey }) {
   const f = FILMS[film];
   const other: FilmKey = film === "walkthrough" ? "launch" : "walkthrough";
   const o = FILMS[other];
+  /* the film as a video a search engine can list, with its poster, length and
+     the file itself */
+  const SITE = "https://trustset.silknodes.io";
+  const jsonLd = {
+    "@context": "https://schema.org", "@type": "VideoObject",
+    name: `${f.title}, trustset`, description: f.line,
+    thumbnailUrl: SITE + f.poster, contentUrl: SITE + f.src, embedUrl: SITE + f.path,
+    uploadDate: f.uploaded, duration: f.duration, inLanguage: "en",
+    publisher: { "@type": "Organization", name: "Silk Nodes", url: "https://silknodes.io" },
+  };
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <main className="w-full max-w-6xl mx-auto px-4 sm:px-5 pt-6 sm:pt-8 pb-16 min-w-0">
         {/* the film is the page. no eyebrow, headline or sentence over it: the
             film says all of that itself. the name stays for screen readers and

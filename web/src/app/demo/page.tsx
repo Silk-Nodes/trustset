@@ -5,7 +5,11 @@ import { InfoTip } from "@/components/Tip";
 import Footer from "@/components/Footer";
 import LiveAgent from "@/components/LiveAgent";
 
-export const metadata: Metadata = { title: "Try it" };
+export const metadata: Metadata = {
+  title: "Try it",
+  description: "Switch a real AI agent off on Monad testnet, no wallet needed. Watch the app accept a trade, then refuse the same trade from the next block.",
+  alternates: { canonical: "/demo" },
+};
 
 /* two things to try, said as two things.
  *

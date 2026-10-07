@@ -9,8 +9,8 @@ import "./globals.css";
 const dmMono = DM_Mono({ weight: ["400", "500"], subsets: ["latin"], variable: "--font-dm-mono", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "trustset · trust stack", template: "%s · trustset" },
-  description: "The trust stack for AI agents on Monad. Identity, an off switch, a passkey panic button, guardians, limits, history by timestamp, human proof and refunds, each an immutable contract with no admin. Built by Silk Nodes.",
+  title: { default: "trustset · The trust stack for AI agents on Monad", template: "%s · trustset" },
+  description: "The trust stack for AI agents on Monad: an off switch every app can check, a passkey panic button, guardians, limits and refunds. Immutable, no admin.",
   metadataBase: new URL("https://trustset.silknodes.io"),
   applicationName: "trustset",
   authors: [{ name: "Silk Nodes", url: "https://silknodes.io" }],

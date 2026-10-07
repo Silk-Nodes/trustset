@@ -5,7 +5,7 @@ import { faqJsonLd } from "./questions";
 
 export const metadata: Metadata = {
   title: "FAQ",
-  description: "What trustset does, what it deliberately does not do, who can change it (nobody), and what a stop will not protect you from. Answers read off the deployed contracts.",
+  description: "What trustset does and does not do, who can change it (nobody), and what a stop cannot promise. Straight answers about the trust stack for AI agents.",
   alternates: { canonical: "/faq" },
   openGraph: {
     title: "trustset FAQ",
