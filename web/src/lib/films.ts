@@ -2,7 +2,7 @@
    player and the lightbox on the client, and both read this. a constant
    exported from a client module reaches a server component as a reference,
    not as the object, which is why it lives here. */
-/* the three films, self hosted.
+/* the films, self hosted.
  *
  * the mp4s live in public/media on the vm and are not in git: 30 MB of video
  * in the repository would ride along in every clone forever. deploy.sh sends
@@ -27,6 +27,18 @@ export const FILMS = {
     path: "/pitch", title: "The pitch", length: "2 minutes 30",
     src: "/media/trustset-pitch.mp4", poster: "/media/pitch-poster.jpg", captions: "/media/trustset-pitch.vtt",
     line: "Why AI agents need a stop that works outside their own app, and how trustset puts it on Monad.",
+  },
+  /* the two bounty clips. like the pitch, nothing links to them: each address
+     goes into its bounty's optional video field */
+  dynamic: {
+    path: "/dynamic", title: "trustset × Dynamic", length: "41 seconds",
+    src: "/media/trustset-dynamic.mp4", poster: "/media/dynamic-poster.jpg", captions: "/media/trustset-dynamic.vtt",
+    line: "The owner signs in with an email and Dynamic makes the wallet; the live agent signs through a Dynamic 2-of-2 MPC server wallet.",
+  },
+  mera: {
+    path: "/mera", title: "trustset × Mera", length: "43 seconds",
+    src: "/media/trustset-mera.mp4", poster: "/media/mera-poster.jpg", captions: "/media/trustset-mera.vtt",
+    line: "One passkey, two keys: a P256 signature that pauses the agent, and a PRF key, through Mera, that seals its runbook.",
   },
 } as const;
 export type FilmKey = keyof typeof FILMS;

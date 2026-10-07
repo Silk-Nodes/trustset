@@ -1,0 +1,36 @@
+WEBVTT
+
+1
+00:00:00.200 --> 00:00:06.550
+No browser wallet. The owner signs in with an email.
+Dynamic makes a wallet for them on the first sign-in.
+
+2
+00:00:06.600 --> 00:00:08.550
+A one-time code goes to that inbox.
+
+3
+00:00:08.600 --> 00:00:11.750
+Signed in. Dynamic has made the wallet, 0x790E…10cc.
+It is the owner of this agent now. No seed phrase.
+
+4
+00:00:11.800 --> 00:00:19.050
+The owner brings agent 29 back on.
+The embedded wallet signs it, like any other signer.
+
+5
+00:00:19.400 --> 00:00:24.050
+Our live agent holds no private key.
+It signs through a Dynamic 2-of-2 MPC server wallet.
+
+6
+00:00:24.100 --> 00:00:28.850
+It trades and reports in every hour,
+and still asks the switch before every action.
+
+7
+00:00:28.900 --> 00:00:35.650
+On chain, an ordinary signed transaction.
+From the agent’s own address, with neither half of the key alone.
+
