@@ -9,6 +9,7 @@ import TxLink, { addrUrl } from "@/components/agents/TxLink";
 import Term from "@/components/Term";
 import { explain, settled } from "@/lib/chain";
 import { useMotionPrefs } from "@/lib/motion";
+import { track } from "@/lib/track";
 
 /* the walkthrough.
  *
@@ -207,6 +208,7 @@ export default function Venue() {
       const j = await r.json();
       if (j.error) { setNote(j.error); return; }
       setS(v => (v ? { ...v, ...j } : v));
+      if (action === "pause") track("demo-switch");
       record(action === "trade" ? (j.ok ? "accepted" : "refused") : kind, j.hash, j.block);
       if (act) done(act);
     } catch (e) { setNote(String(e)); }
@@ -226,6 +228,7 @@ export default function Venue() {
     try {
       const tx = await (c.ks.connect(signer) as ethers.Contract).setStatus(s.agentId, to, ethers.id(to === 2 ? "demo pause" : "demo resume"));
       const rc = await tx.wait(1);
+      if (to === 2) track("demo-switch");
       record(to === 2 ? "paused" : "resumed", tx.hash, rc?.blockNumber);
       /* the status word does not decide trust: an agent resumed while its end
          date is in the past is Active and still not trusted. so only the
