@@ -177,6 +177,10 @@ h1, h2, h3, h4 { font-family: var(--font-main); font-weight: 600; letter-spacing
 @keyframes lamp-settle { 0% { opacity: 1; } 20% { opacity: 0.25; } 40% { opacity: 1; } 55% { opacity: 0.5; } 100% { opacity: 1; } }
 .lamp-settle { animation: lamp-settle 600ms ease-out 1; }
 @media (prefers-reduced-motion: reduce) { .lamp-settle { animation: none; } }
+/* the breaker a first visit is pointed at: a soft ring that breathes until it is pressed */
+@keyframes try-ring { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--orange) 0%, transparent); border-color: color-mix(in srgb, var(--orange) 35%, transparent); } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--orange) 14%, transparent); border-color: color-mix(in srgb, var(--orange) 70%, transparent); } }
+.try-ring { border: 1.5px solid color-mix(in srgb, var(--orange) 50%, transparent); animation: try-ring 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .try-ring { animation: none; } }
 .sheet { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius-md); box-shadow: none; }
 .rule-top { border-top: 1px solid var(--hairline); }
 

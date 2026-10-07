@@ -6,9 +6,9 @@ import { type Bucket, type Density, type Filter, type Group, type Row, type Sort
 import LayerIcon from "./LayerIcon";
 import Pulse from "./Pulse";
 import StatusDot from "./StatusDot";
-import Switch from "./Switch";
+import Switch, { LOCKOUT_MS, breakerHint } from "./Switch";
 import TrustLine from "./TrustLine";
-import Mains from "./Mains";
+import Mains, { FleetHistory } from "./Mains";
 
 /* the fleet. every agent this wallet owns, at the density the reader chose.
  *
@@ -29,6 +29,8 @@ const HEIGHT: Record<Density, number> = { cards: 76, rows: 44, fleet: 40 };
 const DAY = 86400;
 const WINDOWS: [string, number][] = [["Off", 0], ["10 minutes", 600], ["1 hour", 3600], ["6 hours", 21600], ["1 day", DAY]];
 const ENDS: [string, number][] = [["Never", 0], ["1 day", DAY], ["7 days", 7 * DAY], ["30 days", 30 * DAY], ["90 days", 90 * DAY]];
+/* what apps do with an agent in each state, said on its card */
+const MEANING: Record<StateKey, string> = { trusted: "apps serve it", expired: "end date passed · refused", quiet: "missed a heartbeat · refused", paused: "refused until it is back on", stopped: "off for good" };
 const quiet = { color: "var(--text-medium)" } as const;
 const faint = { color: "var(--text-faint)" } as const;
 const chip = (on: boolean) => ({ background: on ? "var(--pill-accent-bg)" : "transparent", color: on ? "var(--pill-accent-text)" : "var(--text-medium)", border: `1px solid ${on ? "var(--pill-accent-bg)" : "var(--hairline)"}` });
@@ -51,6 +53,9 @@ export type FleetProps = {
      600px and state ran into purpose. */
   narrow?: boolean; pulses: Record<string, { events: PulseEvent[] } | undefined>;
   busy: Set<string>; canSign: boolean;
+  /* on a first visit to the sample, the breaker to try first: it carries a
+     soft ring until the reader has pressed anything */
+  tryId?: string;
   onOpen: (id: bigint, open?: LayerKey) => void; onToggle: (a: Agent) => void; onStop: (a: Agent) => void;
   onBulk: (kind: BulkKind, rows: Row[], limits?: { expiresAt: number; window: number }) => void;
 };
@@ -269,62 +274,75 @@ export default function Fleet(p: FleetProps) {
           <Switch size="sm" caption="none" state={sw} live={r.state === "trusted"} busy={p.busy.has("p" + r.id)} lockBusy={p.busy.has(r.id)} disabled={!p.canSign}
             onToggle={() => p.onToggle(r.a)} onLockout={() => p.onStop(r.a)} onHolding={v => setHoldingId(v ? r.id : null)}
             label={sw === "on" ? `pause ${r.name}` : `bring ${r.name} back`} />
-          <span className="mono text-[10.5px]" style={{ color: holdingId === r.id ? "var(--orange-text)" : "var(--text-medium)" }}>{holdingId === r.id ? "keep holding…" : "hold to stop"}</span>
+          <span className="mono text-[10.5px]" style={{ color: holdingId === r.id ? "var(--orange-text)" : "var(--text-medium)" }}>{holdingId === r.id ? "let go to cancel" : `hold ${LOCKOUT_MS / 1000}s to stop`}</span>
         </div>
       )}
       </div>
     );
   };
 
-  /* one module in the breaker panel. the breaker itself pauses and resumes;
-     the rest of the module opens the agent. a stopped agent is an empty slot:
-     the module is gone and only its outline and name remain. */
+  /* one agent, as a module in the breaker panel. read top to bottom it says
+     who the agent is, what state it is in and what that means for the apps
+     it deals with, then the breaker with what a tap and a hold do, then the
+     small print. the breaker pauses and resumes; the rest of the card opens
+     the agent. a stopped agent is an empty slot: only its outline remains. */
   const breakerEl = (r: Row) => {
     const ev = p.pulses[r.id]?.events ?? [];
     const sw = switchState(r.a, ev);
     const stopped = r.state === "stopped";
     const dim = !matches.has(r.id);
-    const lit = r.state === "trusted" ? "var(--sage)" : stopped ? "var(--text-light)" : r.state === "paused" ? "var(--orange)" : "var(--terra)";
+    const tone = r.state === "trusted" ? "var(--sage)" : stopped ? "var(--text-light)" : r.state === "paused" ? "var(--orange)" : "var(--terra)";
+    const toneText = r.state === "trusted" ? "var(--sage-text)" : stopped ? "var(--text-medium)" : "var(--orange-text)";
+    const holding = holdingId === r.id, stopping = p.busy.has(r.id);
+    const purpose = p.purposes?.[r.id];
     return (
       <div key={r.id} data-breaker role="button" tabIndex={0} onClick={() => p.onOpen(r.a.id)} onKeyDown={e => { if (e.key === "Enter") p.onOpen(r.a.id); }}
-        className={`group relative rounded-[12px] p-3.5 flex flex-col gap-3 cursor-pointer outline-none focus-visible:ring-2 transition-[opacity,transform] duration-200 active:scale-[0.99] ${stopped ? "" : "module"}`}
+        className={`group relative rounded-[14px] p-4 flex flex-col gap-3.5 cursor-pointer outline-none focus-visible:ring-2 transition-[opacity,transform] duration-200 active:scale-[0.995] ${stopped ? "" : "module"}`}
         style={{
-          border: stopped ? "1.5px dashed var(--hairline)" : undefined,
+          /* every card has the same border width, so a stopped card's dashed
+             outline does not make its row taller than the others */
+          border: stopped ? "1.5px dashed var(--hairline)" : "1.5px solid transparent",
           boxShadow: !stopped && p.selected === r.id ? "var(--module-shadow), 0 0 0 1.5px var(--orange)" : undefined,
           opacity: dim ? 0.3 : 1,
         }}>
-        <div className="flex items-start gap-2 min-w-0">
+        {/* who it is, and its state, as the two things read first */}
+        <div className="flex items-start gap-3 min-w-0">
           <div className="min-w-0 flex-1">
-            <div className="text-[13.5px] font-semibold truncate" style={{ color: stopped ? "var(--text-medium)" : "var(--text-dark)" }}>{r.name}</div>
-            <div className="mono text-[10px] uppercase tracking-[0.12em] truncate mt-0.5" style={quiet}>agent {r.id}{r.tag ? ` · ${r.tag}` : ""}</div>
+            <div className="text-[15px] font-semibold leading-tight truncate" style={{ color: stopped ? "var(--text-medium)" : "var(--text-dark)" }}>{r.name}</div>
+            {/* two lines, always reserved, so a short purpose and a long one make the same card */}
+            <div className="text-[12px] leading-[1.4] line-clamp-2 mt-1 min-h-[2.8em]" style={purpose ? quiet : faint} title={purpose}>{purpose || "no purpose given"}</div>
           </div>
-          <Lamp state={r.state} color={lit} />
+          <button type="button" onClick={e => { e.stopPropagation(); p.onOpen(r.a.id, fixOf(r)); }}
+            className="shrink-0 inline-flex items-center gap-1.5 h-6 px-2 rounded-full mono text-[10px] uppercase tracking-[0.1em] whitespace-nowrap outline-none focus-visible:ring-2"
+            style={{ color: toneText, background: `color-mix(in srgb, ${tone} ${stopped ? 8 : 14}%, transparent)` }}>
+            <Lamp state={r.state} color={tone} inline />
+            {p.busy.has("p" + r.id) ? (r.a.status === "paused" ? "pausing…" : "resuming…") : STATE_WORD[r.state]}
+          </button>
         </div>
-        <div className="relative flex items-center gap-3">
-          <Switch state={sw} live={r.state === "trusted"} size="md" caption="none" busy={p.busy.has("p" + r.id)} lockBusy={p.busy.has(r.id)} disabled={!p.canSign}
-            onToggle={() => p.onToggle(r.a)} onLockout={stopped ? undefined : () => p.onStop(r.a)} onHolding={v => setHoldingId(v ? r.id : null)}
-            label={sw === "on" ? `pause ${r.name}` : `bring ${r.name} back`} />
+        {/* the breaker, with what it means now and what a tap and a hold do */}
+        <div className="flex items-center gap-3.5 min-w-0">
+          <span className="relative shrink-0 inline-flex">
+            {p.tryId === r.id && !holding && <span aria-hidden className="try-ring absolute pointer-events-none" style={{ inset: -7, borderRadius: 14 }} />}
+            <Switch state={sw} live={r.state === "trusted"} size="md" caption="none" busy={p.busy.has("p" + r.id)} lockBusy={stopping} disabled={!p.canSign}
+              onToggle={() => p.onToggle(r.a)} onLockout={stopped ? undefined : () => p.onStop(r.a)} onHolding={v => setHoldingId(v ? r.id : null)}
+              label={sw === "on" ? `pause ${r.name}` : `bring ${r.name} back`} />
+          </span>
           <div className="min-w-0 flex-1 flex flex-col gap-1">
-            {stateWord(r)}
-            {/* the balance first: if the line ever runs out of room it is the
-                tail of "seen" that is cut, never the money */}
-            <span className="mono text-[10.5px] tabular whitespace-nowrap truncate" style={{ color: "var(--text-medium)" }}>
-              {p.balances?.[r.id] !== undefined && !stopped && <><span style={{ color: p.balances[r.id] < LOW_GAS ? "var(--orange-text)" : undefined }}>{monText(p.balances[r.id])}</span> · </>}
-              {r.last === null ? "index away" : `seen ${span(r.last)} ago`}
+            <span className="text-[13px] leading-snug truncate" style={{ color: stopped ? "var(--text-medium)" : "var(--text-dark)" }}>{MEANING[r.state]}</span>
+            {/* the gesture, one line each, so neither is ever cut off */}
+            <span className="mono text-[10.5px] leading-[1.45] min-h-[2.9em]" aria-live="polite" style={{ color: holding || stopping ? "var(--orange-text)" : "var(--text-medium)" }}>
+              {stopped ? "locked out" : breakerHint({ state: sw, holding, stopping }).split(" · ").map((x, i) => <span key={i} className="block whitespace-nowrap">{x}</span>)}
             </span>
           </div>
         </div>
-        {/* the module's foot: the agent's day at rest, and under the pointer
-            the one thing the breaker cannot say by looking at it, that
-            holding it stops the agent for good */}
-        <div className="relative h-[18px] flex items-center">
-          <div className={`w-full ${stopped ? "" : holdingId === r.id ? "opacity-0" : "group-hover:opacity-0 group-focus-within:opacity-0"} transition-opacity duration-150`}><TrustLine agent={r.a} now={now} events={ev} height={6} /></div>
-          {!stopped && (
-            <span className={`absolute inset-0 flex items-center mono text-[10.5px] ${holdingId === r.id ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"} transition-opacity duration-150`}
-              style={{ color: holdingId === r.id || p.busy.has(r.id) ? "var(--orange-text)" : "var(--text-medium)" }}>
-              {p.busy.has(r.id) ? "stopping…" : holdingId === r.id ? "keep holding…" : `tap to ${sw === "on" ? "pause" : "bring back"} · hold to stop`}
-            </span>
-          )}
+        {/* the small print: the id, the gas it has, when it last acted, and its day */}
+        <div className="flex flex-col gap-1.5 pt-3" style={{ borderTop: "1px solid var(--hairline)" }}>
+          <span className="mono text-[10.5px] tabular whitespace-nowrap truncate" style={quiet}>
+            #{r.id}{r.tag ? ` · ${r.tag}` : ""}
+            {p.balances?.[r.id] !== undefined && !stopped && <> · <span style={{ color: p.balances[r.id] < LOW_GAS ? "var(--orange-text)" : undefined }} data-tip={p.balances[r.id] < LOW_GAS ? "low on gas: it cannot send its heartbeat for long" : "the gas its own wallet holds"}>{monText(p.balances[r.id])}</span></>}
+            {" · "}{r.last === null ? "index away" : `${span(r.last)} ago`}
+          </span>
+          <TrustLine agent={r.a} now={now} events={ev} height={5} />
         </div>
       </div>
     );
@@ -379,7 +397,7 @@ export default function Fleet(p: FleetProps) {
           used to say twice over, and everything rarer sits behind one menu. */}
       <div className="flex-1 min-h-0 flex flex-col min-w-0">
           <div className="mb-3 shrink-0">
-            <Mains rows={rows} now={now} pulses={p.pulses} on={f.states} onState={setState} narrow={p.narrow}
+            <Mains rows={rows} on={f.states} onState={setState} narrow={p.narrow}
               filtered={isFiltered(f)} onClear={() => openView(BUILT_IN[0])} />
           </div>
 
@@ -413,9 +431,10 @@ export default function Fleet(p: FleetProps) {
                   {panel.map(b => (
                     <div key={b.key}>
                       {b.label && <div className="eyebrow mb-2 flex gap-2"><span style={{ color: "var(--text-dark)" }}>{b.label}</span><span className="mono tabular">{b.rows.length}</span></div>}
-                      <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(236px,1fr))]">{b.rows.map(breakerEl)}</div>
+                      <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(264px,1fr))]">{b.rows.map(breakerEl)}</div>
                     </div>
                   ))}
+                  {rows.length > 0 && <div className="pt-3" style={{ borderTop: "1px solid var(--hairline)" }}><FleetHistory rows={rows} now={now} pulses={p.pulses} /></div>}
                 </div>
               ) : <>
               {windowed && start > 0 && <div style={{ height: start * h }} />}
@@ -484,10 +503,10 @@ export default function Fleet(p: FleetProps) {
 /* the indicator lamp. it flickers once when the state it shows changes while
    the page is open, the way a real indicator settles, and never on first draw:
    a reader opening the page has not seen anything change. */
-function Lamp({ state, color }: { state: StateKey; color: string }) {
+function Lamp({ state, color, inline }: { state: StateKey; color: string; inline?: boolean }) {
   const first = useRef(state);
   const changed = state !== first.current;
-  return <span key={state} aria-hidden className={`mt-1 w-2 h-2 rounded-full shrink-0 ${changed ? "lamp-settle" : ""}`}
+  return <span key={state} aria-hidden className={`${inline ? "w-1.5 h-1.5" : "mt-1 w-2 h-2"} rounded-full shrink-0 ${changed ? "lamp-settle" : ""}`}
     style={{ background: color, boxShadow: state === "trusted" ? "0 0 0 3px color-mix(in srgb, var(--sage) 22%, transparent), 0 0 8px color-mix(in srgb, var(--sage) 45%, transparent)" : state === "paused" ? "0 0 8px color-mix(in srgb, var(--orange) 50%, transparent)" : undefined }} />;
 }
 
@@ -521,11 +540,11 @@ function Check({ on, onClick, children }: { on: boolean; onClick: () => void; ch
   );
 }
 
-/* the held press. same 1500ms clock as the module's. */
+/* the held press. the same clock and the same words as the breaker's. */
 export function Hold({ disabled, onHeld, small, wide }: { disabled: boolean; onHeld: () => void; small?: boolean; wide?: boolean }) {
   const [holding, setHolding] = useState(false);
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const begin = () => { if (disabled) return; setHolding(true); t.current = setTimeout(() => { t.current = null; setHolding(false); onHeld(); }, 1500); };
+  const begin = () => { if (disabled) return; setHolding(true); t.current = setTimeout(() => { t.current = null; setHolding(false); onHeld(); }, LOCKOUT_MS); };
   const end = () => { if (t.current) { clearTimeout(t.current); t.current = null; } setHolding(false); };
   /* stopping is for good, so a hold the hand has left is cancelled, never
      completed: on unmount, on a hidden tab, on blur and on escape */
@@ -544,8 +563,8 @@ export function Hold({ disabled, onHeld, small, wide }: { disabled: boolean; onH
       }} onKeyUp={e => { if (e.key === " ") end(); }}
       className={`relative overflow-hidden rounded-full mono tracking-[0.08em] select-none ${wide ? "w-full" : ""} outline-none focus-visible:ring-2 disabled:opacity-45 ${small ? "text-[10px] px-2.5 h-[26px]" : "text-[11px] px-3.5 h-[30px]"}`}
       style={{ border: "1.5px solid var(--orange)", color: "var(--orange-text)", touchAction: "none" }}>
-      <span aria-hidden className="absolute inset-0" style={{ background: "var(--orange)", clipPath: holding ? "inset(0 0 0 0)" : "inset(0 100% 0 0)", transition: holding ? "clip-path 1500ms linear" : "clip-path 180ms cubic-bezier(0.23, 1, 0.32, 1)" }} />
-      <span className="relative" style={{ color: holding ? "#160A06" : undefined }}>{holding ? "keep holding" : "hold to stop"}</span>
+      <span aria-hidden className="absolute inset-0" style={{ background: "var(--orange)", clipPath: holding ? "inset(0 0 0 0)" : "inset(0 100% 0 0)", transition: holding ? `clip-path ${LOCKOUT_MS}ms linear` : "clip-path 180ms cubic-bezier(0.23, 1, 0.32, 1)" }} />
+      <span className="relative" style={{ color: holding ? "#160A06" : undefined }}>{holding ? "let go to cancel" : "hold to stop"}</span>
     </button>
   );
 }

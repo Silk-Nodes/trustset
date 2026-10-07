@@ -5,7 +5,7 @@ import { type Extra, type LayerKey, type PulseEvent, layersOf, lastActivity, liv
 import { useMotionPrefs } from "@/lib/motion";
 import TrustLine from "./TrustLine";
 import Stack from "./Stack";
-import Switch from "./Switch";
+import Switch, { breakerHint } from "./Switch";
 import Tip from "@/components/Tip";
 
 /* one agent, as a module on a switchboard.
@@ -97,10 +97,8 @@ export default function Module({ agent, name, events, extra, now, busy, phase, o
           {headless && wordTip}
           <span className="mono text-[10.5px] tracking-[0.06em] whitespace-nowrap" style={{ color: holding || busy?.stop ? "var(--orange-text)" : phase && !busy?.pause ? (agent.status === "paused" ? "var(--orange-text)" : "var(--sage-text)") : "var(--text-medium)" }} aria-live="polite">
             {ended ? (agent.status === "revoked" ? "locked out for good" : "rotated")
-              : busy?.stop ? "stopping…"
-              : phase ? phase
-              : holding ? "keep holding…"
-              : `tap to ${sw === "on" ? "pause" : "bring back"} · hold to stop for good`}
+              : phase && !busy?.stop && !holding ? phase
+              : breakerHint({ state: sw, holding, stopping: busy?.stop, long: true })}
           </span>
         </div>
       </div>

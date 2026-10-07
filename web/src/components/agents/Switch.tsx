@@ -27,6 +27,18 @@ export const LOCKOUT_MS = 2000;
    change of mind, which does nothing */
 const TAP_MS = 350;
 
+/* the words beside a breaker. they describe what the gesture does, never
+   order the hand: "keep holding" told the reader to do the one thing they
+   might rightly not want to, when letting go is a choice the breaker honours.
+   one function so every breaker on the site says the same thing. */
+export function breakerHint({ state, holding, stopping, long }: { state: SwitchState; holding?: boolean; stopping?: boolean; long?: boolean }): string {
+  if (state === "ended") return "stopped for good";
+  if (stopping) return "stopping for good…";
+  if (holding) return "stopping for good · let go to cancel";
+  const tap = state === "on" ? "pause" : "bring back";
+  return long ? `tap to ${tap} · hold ${LOCKOUT_MS / 1000} seconds to stop for good` : `tap: ${tap} · hold ${LOCKOUT_MS / 1000}s: stop for good`;
+}
+
 export default function Switch({ state, live, busy, lockBusy, disabled, onToggle, onLockout, onHolding, label, size = "md", caption = "side" }: {
   state: SwitchState;
   /* on can still mean not trusted, when an end date passed or a beat was
@@ -34,7 +46,7 @@ export default function Switch({ state, live, busy, lockBusy, disabled, onToggle
   live: boolean; busy?: boolean; lockBusy?: boolean; disabled?: boolean; onToggle: () => void;
   /* stopping for good. without it the breaker only throws. */
   onLockout?: () => void;
-  /* told when a hold starts and ends, so the words beside it can say "keep holding" */
+  /* told when a hold starts and ends, so the words beside it can follow it */
   onHolding?: (holding: boolean) => void;
   label?: string;
   size?: keyof typeof SIZE; caption?: "side" | "below" | "none";
@@ -127,7 +139,12 @@ export default function Switch({ state, live, busy, lockBusy, disabled, onToggle
       onKeyUp={e => { if (onLockout && e.key === " ") { e.preventDefault(); finish(true); } }}
       className={`inline-flex ${caption === "below" ? "flex-col" : ""} items-center gap-2 outline-none focus-visible:ring-2 rounded-lg disabled:cursor-default group/breaker select-none`}
       style={{ touchAction: onLockout ? "none" : undefined, WebkitTouchCallout: "none" }}>
-      <span className="relative inline-block shrink-0 transition-transform group-active/breaker:scale-[0.97]" style={{ width: z.w, height: z.h }}>
+      {/* the housing sinks into the panel over the hold, on the same clock as
+          the ring, so the press itself shows how far the stop has got. let go
+          early and it springs back. a tap only dips it. */}
+      <span className="relative inline-block shrink-0 group-active/breaker:scale-[0.97]" style={{ width: z.w, height: z.h,
+        transform: holding && !m.reduced ? `translateY(${size === "lg" ? 4 : 3}px) scale(0.93)` : undefined,
+        transition: holding ? `transform ${LOCKOUT_MS}ms cubic-bezier(0.3, 0, 0.2, 1), scale 120ms ease-out` : "transform 260ms cubic-bezier(0.23, 1, 0.32, 1), scale 160ms ease-out" }}>
         <span className="absolute inset-0" style={{
           borderRadius: r,
           background: ended ? "color-mix(in srgb, var(--text-dark) 6%, var(--surface))" : `color-mix(in srgb, ${tone} ${on ? 16 : 12}%, var(--surface))`,

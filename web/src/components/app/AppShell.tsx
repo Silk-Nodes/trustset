@@ -122,7 +122,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           style={{ width: open ? 228 : 56, transition: "width 200ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 200ms ease", borderRight: "1px solid var(--hairline)", background: "var(--rail)",
             boxShadow: peek && !pinned ? "12px 0 32px rgba(0,0,0,0.22)" : "none" }}>
           <div className="flex items-center h-12 shrink-0" style={{ borderBottom: "1px solid var(--hairline)" }}>
-            <Link href="/" className="flex items-center gap-2.5 h-12 pl-[18px] pr-2 flex-1 min-w-0 outline-none focus-visible:ring-2 whitespace-nowrap" title="Back to the site">
+            <Link href="/" aria-label="trustset home" className="flex items-center gap-2.5 h-12 pl-[18px] pr-2 flex-1 min-w-0 outline-none focus-visible:ring-2 whitespace-nowrap" title="Back to the site">
               <span className="shrink-0"><Mark size={20} /></span>
               <span className="mono font-medium text-[14.5px] tracking-tight transition-opacity duration-150" style={{ opacity: open ? 1 : 0 }}>trustset</span>
             </Link>
