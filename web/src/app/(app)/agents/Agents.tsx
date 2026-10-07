@@ -92,12 +92,18 @@ export default function Agents() {
      how far the transaction has got. the chain's own answer replaces it */
   type Pend = { to: Agent["status"]; phase: "signing" | "sent" | "landed"; hash?: string; block?: number };
   const [pend, setPend] = useState<Record<string, Pend>>({});
+  /* the sample answers its breakers. a visitor with no wallet can tap and
+     hold every one and see the console do what it does, with nothing sent:
+     the state lives in this page until it is reloaded or reset. */
+  const [sampleSet, setSampleSet] = useState<Record<string, Agent["status"]>>({});
+  const [touched, setTouched] = useState(false);
+  const sampleNow = useMemo(() => Object.keys(sampleSet).length ? sample.map(a => sampleSet[a.id.toString()] ? { ...a, status: sampleSet[a.id.toString()], guardianPaused: false } : a) : sample, [sample, sampleSet]);
   const all = useMemo(() => {
-    const base = sampleOn ? sample
+    const base = sampleOn ? sampleNow
       : fake && process.env.NODE_ENV !== "production" ? [...agents, ...fakeAgents(fake, pinned.current).filter(f => !agents.some(a => a.id === f.id))]
       : agents;
     return Object.keys(pend).length ? base.map(a => pend[a.id.toString()] ? { ...a, status: pend[a.id.toString()].to } : a) : base;
-  }, [sampleOn, sample, agents, fake, pend]);
+  }, [sampleOn, sampleNow, agents, fake, pend]);
   const phaseText = (id: bigint): string | undefined => {
     const x = pend[id.toString()]; if (!x) return undefined;
     const word = x.to === "paused" ? "Paused" : "Back on";
@@ -254,6 +260,16 @@ export default function Agents() {
   /* pause is the reversible one: active to paused, paused back to active. */
   async function pause(a: Agent) {
     if (!conn) return;
+    if (sampleOn) {
+      const was = all.find(x => x.id === a.id)?.status ?? a.status;
+      const to: Agent["status"] = was === "paused" ? "active" : "paused";
+      setTouched(true); setSampleSet(m => ({ ...m, [a.id.toString()]: to }));
+      try { navigator.vibrate?.(8); } catch { /* no haptics */ }
+      setNote(to === "paused"
+        ? <>Sample paused, nothing was sent. On a real agent this is one transaction, and every app that checks refuses it from the next block.</>
+        : <>Sample back on. Apps that check serve it again. Nothing was sent.</>);
+      return;
+    }
     const s = ownerSigner(conn); if (!s) { setNote("Connect your wallet first"); return; }
     const id = a.id.toString(), k = "p" + id;
     /* the agent as drawn now is its pending state, so read the real one */
@@ -334,6 +350,12 @@ export default function Agents() {
 
   async function stop(a: Agent) {
     if (!conn) return;
+    if (sampleOn) {
+      setTouched(true); setSampleSet(m => ({ ...m, [a.id.toString()]: "revoked" }));
+      try { navigator.vibrate?.([10, 40, 10]); } catch { /* no haptics */ }
+      setNote(<>Sample stopped for good, nothing was sent. On a real agent nobody can undo this, not even its owner. <button type="button" className="underline" onClick={() => { setSampleSet({}); setNote(null); }}>Reset the sample</button></>);
+      return;
+    }
     const s = ownerSigner(conn); if (!s) { setNote("Connect your wallet first"); return; }
     const k = a.id.toString();
     setBusy(b => new Set(b).add(k));
@@ -488,7 +510,14 @@ export default function Agents() {
   /* one transaction per agent, in sequence, so the wallet asks once each and
      a refusal stops the run where it happened rather than half way through. */
   async function bulk(kind: "pause" | "resume" | "stop" | "limits", list: Row[], lim?: { expiresAt: number; window: number }) {
-    if (!conn) return; const s = ownerSigner(conn); if (!s) { setNote("Connect your wallet first"); return; }
+    if (!conn) return;
+    if (sampleOn) {
+      if (kind === "limits") { setNote("Limits are set on chain. Sign in to set them on your own agents."); return; }
+      const to: Agent["status"] = kind === "pause" ? "paused" : kind === "resume" ? "active" : "revoked";
+      setTouched(true); setSampleSet(m => ({ ...m, ...Object.fromEntries(list.map(r => [r.id, to])) }));
+      setNote(`Sample: ${kind === "pause" ? "paused" : kind === "resume" ? "brought back" : "stopped"} ${list.length} agent${list.length === 1 ? "" : "s"}, nothing was sent. On your own agents it is one transaction each.`);
+      return;
+    } const s = ownerSigner(conn); if (!s) { setNote("Connect your wallet first"); return; }
     const ks = conn.ks.connect(s) as ethers.Contract;
     let done = 0, lastBlock: number | undefined;
     for (const r of list) {
@@ -687,7 +716,9 @@ export default function Agents() {
         {conn && (signedIn || sampleOn) && !guardingRoute && all.length > 0 && (routeId === null || cur) && (
           <div className="flex-1 min-h-0 flex gap-4">
             <div className={`min-w-0 min-h-0 flex-col flex-1 ${cur ? "hidden xl:flex" : "flex"}`}>
-              <Fleet agents={all} rows={rows} purposes={purposes} balances={balances} now={now} pulses={pulses} busy={busy} canSign={canSign} selected={cur?.id.toString()} narrow={!!cur}
+              {!cur && <Intro sample={sampleOn} touched={touched} onReset={() => { setSampleSet({}); setNote(null); }} changed={Object.keys(sampleSet).length > 0} onSignIn={() => askSignIn("Sign in with the wallet that owns your agents.")} />}
+              <Fleet agents={all} rows={rows} purposes={purposes} balances={balances} now={now} pulses={pulses} busy={busy} canSign={canSign || sampleOn} selected={cur?.id.toString()} narrow={!!cur}
+                tryId={sampleOn && !touched ? rows.find(r => r.state === "trusted")?.id : undefined}
                 onOpen={goAgent} onToggle={a => pause(a)} onStop={a => stop(a)} onBulk={bulk} />
             </div>
             {cur && (
@@ -711,5 +742,33 @@ export default function Agents() {
         )}
       </Shell>
     </>
+  );
+}
+
+/* the page, said once, at the top: what the reader is looking at and the one
+   thing to do first. a reviewer who opened this cold could not tell, in thirty
+   seconds, what it was or where to start. on the sample it points at a
+   breaker; signed in it is one line, because the owner already knows. */
+function Intro({ sample, touched, changed, onReset, onSignIn }: { sample: boolean; touched: boolean; changed: boolean; onReset: () => void; onSignIn: () => void }) {
+  if (!sample) return (
+    <p className="text-[13px] mb-3 shrink-0" style={{ color: "var(--text-medium)" }}>
+      Tap a breaker to pause its agent, hold it for two seconds to stop it for good. Every app that checks refuses a paused or stopped agent from the next block.
+    </p>
+  );
+  return (
+    <div className="mb-3 shrink-0 flex flex-wrap items-end gap-x-6 gap-y-2">
+      <div className="min-w-0 flex-1 basis-[420px]">
+        <h2 className="text-[19px] sm:text-[21px] font-semibold tracking-[-0.01em] leading-tight" style={{ color: "var(--text-dark)" }}>Every agent has a breaker. Apps check it before they deal with the agent.</h2>
+        <p className="text-[13.5px] mt-1.5 leading-relaxed" style={{ color: "var(--text-medium)" }}>
+          {touched
+            ? <>That is the whole product: the switch is on chain, so every app that checks sees it at once. These are samples, so nothing was sent.</>
+            : <><strong style={{ color: "var(--text-dark)", fontWeight: 600 }}>Try it:</strong> tap a breaker to pause its agent, hold it for two seconds to stop it for good. These are sample agents, so nothing you do here is sent anywhere.</>}
+        </p>
+      </div>
+      <div className="flex items-center gap-3 shrink-0 text-[12.5px]">
+        {changed && <button type="button" onClick={onReset} className="underline outline-none focus-visible:ring-2 rounded" style={{ color: "var(--text-medium)" }}>Reset the sample</button>}
+        <button type="button" onClick={onSignIn} className="underline outline-none focus-visible:ring-2 rounded" style={{ color: "var(--text-dark)" }}>Sign in to see your agents</button>
+      </div>
+    </div>
   );
 }
