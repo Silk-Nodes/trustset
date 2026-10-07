@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import FilmPage from "@/components/FilmPage";
 
 const title = "The launch film";
-const description = "The trust stack for AI agents, in forty seconds.";
+const description = "The trust stack for AI agents on Monad, in forty seconds: why a stop inside one app is not enough, and the switch every app can check.";
 const image = { url: "/media/launch-og.jpg", width: 1200, height: 630, alt: "trustset, The launch film" };
 
 export const metadata: Metadata = {

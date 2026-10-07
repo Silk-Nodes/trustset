@@ -1,6 +1,6 @@
 # trustset
 
-> An off switch for AI agents, on chain. An agent has a key it signs with;
+> The trust stack for AI agents, on Monad. It starts with an off switch. An agent has a key it signs with;
 > trustset makes your wallet its owner, the one wallet that can stop it, and gives
 > every app the agent talks to one call to check before acting.
 

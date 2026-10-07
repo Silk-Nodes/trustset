@@ -12,31 +12,31 @@
  * file has finished arriving. */
 export const FILMS = {
   launch: {
-    path: "/launch", title: "The launch film", length: "40 seconds",
+    path: "/launch", duration: "PT40S", uploaded: "2026-10-05", title: "The launch film", length: "40 seconds",
     src: "/media/trustset-launch.mp4", poster: "/media/launch-poster.jpg", captions: "/media/trustset-launch.vtt",
     line: "The trust stack for AI agents, in forty seconds: a stop that did not stop the money, and the stop that does.",
   },
   walkthrough: {
-    path: "/walkthrough", title: "The walkthrough", length: "2 minutes 48",
+    path: "/walkthrough", duration: "PT2M48S", uploaded: "2026-10-05", title: "The walkthrough", length: "2 minutes 48",
     src: "/media/trustset-walkthrough.mp4", poster: "/media/walkthrough-poster.jpg", captions: "/media/trustset-walkthrough.vtt",
     line: "The real product on Monad testnet, recorded at real speed: an app refusing a switched off agent, then every layer, each ending on its transaction.",
   },
   /* the pitch has no link from anywhere on the site: its address goes into
      the submission form, and that is the only way in */
   pitch: {
-    path: "/pitch", title: "The pitch", length: "2 minutes 30",
+    path: "/pitch", duration: "PT2M30S", uploaded: "2026-10-07", title: "The pitch", length: "2 minutes 30",
     src: "/media/trustset-pitch.mp4", poster: "/media/pitch-poster.jpg", captions: "/media/trustset-pitch.vtt",
     line: "Why AI agents need a stop that works outside their own app, and how trustset puts it on Monad.",
   },
   /* the two bounty clips. like the pitch, nothing links to them: each address
      goes into its bounty's optional video field */
   dynamic: {
-    path: "/dynamic", title: "trustset × Dynamic", length: "41 seconds",
+    path: "/dynamic", duration: "PT41S", uploaded: "2026-10-07", title: "trustset × Dynamic", length: "41 seconds",
     src: "/media/trustset-dynamic.mp4", poster: "/media/dynamic-poster.jpg", captions: "/media/trustset-dynamic.vtt",
     line: "The owner signs in with an email and Dynamic makes the wallet; the live agent signs through a Dynamic 2-of-2 MPC server wallet.",
   },
   mera: {
-    path: "/mera", title: "trustset × Mera", length: "43 seconds",
+    path: "/mera", duration: "PT43S", uploaded: "2026-10-07", title: "trustset × Mera", length: "43 seconds",
     src: "/media/trustset-mera.mp4", poster: "/media/mera-poster.jpg", captions: "/media/trustset-mera.vtt",
     line: "One passkey, two keys: a P256 signature that pauses the agent, and a PRF key, through Mera, that seals its runbook.",
   },

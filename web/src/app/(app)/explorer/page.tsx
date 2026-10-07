@@ -4,7 +4,11 @@ import { join } from "path";
 import Explorer from "./Explorer";
 import { TopBar } from "@/components/app/AppShell";
 
-export const metadata: Metadata = { title: "Explorer" };
+export const metadata: Metadata = {
+  title: "Explorer",
+  description: "Every AI agent registered with trustset on Monad testnet, and every change to it, read only from chain logs: trusted, paused, stopped or gone quiet.",
+  alternates: { canonical: "/explorer" },
+};
 export const dynamic = "force-dynamic";
 
 async function explorerUrl() {

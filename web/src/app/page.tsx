@@ -1,4 +1,9 @@
+import type { Metadata } from "next";
 import Home from "./home";
+
+/* the home address, said once, so a link carrying ?from=x or any other query
+   is understood as this page and not a copy of it */
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 /* the site carried no structured data at all, so an answer engine describing
    trustset had to infer everything from prose. this states the plain facts it
@@ -11,11 +16,11 @@ const jsonLd = {
   name: "trustset",
   applicationCategory: "DeveloperApplication",
   description:
-    "An off switch for AI agents, on chain. One transaction from its owner and every app that checks refuses the agent in the next block. Eight primitives, each an immutable contract with no admin.",
+    "The trust stack for AI agents on Monad. It starts with an off switch: one transaction from its owner and every app that checks refuses the agent from the next block. Eight primitives, each an immutable contract with no admin.",
   url: "https://trustset.silknodes.io",
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   operatingSystem: "Any",
-  author: { "@type": "Organization", name: "Silk Nodes", url: "https://silknodes.io" },
+  author: { "@type": "Organization", name: "Silk Nodes", url: "https://silknodes.io", sameAs: ["https://x.com/silk_nodes", "https://github.com/Silk-Nodes"] },
   codeRepository: "https://github.com/Silk-Nodes/trustset",
   isAccessibleForFree: true,
 };
