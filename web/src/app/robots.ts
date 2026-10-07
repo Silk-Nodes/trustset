@@ -11,7 +11,7 @@ const SITE = "https://trustset.silknodes.io";
 const READERS = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-User", "Claude-SearchBot", "anthropic-ai", "PerplexityBot", "Perplexity-User", "Google-Extended", "Applebot-Extended", "CCBot", "Bytespider", "meta-externalagent"];
 
 export default function robots(): MetadataRoute.Robots {
-  const disallow = ["/api/", "/debug", "/dev/", "/agents/"];
+  const disallow = ["/api/", "/debug", "/dev/", "/agents/", "/stats"];
   return {
     rules: [
       { userAgent: "*", allow: "/", disallow },

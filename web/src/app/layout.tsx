@@ -3,6 +3,7 @@ import { DM_Mono } from "next/font/google";
 import Header from "@/components/Header";
 import { WalletProvider } from "@/components/WalletProvider";
 import SiteBackdrop from "@/components/SiteBackdrop";
+import Hit from "@/components/Hit";
 import "./globals.css";
 
 const dmMono = DM_Mono({ weight: ["400", "500"], subsets: ["latin"], variable: "--font-dm-mono", display: "swap" });
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             own preference is already handled in css, so this only has to
             carry an explicit choice that disagrees with it. */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||t==="light"){document.documentElement.dataset.theme=t}}catch(e){}})();` }} />
+        <Hit />
         <WalletProvider>
         <SiteBackdrop />
         {/* everything paints above the fixed backdrop, on every page, not only

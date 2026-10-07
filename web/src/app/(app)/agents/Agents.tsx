@@ -22,6 +22,7 @@ import { type Row, fakeAgents, groupFromPurpose, loadTags, purposeWithGroup, row
 import Runbook from "@/components/agents/Runbook";
 import { isSample, sampleAgents, sampleExtras, sampleGroups, sampleGuarded, samplePulses } from "@/lib/sample";
 import type { LayerKey } from "@/lib/layers";
+import { track } from "@/lib/track";
 
 type StampInfo = { block?: number; txHash?: string; human?: boolean };
 const msg = (e: unknown) => explain(e);
@@ -264,6 +265,7 @@ export default function Agents() {
       const was = all.find(x => x.id === a.id)?.status ?? a.status;
       const to: Agent["status"] = was === "paused" ? "active" : "paused";
       setTouched(true); setSampleSet(m => ({ ...m, [a.id.toString()]: to }));
+      if (to === "paused") track("sample-pause");
       try { navigator.vibrate?.(8); } catch { /* no haptics */ }
       setNote(to === "paused"
         ? <>Sample paused, nothing was sent. On a real agent this is one transaction, and every app that checks refuses it from the next block.</>
@@ -352,6 +354,7 @@ export default function Agents() {
     if (!conn) return;
     if (sampleOn) {
       setTouched(true); setSampleSet(m => ({ ...m, [a.id.toString()]: "revoked" }));
+      track("sample-stop");
       try { navigator.vibrate?.([10, 40, 10]); } catch { /* no haptics */ }
       setNote(<>Sample stopped for good, nothing was sent. On a real agent nobody can undo this, not even its owner. <button type="button" className="underline" onClick={() => { setSampleSet({}); setNote(null); }}>Reset the sample</button></>);
       return;

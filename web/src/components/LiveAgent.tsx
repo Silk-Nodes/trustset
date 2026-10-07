@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { useMotionPrefs } from "@/lib/motion";
 import Term from "@/components/Term";
+import { track } from "@/lib/track";
 
 /* every word that explained this box rather than being it.
  *
@@ -95,6 +96,7 @@ export default function LiveAgent({ compact = false, lead = null }: { compact?: 
       if (tok) { try { localStorage.setItem("trustset.operator", tok); } catch { /* private window */ } }
       setAsking(false);
       setTx({ hash: j.hash, block: j.block });
+      if (action === "pause") track("live-pause");
       await pull();
     } catch (e) { setNote(String(e)); }
     finally { setBusy(false); }
