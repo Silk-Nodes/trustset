@@ -308,7 +308,7 @@ export default function Fleet(p: FleetProps) {
         {/* who it is, and its state, as the two things read first */}
         <div className="flex items-start gap-3 min-w-0">
           <div className="min-w-0 flex-1">
-            <div className="text-[15px] font-semibold leading-tight truncate" style={{ color: stopped ? "var(--text-medium)" : "var(--text-dark)" }}>{r.name}</div>
+            <div title={r.name} className="text-[15px] font-semibold leading-tight truncate" style={{ color: stopped ? "var(--text-medium)" : "var(--text-dark)" }}>{r.name}</div>
             {/* two lines, always reserved, so a short purpose and a long one make the same card */}
             <div className="text-[12px] leading-[1.4] line-clamp-2 mt-1 min-h-[2.8em]" style={purpose ? quiet : faint} title={purpose}>{purpose || "no purpose given"}</div>
           </div>
