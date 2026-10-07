@@ -1,0 +1,172 @@
+WEBVTT
+
+1
+00:00:00.350 --> 00:00:02.830
+This AI agent's trade goes through.
+
+2
+00:00:02.870 --> 00:00:04.140
+Its owner switches it off.
+
+3
+00:00:04.180 --> 00:00:07.320
+The same trade is refused, on chain.
+
+4
+00:00:10.117 --> 00:00:14.517
+This is trustset, the trust stack for AI
+agents on Monad.
+
+5
+00:00:15.600 --> 00:00:21.528
+In the last year, AI agents and trading
+bots lost about ten million dollars,
+
+6
+00:00:21.568 --> 00:00:24.120
+across thirteen public incidents.
+
+7
+00:00:25.217 --> 00:00:27.294
+When TradeWiz stopped its bot,
+
+8
+00:00:27.334 --> 00:00:31.457
+seventy-three percent of the drain
+happened after the stop.
+
+9
+00:00:32.550 --> 00:00:35.700
+The stop lived inside one app.
+
+10
+00:00:35.740 --> 00:00:37.790
+The key worked everywhere else.
+
+11
+00:00:38.883 --> 00:00:41.963
+trustset moves the stop on chain.
+
+12
+00:00:42.003 --> 00:00:45.136
+An agent's status lives in one contract,
+
+13
+00:00:45.176 --> 00:00:49.023
+and every app that checks asks it before
+it acts.
+
+14
+00:00:49.063 --> 00:00:52.913
+Off means refused, everywhere at once.
+
+15
+00:00:54.000 --> 00:00:57.010
+The off switch is the first layer.
+
+16
+00:00:57.050 --> 00:00:58.800
+A stop can be made final.
+
+17
+00:00:58.840 --> 00:01:04.010
+A passkey can pause an agent with no
+wallet and no gas.
+
+18
+00:01:04.050 --> 00:01:06.080
+Guardians can vote to pause it.
+
+19
+00:01:06.120 --> 00:01:08.580
+It can expire on a date you set.
+
+20
+00:01:08.620 --> 00:01:13.040
+And if a paid agent doesn't deliver, the
+payer gets the money back.
+
+21
+00:01:13.080 --> 00:01:16.180
+Every one of these is a real transaction
+on Monad testnet.
+
+22
+00:01:17.267 --> 00:01:21.927
+Eight layers, each its own contract.
+
+23
+00:01:23.017 --> 00:01:23.907
+Why Monad?
+
+24
+00:01:23.947 --> 00:01:28.017
+Every app that checks honours a stop from
+the very next block.
+
+25
+00:01:28.057 --> 00:01:33.034
+And passkeys are verified on chain by
+Monad's P256 precompile,
+
+26
+00:01:33.074 --> 00:01:35.947
+so the panic button needs no wallet.
+
+27
+00:01:37.033 --> 00:01:38.723
+It's live today.
+
+28
+00:01:38.763 --> 00:01:42.573
+Thirty-one agents registered, more than a
+thousand events on chain.
+
+29
+00:01:42.613 --> 00:01:45.791
+The contracts are immutable, with no admin
+key,
+
+30
+00:01:45.831 --> 00:01:50.583
+and every build runs a hundred and
+twenty-eight thousand fuzzed calls.
+
+31
+00:01:51.667 --> 00:01:57.087
+Every agent that holds a key needs a stop
+that works outside its own app.
+
+32
+00:01:58.183 --> 00:01:59.813
+We're Silk Nodes.
+
+33
+00:01:59.853 --> 00:02:04.594
+We've run validators since 2021, across
+more than twenty networks,
+
+34
+00:02:04.634 --> 00:02:07.853
+Monad included, with zero slashing
+incidents.
+
+35
+00:02:07.893 --> 00:02:11.693
+Running keys taught us they need an off
+switch.
+
+36
+00:02:12.783 --> 00:02:18.123
+Next, we're taking trustset to Monad's
+DEXs and protocols.
+
+37
+00:02:18.163 --> 00:02:23.133
+One check in their contracts, and every
+agent on Monad has a stop.
+
+38
+00:02:24.217 --> 00:02:28.007
+trustset.silknodes.io
+

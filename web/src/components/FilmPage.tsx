@@ -7,7 +7,7 @@ import { FILMS, type FilmKey } from "@/lib/films";
    is what goes into a submission form. */
 export default function FilmPage({ film }: { film: FilmKey }) {
   const f = FILMS[film];
-  const other: FilmKey = film === "launch" ? "walkthrough" : "launch";
+  const other: FilmKey = film === "walkthrough" ? "launch" : "walkthrough";
   const o = FILMS[other];
   return (
     <>
