@@ -5,6 +5,7 @@ import { WalletProvider } from "@/components/WalletProvider";
 import SiteBackdrop from "@/components/SiteBackdrop";
 import Hit from "@/components/Hit";
 import "./globals.css";
+import { Umami } from "@/components/Umami";
 
 const dmMono = DM_Mono({ weight: ["400", "500"], subsets: ["latin"], variable: "--font-dm-mono", display: "swap" });
 
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           {children}
         </div>
         </WalletProvider>
+        <Umami />
       </body>
     </html>
   );
