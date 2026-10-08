@@ -14,9 +14,11 @@ const nextConfig: NextConfig = {
      wallet each choose their own hosts. dev adds eval for the hot reloader. */
   async headers() {
     const dev = process.env.NODE_ENV !== "production";
+    /* the visitor counter (src/components/Umami.tsx), only when it is configured */
+    const umami = process.env.NEXT_PUBLIC_UMAMI_SRC && process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ? ` ${new URL(process.env.NEXT_PUBLIC_UMAMI_SRC).origin}` : "";
     const csp = [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}`,
+      `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}${umami}`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
