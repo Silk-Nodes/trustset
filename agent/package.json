@@ -8,7 +8,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@dynamic-labs-wallet/node-evm": "1.1.16",
+    "@dynamic-labs-wallet/node-evm": "1.1.48",
     "ethers": "^6.13.0"
   },
   "overrides": {
